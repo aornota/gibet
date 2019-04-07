@@ -13,11 +13,11 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 #### Also recommended
 
 - Microsoft Visual Studio Code with the following extensions:
-    - Microsoft C#
-    - Ionide Ionide-fsharp
-    - Microsoft Debugger for Chrome
-    - EditorConfig for VS Code
-    - Rainbow Brackets
+    - Microsoft C# (ms-vscode.csharp)
+    - Ionide-fsharp (ionide.ionide-fsharp)
+    - Microsoft Debugger for Chrome (msjsdiag.debugger-for-chrome)
+    - EditorConfig for VS Code (editorconfig.editorconfig)
+    - Rainbow Brackets (2gua.rainbow-brackets)
 - Google Chrome with the following extensions:
     - React Developer Tools
     - Redux DevTools
@@ -35,7 +35,7 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 
 ## To do
 
-- [ ] more dependencies: Elmish.Bridge/Microsoft.AspNetCore.WebSockets? toastr/Elmish.Toastr? bulma-checkradio/bulma-tooltip/Fulma.Extensions? jose-jwt?
+- [ ] more dependencies: Elmish.Bridge/Microsoft.AspNetCore.WebSockets? toastr/Elmish.Toastr? bulma-checkradio/bulma-tooltip/Fulma.Extensions? jose-jwt? marked-min-js?
 - [ ] will Fable.Remoting and Elmish.Bridge work with pre-release dependencies (Fable.Core &c.)?
 - [ ] investigate build warning/s (e.g. _Could not copy the file "ApplicationInsights.config"..._)
 - [ ] extend functionality (e.g. User/s repository via .NET Core ASP dependency injection; &c.)
