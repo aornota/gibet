@@ -1,8 +1,6 @@
-# gibet (α)
+# gibet (α) | ![gibet](https://github.com/aornota/gibet/blob/master/src/resources/gibet-16x16.ico)
 
-![gibet](https://github.com/aornota/gibet/blob/master/src/resources/gibet-16x16.ico)
-
-## Pre-requisites
+## Prerequisites
 
 * Microsoft .NET Core 2.2 SDK: currently using 2.2.202 (x64)
 * FAKE 5: _dotnet tool install --global fake-cli_; currently using 5.12.6
