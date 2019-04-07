@@ -83,7 +83,7 @@ let safeComponents =
            ]
 
     p [ ]
-        [ strong [] [ str "SAFE Template" ]
+        [ strong [] [ str "gibet (α)" ]
           str " powered by: "
           components ]
 
