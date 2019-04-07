@@ -37,7 +37,7 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 
 - [ ] will Fable.Remoting and Elmish.Bridge work with pre-release dependencies (Fable.Core &c.)?
 - [ ] investigate build warning/s (e.g. _Could not copy the file "ApplicationInsights.config"..._)
-- [ ] extend functionality (e.g. User/s repository via .NET Core ASP dependency injection; &c.)
+- [ ] extend functionality (e.g. User/s repository via ASP.NET Core dependency injection; &c.)
 - [ ] more dependencies: bulma-checkradio/bulma-tooltip/Fulma.Extensions?
 - [ ] deploy to [Azure](https://gibet.azurewebsites.net/)?
 - [ ] automated testing?
