@@ -103,7 +103,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
         [ Navbar.navbar [ Navbar.Color IsPrimary ]
             [ Navbar.Item.div [ ]
                 [ Heading.h2 [ ]
-                    [ str "SAFE Template" ] ] ]
+                    [ str "gibet (α)" ] ] ]
 
           Container.container []
               [ Content.content [ Content.Modifiers [ Modifier.TextAlignment (Screen.All, TextAlignment.Centered) ] ]
