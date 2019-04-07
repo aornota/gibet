@@ -1,4 +1,6 @@
-# gibet (α) | ![gibet](https://github.com/aornota/gibet/blob/master/src/resources/gibet-16x16.ico)
+# ![gibet](https://github.com/aornota/gibet/blob/master/src/resources/gibet-16x16.ico) | gibet (α)
+
+Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet]_(https://www.youtube.com/watch?v=yStZqSFY3C0)...
 
 ## Prerequisites
 
