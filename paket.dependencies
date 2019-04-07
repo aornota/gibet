@@ -1,38 +1,7 @@
 version 5.198.0
-group Server
-    source https://api.nuget.org/v3/index.json
-    framework: netcoreapp2.2
-    storage: none
 
-    nuget FSharp.Core
-    nuget Fable.Remoting.Giraffe
-    nuget Giraffe
-    nuget Microsoft.ApplicationInsights.AspNetCore ~> 2.2
-    nuget Microsoft.AspNetCore
-    nuget Microsoft.AspNetCore.StaticFiles
-    nuget WindowsAzure.Storage
+group build
 
-group Client
-    source https://api.nuget.org/v3/index.json
-    framework: netstandard2.0
-    storage: none
-
-    nuget Fable.Core prerelease
-    nuget Fable.Elmish prerelease
-	nuget Fable.Elmish.Browser prerelease
-    nuget Fable.Elmish.Debugger prerelease
-    nuget Fable.Elmish.HMR prerelease
-    nuget Fable.Elmish.React prerelease
-    nuget Fable.FontAwesome.Free prerelease
-    nuget Fable.Promise prerelease
-    nuget Fable.React prerelease
-    nuget Fable.Remoting.Client ~> 4
-	nuget Fable.SimpleJson prerelease
-    nuget Fulma prerelease
-	nuget Fulma.Extensions.Wikiki.PageLoader prerelease
-	nuget Thoth.Json prerelease
-
-group Build
     source https://api.nuget.org/v3/index.json
     framework: netstandard2.0
     storage: none
@@ -46,3 +15,41 @@ group Build
     nuget Fake.IO.Zip
     github CompositionalIT/fshelpers src/FsHelpers/ArmHelper/ArmHelper.fs
 
+group server
+
+    source https://api.nuget.org/v3/index.json
+    framework: netcoreapp2.2
+    storage: none
+
+    nuget FSharp.Core
+    nuget Elmish.Bridge.Giraffe
+    nuget Fable.Remoting.Giraffe
+    nuget Giraffe
+    nuget jose-jwt
+    nuget Microsoft.ApplicationInsights.AspNetCore ~> 2.2
+    nuget Microsoft.AspNetCore
+    nuget Microsoft.AspNetCore.StaticFiles
+    nuget WindowsAzure.Storage
+
+group ui
+
+    source https://api.nuget.org/v3/index.json
+    framework: netstandard2.0
+    storage: none
+
+    nuget Fable.Core prerelease
+    nuget Elmish.Bridge.Client
+	nuget Elmish.Toastr
+    nuget Fable.Elmish prerelease
+	nuget Fable.Elmish.Browser prerelease
+    nuget Fable.Elmish.Debugger prerelease
+    nuget Fable.Elmish.HMR prerelease
+    nuget Fable.Elmish.React prerelease
+    nuget Fable.FontAwesome.Free prerelease
+    nuget Fable.Promise prerelease
+    nuget Fable.React prerelease
+    nuget Fable.Remoting.Client ~> 4
+	nuget Fable.SimpleJson prerelease
+    nuget Fulma prerelease
+	nuget Fulma.Extensions.Wikiki.PageLoader prerelease
+	nuget Thoth.Json prerelease

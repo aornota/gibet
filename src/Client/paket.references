@@ -1,5 +1,8 @@
-group Client
+group ui
+
     FSharp.Core
+    Elmish.Bridge.Client
+	Elmish.Toastr
     Fable.Core
 	Fable.Elmish
 	Fable.Elmish.Browser
@@ -13,4 +16,3 @@ group Client
     Fulma
 	Fulma.Extensions.Wikiki.PageLoader
 	Thoth.Json
-

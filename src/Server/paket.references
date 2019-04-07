@@ -1,8 +1,11 @@
-group Server
+group server
+
     FSharp.Core
+    Elmish.Bridge.Giraffe
+    Fable.Remoting.Giraffe
     Giraffe
+    jose-jwt
+    Microsoft.ApplicationInsights.AspNetCore
     Microsoft.AspNetCore
     Microsoft.AspNetCore.StaticFiles
-    Microsoft.ApplicationInsights.AspNetCore
     WindowsAzure.Storage
-    Fable.Remoting.Giraffe

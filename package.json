@@ -1,4 +1,10 @@
 {
+    "name": "gibet",
+    "version": "α",
+    "description": "Opinionated \"scaffold\" for F# web development: Fable | Elmish | Fulma | .NET Core ASP | Giraffe | Fable.Remoting | Elmish.Bridge | &c. Comes with just enough rope for developers to hang themselves with...",
+    "repository": "git@github.com:aornota/gibet.git",
+    "author": "dj narration",
+    "license": "https://github.com/aornota/gibet/blob/master/LICENSE",
     "private": true,
     "devDependencies": {
         "@babel/core": "^7.4.3",
@@ -7,6 +13,7 @@
         "@babel/preset-env": "^7.4.3",
         "@babel/runtime": "^7.4.3",
         "babel-loader": "^8.0.5",
+        "bulma": "^0.7.1",
         "copy-webpack-plugin": "^5.0.2",
         "core-js": "2.6.5",
         "css-loader": "^2.1.1",
@@ -20,6 +27,7 @@
         "sass": "^1.17.4",
         "sass-loader": "^7.1.0",
         "style-loader": "^0.23.1",
+        "toastr": "^2.1.4",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.3.0",
         "webpack-dev-server": "^3.2.1",

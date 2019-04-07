@@ -35,10 +35,10 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 
 ## To do
 
-- [ ] more dependencies: Elmish.Bridge/Microsoft.AspNetCore.WebSockets? toastr/Elmish.Toastr? bulma-checkradio/bulma-tooltip/Fulma.Extensions? jose-jwt? marked-min-js?
 - [ ] will Fable.Remoting and Elmish.Bridge work with pre-release dependencies (Fable.Core &c.)?
 - [ ] investigate build warning/s (e.g. _Could not copy the file "ApplicationInsights.config"..._)
 - [ ] extend functionality (e.g. User/s repository via .NET Core ASP dependency injection; &c.)
+- [ ] more dependencies: bulma-checkradio/bulma-tooltip/Fulma.Extensions?
 - [ ] deploy to [Azure](https://gibet.azurewebsites.net/)?
 - [ ] automated testing?
 - [ ] figure out how the hashing of _.js_ files for production builds works (e.g. _index.html_ &c.)?

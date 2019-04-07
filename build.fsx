@@ -57,7 +57,6 @@ let openBrowser url =
     |> Proc.run
     |> ignore
 
-
 Target.create "Clean" (fun _ ->
     [ deployDir
       clientDeployPath ]
@@ -103,8 +102,6 @@ Target.create "Run" (fun _ ->
     |> Async.RunSynchronously
     |> ignore
 )
-
-
 
 Target.create "Bundle" (fun _ ->
     let serverDir = deployDir
@@ -181,7 +178,6 @@ Target.create "AppService" (fun _ ->
     let client = new TimeoutWebClient(Credentials = NetworkCredential("$" + appName, appPassword))
     Trace.tracefn "Uploading %s to %s" zipFile destinationUri
     client.UploadData(destinationUri, IO.File.ReadAllBytes zipFile) |> ignore)
-
 
 open Fake.Core.TargetOperators
 
