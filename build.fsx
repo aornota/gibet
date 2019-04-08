@@ -16,9 +16,9 @@ open Cit.Helpers.Arm
 open Cit.Helpers.Arm.Parameters
 open Microsoft.Azure.Management.ResourceManager.Fluent.Core
 
-let serverPath = Path.getFullName "./src/Server"
-let clientPath = Path.getFullName "./src/Client"
-let clientDeployPath = Path.combine clientPath "deploy"
+let serverDir = Path.getFullName "./src/server"
+let uiDir = Path.getFullName "./src/ui"
+let uiDeployDir = Path.combine uiDir "deploy"
 let deployDir = Path.getFullName "./deploy"
 
 let platformTool tool winTool =
@@ -59,27 +59,27 @@ let openBrowser url =
 
 Target.create "Clean" (fun _ ->
     [ deployDir
-      clientDeployPath ]
+      uiDeployDir ]
     |> Shell.cleanDirs
 )
 
-Target.create "InstallClient" (fun _ ->
+Target.create "InstallUi" (fun _ ->
     printfn "Node version:"
     runTool nodeTool "--version" __SOURCE_DIRECTORY__
     printfn "Yarn version:"
     runTool yarnTool "--version" __SOURCE_DIRECTORY__
     runTool yarnTool "install --frozen-lockfile" __SOURCE_DIRECTORY__
-    runDotNet "restore" clientPath
+    runDotNet "restore" uiDir
 )
 
 Target.create "Build" (fun _ ->
-    runDotNet "build" serverPath
+    runDotNet "build" serverDir
     runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__
 )
 
 Target.create "Run" (fun _ ->
     let server = async {
-        runDotNet "watch run" serverPath
+        runDotNet "watch run" serverDir
     }
     let client = async {
         runTool yarnTool "webpack-dev-server" __SOURCE_DIRECTORY__
@@ -90,10 +90,10 @@ Target.create "Run" (fun _ ->
     }
 
     let vsCodeSession = Environment.hasEnvironVar "vsCodeSession"
-    let safeClientOnly = Environment.hasEnvironVar "safeClientOnly"
+    let uiOnly = Environment.hasEnvironVar "uiOnly"
 
     let tasks =
-        [ if not safeClientOnly then yield server
+        [ if not uiOnly then yield server
           yield client
           if not vsCodeSession then yield browser ]
 
@@ -108,9 +108,9 @@ Target.create "Bundle" (fun _ ->
     let publicDir = Path.combine deployDir "public"
 
     let publishArgs = sprintf "publish -c Release -o \"%s\"" serverDir
-    runDotNet publishArgs serverPath
+    runDotNet publishArgs serverDir
 
-    Shell.copyDir publicDir clientDeployPath FileFilter.allFiles
+    Shell.copyDir publicDir uiDeployDir FileFilter.allFiles
 )
 
 type ArmOutput =
@@ -182,7 +182,7 @@ Target.create "AppService" (fun _ ->
 open Fake.Core.TargetOperators
 
 "Clean"
-    ==> "InstallClient"
+    ==> "InstallUi"
     ==> "Build"
     ==> "Bundle"
     ==> "ArmTemplate"
@@ -190,7 +190,7 @@ open Fake.Core.TargetOperators
 
 
 "Clean"
-    ==> "InstallClient"
+    ==> "InstallUi"
     ==> "Run"
 
 Target.runOrDefaultWithArguments "Build"

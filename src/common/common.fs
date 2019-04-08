@@ -1,4 +1,4 @@
-namespace Shared
+namespace Aornota.Gibet.Common
 
 type Counter = { Value : int }
 
