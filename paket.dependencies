@@ -26,7 +26,6 @@ group server
     nuget Fable.Remoting.Giraffe
     nuget Giraffe
     nuget jose-jwt
-    nuget Microsoft.ApplicationInsights.AspNetCore ~> 2.2
     nuget Microsoft.AspNetCore
     nuget Microsoft.AspNetCore.StaticFiles
     nuget WindowsAzure.Storage

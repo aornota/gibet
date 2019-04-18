@@ -5,7 +5,6 @@ group server
     Fable.Remoting.Giraffe
     Giraffe
     jose-jwt
-    Microsoft.ApplicationInsights.AspNetCore
     Microsoft.AspNetCore
     Microsoft.AspNetCore.StaticFiles
     WindowsAzure.Storage
