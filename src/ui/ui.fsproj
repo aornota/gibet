@@ -2,6 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors><!--TODO-NMB: Enable this (once Fable.Remoting.Client issues resolved)?...-->
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="..\common\common.fs" />

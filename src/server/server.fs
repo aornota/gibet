@@ -6,17 +6,18 @@ open System
 open System.IO
 open System.Threading.Tasks
 
+open FSharp.Control.Tasks.V2
+
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.WindowsAzure.Storage
 
-open FSharp.Control.Tasks.V2
 open Giraffe
 
-open Fable.Remoting.Server
 open Fable.Remoting.Giraffe
-open Microsoft.WindowsAzure.Storage
+open Fable.Remoting.Server
 
 let tryGetEnv = System.Environment.GetEnvironmentVariable >> function null | "" -> None | x -> Some x
 
@@ -35,7 +36,6 @@ let webApp =
     |> Remoting.withRouteBuilder Route.builder
     |> Remoting.fromValue counterApi
     |> Remoting.buildHttpHandler
-
 
 let configureApp (app : IApplicationBuilder) =
     app.UseDefaultFiles()

@@ -1,0 +1,154 @@
+/* #region :root (variables) */
+/* Note: Some --{colour} variables correspond to $colour/s defined in gibet-bulma.sass (e.g. --dark corresponds to $dark); others do not. */
+:root {
+    --info: #2f96b4 ; --success: #51a351 ; --warning: #f89406 ; --danger: #bd362f ;
+    --dark: #484848 ; --darker: #363636 ; --even-darker: #242424 ; --darkest: #121212 ;
+    --light: #b7b7b7 ; --lighter: #c9c9c9 ; --even-lighter: #dbdbdb ; --lightest: #ededed ;
+    --black: black ; --white: white ;
+    --link-light: #006060 ; --link-light-hover: #00a0a0 ; --link-dark: #bfbfff ; --link-dark-hover: #8f8fff ;
+    --link-internal-light: #600060 ; --link-internal-ligh-hover: #a000a0 ; --link-internal-dark: #ffbfbf ; --link-internal-dark-hover: #ff8f8f ;
+    --neutral: #808080 ; --neutral-darker: #777777 ; --neutral-lighter: #898989 }
+/* #endregion */
+
+/* #region html */
+html { height: 100% ; margin: 0px }
+/* #endregion */
+
+/* #region body */
+body { min-height: 100% ; margin: 0px }
+body.light { background-color: var(--white) }
+body.dark { background-color: var(--black) }
+/* #endregion */
+
+/* #region .light | .light-alternative | .dark | .dark-alternative */
+.light { color: var(--darker) }
+.light-alternative { color: var(--even-darker) ; background-color: var(--light) }
+.dark { color : var(--lighter) }
+.dark-alternative { color: var(--even-lighter) ; background-color: var(--dark) }
+/* #endregion */
+
+/* #region a */
+a.light { color: var(--link-light) }
+a.light:hover { color: var(--link-light-hover) }
+a.light.internal { color: var(--link-internal-light) }
+a.light.internal:hover { color: var(--link-internal-light-hover) }
+a.dark { color: var(--link-dark) }
+a.dark:hover { color: var(--link-dark-hover) }
+a.dark.internal { color: var(--link-internal-dark) }
+a.dark.internal:hover { color: var(--link-internal-dark-hover) }
+/* #endregion */
+
+/* #region div */
+div.centered /* sic */ { display: flex ; justify-content: center }
+/* #endregion */
+
+/* #region hr */
+hr { margin-top: 0.75rem ; margin-bottom: 0.75rem }
+hr.light { background-color: var(--light) }
+hr.dark { background-color: var(--dark) }
+/* #endregion */
+
+/* #region .control .icon colours */
+/* Note: Icon colour/s only seem to take effect when control does not have focus. */
+.light .control.has-icons-left .icon, .light control.has-icons-right .icon { color: var(--lighter) }
+.dark .control.has-icons-left .icon, .dark control.has-icons-right .icon { color: var(--darker) }
+/* #endregion */
+
+/* #region overrides for Bulma colours */
+/* Note: Needed to prevent use of background-color/s defined for .footer (&c.) by Bulma. */
+.footer.light, .input.light, .modal-card-body.light, .table.light, .textarea.light { background-color: var(--white) }
+.footer.dark, .input.dark, .modal-card-body.dark, .table.dark, .textarea.dark { background-color: var(--black) }
+/* Note: Needed to prevent use of color/s and background-color/s defined for .select select by Bulma. */
+.select.light select { color: var(--darker) ; background-color: var(--white) }
+.select.dark select { color: var(--lighter) ; background-color: var(--black) }
+/* Note: Needed to prevent use of color/s defined for .table thead td (&c.) by Bulma. */
+.table.light thead th { color: var(--darker) }
+.table.dark thead th { color: var(--lighter) }
+/* #endregion */
+
+/* #region .footer */
+.footer { padding-top: 0.5rem ; padding-left: 0.5rem ; padding-bottom: 0.5rem ; padding-right: 0.5rem }
+/* #endregion */
+
+/* #region .level */
+.level:not(:last-child) { margin-bottom: 1.0rem }
+.level.hasContinuation:not(:last-child) { margin-bottom: 0.5rem }
+/* #endregion */
+
+/* #region .markdown */
+.markdown p, .markdown li, .markdown th, .markdown td { font-size: 0.875rem }
+.markdown p strong, .markdown li strong, .markdown table thead th, .markdown td strong { color: currentColor }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { color: currentColor }
+.markdown.light a, .markdown.light-in-notification a { color: var(--link-light) }
+.markdown.light a:hover, .markdown.light-in-notification a:hover { color: var(--link-light-hover) }
+.markdown.light blockquote { background-color: var(--lightest) ; border-left-color: var(--even-lighter) }
+.markdown.light hr { background-color: var(--lighter) }
+.markdown.light table thead tr:hover { background-color: var(--even-lighter) }
+.markdown.light table tbody tr:hover { background-color: var(--lightest) }
+.markdown.light th, .markdown.light td { border-bottom-color: var(--lightest) }
+.markdown.dark a, .markdown.dark-in-notification a { color: var(--link-dark) }
+.markdown.dark a:hover, .markdown.dark-in-notification a:hover { color: var(--link-dark-hover) }
+.markdown.dark blockquote { background-color: var(--darkest) ; border-left-color: var(--even-darker) }
+.markdown.dark hr { background-color: var(--darker) }
+.markdown.dark table thead tr:hover { background-color: var(--even-darker) }
+.markdown.dark table tbody tr:hover { background-color: var(--darkest) }
+.markdown.dark th, .markdown.dark td { border-bottom-color: var(--darkest) }
+/* Note: For "Markdown in notification", we do not know the "current" background-color - so use something neutral (for both light and dark). */
+.markdown.light-in-notification blockquote, .markdown.dark-in-notification blockquote { background-color: var(--neutral-darker) ; border-left-color: var(--neutral-lighter) }
+.markdown.light-in-notification hr, .markdown.dark-in-notification hr { background-color: var(--neutral) }
+.markdown.light-in-notification table tr:hover, .markdown.dark-in-notification table tr:hover { background-color: var(--neutral) }
+.markdown.light-in-notification th, .markdown.light-in-notification td, .markdown.dark-in-notification th, .markdown.dark-in-notification td { border-bottom-color: var(--neutral) }
+/* #endregion */
+
+/* #region .modal-{xyz} */
+.modal-background { background-color: rgba(128, 128, 128, 0.75) }
+.modal-card-head.light-alternative { background-color: var(--lightest) ; border-bottom-color: var(--light) }
+.modal-card-head.dark-alternative { background-color: var(--darkest) ; border-bottom-color: var(--dark) }
+.modal-card-title.light-alternative { background-color: var(--lightest) }
+.modal-card-title.dark-alternative { background-color: var(--darkest) }
+/* #endregion */
+
+/* #region .navbar-{xyz} */
+.navbar { min-height: 64px }
+.navbar-dropdown { border-top-width: 0px }
+.navbar-dropdown.light { background-color: var(--lighter) }
+.navbar-dropdown.dark { background-color: var(--darker) }
+.navbar-item { padding-left: 0.5rem ; padding-right: 0.5rem }
+.navbar-item.light.is-active a.internal { color: var(--link-internal-light-hover) }
+.navbar-item.dark.is-active a.internal { color: var(--link-internal-dark-hover) }
+.navbar-menu.light { background-color: var(--light) }
+.navbar-menu.dark { background-color: var(--dark) }
+/* #endregion */
+
+/* #region .notification */
+.notification:not(:last-child) { margin-bottom: 0.0rem }
+/* #endregion */
+
+/* #region .toast */
+.toast { font-size: 0.875rem }
+.toast strong { color: currentColor }
+.toast-info { background-color: var(--info) }
+.toast-success { background-color: var(--success) }
+.toast-warning { background-color: var(--warning) }
+.toast-error { background-color: var(--danger) }
+/* #endregion */
+
+/* #region .table */
+/* TODO-NMB: Support table.is-striped? tr.is-selected?... */
+.table { margin-bottom: 0.75rem }
+.table.light thead tr:hover { background-color: var(--even-lighter) }
+.table.light tbody tr:hover { background-color: var(--lightest) }
+.table.light th, .table.light td { border-bottom-color: var(--lightest) }
+.table.dark thead tr:hover { background-color: var(--even-darker) }
+.table.dark tbody tr:hover { background-color: var(--darkest) }
+.table.dark th, .table.dark td { border-bottom-color: var(--darkest) }
+/* #endregion */
+
+/* #region .tabs */
+.tabs.light a.internal { color: var(--link-internal-light) ; border-bottom-color: var(--even-lighter) }
+.tabs.light a.internal:hover { color: var(--link-internal-light-hover) ; border-bottom-color: var(--link-internal-light-hover) }
+.tabs.light li.is-active a.internal { color: var(--link-internal-light-hover) ; border-bottom-color: var(--darker) }
+.tabs.dark a.internal { color: var(--link-internal-dark) ; border-bottom-color: var(--even-darker) }
+.tabs.dark a.internal:hover { color: var(--link-internal-dark-hover) ; border-bottom-color: var(--link-internal-dark-hover) }
+.tabs.dark li.is-active a.internal { color: var(--link-internal-dark-hover); border-bottom-color: var(--lighter) }
+/* #endregion */

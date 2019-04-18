@@ -77,11 +77,6 @@ Target.create "restore-ui" (fun _ ->
     runDotNet "restore" uiDir
 )
 
-Target.create "build" (fun _ ->
-    runDotNet "build" serverDir
-    runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__
-)
-
 Target.create "run" (fun _ ->
     let server = async { runDotNet "watch run" serverDir }
     let client = async { runTool yarnTool "webpack-dev-server" __SOURCE_DIRECTORY__ }
@@ -89,20 +84,25 @@ Target.create "run" (fun _ ->
         do! Async.Sleep 5000
         openBrowser "http://localhost:8080"
     }
-    let vsCodeSession, uiOnly = Environment.hasEnvironVar "vsCodeSession", Environment.hasEnvironVar "uiOnly"
-    let tasks =
-        [ if not uiOnly then yield server
-          yield client
-          if not vsCodeSession then yield browser ]
-    tasks |> Async.Parallel |> Async.RunSynchronously |> ignore
+    [ server ; client ; browser ] |> Async.Parallel |> Async.RunSynchronously |> ignore
 )
 
-Target.create "bundle" (fun _ ->
+Target.create "build-server" (fun _ ->
+    runDotNet "build -c Release" serverDir
+)
+
+Target.create "build-ui" (fun _ ->
+    runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__
+)
+
+Target.create "build" (fun _ -> ())
+
+Target.create "publish" (fun _ ->
     runDotNet (sprintf "publish -c Release -o \"%s\"" deployDir) serverDir
     Shell.copyDir (Path.combine deployDir "public") uiDeployDir FileFilter.allFiles
 )
 
-#nowarn "52" // suppress warning caused by "Guid.NewGuid().ToString().ToLower().Split '-' |> Array.head"
+#nowarn "52" // TODO-NMB: Obviate need to suppress warning caused by "Guid.NewGuid().ToString().ToLower().Split '-' |> Array.head"...
 
 Target.create "arm-template" (fun _ ->
     let environment = Environment.environVarOrDefault "environment" (Guid.NewGuid().ToString().ToLower().Split '-' |> Array.head)
@@ -134,7 +134,7 @@ Target.create "arm-template" (fun _ ->
         | DeploymentCompleted d -> deploymentOutputs <- d)
 )
 
-Target.create "azure-app-service" (fun _ ->
+Target.create "deploy-azure" (fun _ ->
     let zipFile = "deploy.zip"
     IO.File.Delete zipFile
     Zip.zip deployDir zipFile !!(deployDir + @"\**\**")
@@ -146,16 +146,25 @@ Target.create "azure-app-service" (fun _ ->
     client.UploadData(destinationUri, IO.File.ReadAllBytes zipFile) |> ignore
 )
 
-"clean"
-    ==> "restore-ui"
-    ==> "build"
-    ==> "bundle"
-    ==> "arm-template"
-    ==> "azure-app-service"
+Target.create "help" (fun _ ->
+    printfn "\nThese useful build targets can be run via 'fake build -t {target}':"
+    printfn "\n\trun -> builds, runs and watches [Debug] server and [non-production] ui (served via webpack-dev-server)"
+    printfn "\n\tbuild -> builds [Release] server and [production] ui (which writes output to .\\src\\ui\\deploy)"
+    printfn "\tpublish -> builds [Release] server and [production] ui and copies output to .\\deploy"
+    // TODO-NMB...printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\deploy and deploys to Azure"
+    // TODO-NMB...printfn "\n\tdev-console -> builds and runs [Debug] dev-console"
+    // TODO-NMB: gh-pages?...
+    printfn "\n\thelp -> shows this list of build targets\n"
+)
 
+"clean" ==> "restore-ui"
 
-"clean"
-    ==> "restore-ui"
-    ==> "run"
+"restore-ui" ==> "run"
+"restore-ui" ==> "build-ui"
 
-Target.runOrDefaultWithArguments "build"
+"build-ui" ==> "build"
+"build-server" ==> "build"
+
+"build-ui" ==> "publish" ==> "arm-template" ==> "deploy-azure"
+
+Target.runOrDefaultWithArguments "help"

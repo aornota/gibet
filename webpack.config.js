@@ -9,7 +9,8 @@ var miniCssExtractPlugin = require("mini-css-extract-plugin");
 var config = {
     indexHtmlTemplate: "./src/ui/index.html",
     fsharpEntry: "./src/ui/ui.fsproj",
-    cssEntry: "./src/ui/style.sass",
+    sassEntry: "./src/ui/style/gibet-bulma.sass",
+    cssEntry: "./src/ui/style/gibet.css",
     outputDir: "./src/ui/deploy",
     assetsDir: "./src/ui/public",
     devServerPort: 8080,
@@ -45,12 +46,11 @@ var commonPlugins = [
 
 module.exports = {
     // In development, bundle styles together with the code so they can also trigger hot reloads; in production, put them in a separate CSS file.
-    // TODO-NMB: Is this the right way around?...
     entry: isProduction ? {
-        app: [resolve(config.fsharpEntry), resolve(config.cssEntry)]
+        app: [resolve(config.fsharpEntry), resolve(config.sassEntry), resolve(config.cssEntry)]
     } : {
             app: [resolve(config.fsharpEntry)],
-            style: [resolve(config.cssEntry)]
+            style: [resolve(config.sassEntry), resolve(config.cssEntry)]
         },
     output: {
         path: resolve(config.outputDir),
@@ -118,7 +118,6 @@ module.exports = {
                     }
                 ],
             },
-            // TODO-NMB: Test with .png?...
             {
                 test: /\.(png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)(\?.*)?$/,
                 use: ["file-loader"]
