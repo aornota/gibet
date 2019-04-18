@@ -10,11 +10,10 @@ open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
-open Microsoft.WindowsAzure.Storage
 
 open Giraffe
 
-open Elmish.Bridge
+// TODO-NMB...open Elmish.Bridge
 
 open Fable.Remoting.Giraffe
 open Fable.Remoting.Server

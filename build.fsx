@@ -97,10 +97,15 @@ Target.create "build-ui" (fun _ ->
 
 Target.create "build" (fun _ -> ())
 
-Target.create "publish" (fun _ ->
+Target.create "publish-server" (fun _ ->
     runDotNet (sprintf "publish -c Release -o \"%s\"" deployDir) serverDir
+)
+
+Target.create "publish-ui" (fun _ ->
     Shell.copyDir (Path.combine deployDir "public") uiDeployDir FileFilter.allFiles
 )
+
+Target.create "publish" (fun _ -> ())
 
 #nowarn "52" // TODO-NMB: Obviate need to suppress warning caused by "Guid.NewGuid().ToString().ToLower().Split '-' |> Array.head"...
 
@@ -165,6 +170,9 @@ Target.create "help" (fun _ ->
 "build-ui" ==> "build"
 "build-server" ==> "build"
 
-"build-ui" ==> "publish" ==> "arm-template" ==> "deploy-azure"
+"build-ui" ==> "publish-ui" ==> "publish"
+"publish-server" ==> "publish"
+
+"publish" ==> "arm-template" ==> "deploy-azure"
 
 Target.runOrDefaultWithArguments "help"

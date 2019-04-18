@@ -5,7 +5,7 @@ open Aornota.Gibet.Ui.Program.State
 open Aornota.Gibet.Ui.Program.Render
 
 open Elmish
-open Elmish.Bridge
+// TODO-NMB...open Elmish.Bridge
 #if DEBUG
 open Elmish.Debug
 #endif
