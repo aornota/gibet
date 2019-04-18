@@ -2,6 +2,7 @@ group server
 
     FSharp.Core
     Elmish.Bridge.Giraffe
+    Fable.JsonConverter
     Fable.Remoting.Giraffe
     Giraffe
     jose-jwt

@@ -6,8 +6,23 @@
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="..\common\common.fs" />
-        <Compile Include="server.fs" />
+        <Compile Include="..\common\units-of-measure.fs" />
+        <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
+        <Compile Include="..\common\unexpected-error.fs" />
+        <Compile Include="..\common\if-debug.fs" />
+        <Compile Include="..\common\json.fs" />
+        <Compile Include="..\common\markdown.fs" />
+        <Compile Include="..\common\revision.fs" />
+        <!--TODO-NMB?...<Compile Include="..\common\domain\..." />-->
+        <Compile Include="..\common\domain\user.fs" />
+        <Compile Include="..\common\domain\temp-counter.fs" /><!--TEMP-NMB...-->
+        <Compile Include="..\common\api\route.fs" />
+        <Compile Include="..\common\api\temp-counter-api.fs" /><!--TEMP-NMB...-->
+        <!--TODO-NMB?...<Compile Include="..\server-common\helpers.fs" />-->
+        <Compile Include="..\server-common\json-converter.fs" />
+        <Compile Include="jwt.fs" />
+        <Compile Include="api\temp-counter-api.fs" /><!--TEMP-NMB...-->
+        <Compile Include="host-run.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -5,8 +5,35 @@
         <TreatWarningsAsErrors>false</TreatWarningsAsErrors><!--TODO-NMB: Enable this (once Fable.Remoting.Client issues resolved)?...-->
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="..\common\common.fs" />
-        <Compile Include="ui.fs" />
+        <Compile Include="..\common\units-of-measure.fs" />
+        <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
+        <Compile Include="..\common\unexpected-error.fs" />
+        <Compile Include="..\common\if-debug.fs" />
+        <Compile Include="..\common\json.fs" />
+        <Compile Include="..\common\markdown.fs" />
+        <Compile Include="..\common\revision.fs" />
+        <!--TODO-NMB?...<Compile Include="..\common\domain\..." />-->
+        <Compile Include="..\common\domain\user.fs" />
+        <Compile Include="..\common\domain\temp-counter.fs" /><!--TEMP-NMB...-->
+        <Compile Include="..\common\api\route.fs" />
+        <Compile Include="..\common\api\temp-counter-api.fs" /><!--TEMP-NMB...-->
+        <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->
+        <!--TODO-NMB?...<Compile Include="..\ui-theme-bulma\..." />-->
+        <Compile Include="..\ui-common\local-storage.fs" />
+        <!--TODO-NMB?...<Compile Include="..\ui-common\lazy-view-or-hmr.fs" />-->
+        <Compile Include="..\ui-common\should-never-happen.fs" />
+        <Compile Include="..\ui-common\timestamp-helper.fs" />
+        <Compile Include="..\ui-common\marked.fs" />
+        <Compile Include="..\ui-common\render-markdown.fs" />
+        <!--TODO-NMB?...<Compile Include="..\ui-common\notifications.fs" />-->
+        <Compile Include="..\ui-common\toasts.fs" />
+        <!--TODO-NMB?...<Compile Include="ui-shared.fs" />-->
+        <!--TODO-NMB?...<Compile Include="pages\..." />-->
+        <Compile Include="program-server-api.fs" />
+        <Compile Include="program-common.fs" />
+        <Compile Include="program-state.fs" />
+        <Compile Include="program-render.fs" />
+        <Compile Include="program-run.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

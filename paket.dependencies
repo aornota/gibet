@@ -23,6 +23,7 @@ group server
 
     nuget FSharp.Core
     nuget Elmish.Bridge.Giraffe
+    nuget Fable.JsonConverter
     nuget Fable.Remoting.Giraffe
     nuget Giraffe
     nuget jose-jwt

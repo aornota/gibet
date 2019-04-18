@@ -48,7 +48,7 @@ let yarnTool = platformTool "yarn" "yarn.cmd"
 
 let runTool cmd args workingDir =
     let arguments = args |> String.split ' ' |> Arguments.OfArgs
-    Command.RawCommand (cmd, arguments)
+    Command.RawCommand(cmd, arguments)
     |> CreateProcess.fromCommand
     |> CreateProcess.withWorkingDirectory workingDir
     |> CreateProcess.ensureExitCode
@@ -129,8 +129,8 @@ Target.create "arm-template" (fun _ ->
     deployment
     |> deployWithProgress authCtx
     |> Seq.iter (function
-        | DeploymentInProgress (state, operations) -> Trace.tracefn "State is %s; completed %d operations" state operations
-        | DeploymentError (statusCode, message) -> Trace.traceError <| sprintf "DEPLOYMENT ERROR: %s - '%s'" statusCode message
+        | DeploymentInProgress(state, operations) -> Trace.tracefn "State is %s; completed %d operations" state operations
+        | DeploymentError(statusCode, message) -> Trace.traceError <| sprintf "DEPLOYMENT ERROR: %s - '%s'" statusCode message
         | DeploymentCompleted d -> deploymentOutputs <- d)
 )
 
