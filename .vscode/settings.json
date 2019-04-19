@@ -11,10 +11,10 @@
 		, "node_modules/": true
 		, "paket-files/": true
 		, "src/**/bin": true
-		, "src/**/obj": true
+        , "src/**/obj": true
+        , "src/dev-console/*.log": true
 		, "src/ui/deploy/": true
 		, ".editorconfig": true
-		, ".gitignore": true
         , "arm-template.json": true
         , "deploy.zip": true
 		, "LICENSE": true

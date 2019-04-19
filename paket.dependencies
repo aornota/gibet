@@ -53,3 +53,14 @@ group ui
     nuget Fulma prerelease
 	nuget Fulma.Extensions.Wikiki.PageLoader prerelease
 	nuget Thoth.Json prerelease
+
+group dev-console
+
+    source https://api.nuget.org/v3/index.json
+    framework: netcoreapp2.2
+    storage: none
+
+	nuget FSharp.Core
+	nuget Serilog
+	nuget Serilog.Sinks.Literate
+	nuget Serilog.Sinks.RollingFile

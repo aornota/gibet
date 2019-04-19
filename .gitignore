@@ -3,8 +3,8 @@
 deploy/
 node_modules/
 paket-files/
-src/ui/deploy/
-obj/
 bin/
+obj/
+src/dev-console/*.log
 deploy.zip
 yarn-error.log

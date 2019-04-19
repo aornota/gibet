@@ -1,0 +1,6 @@
+group dev-console
+
+	FSharp.Core
+	Serilog
+	Serilog.Sinks.Literate
+	Serilog.Sinks.RollingFile

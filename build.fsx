@@ -38,6 +38,8 @@ let uiDir = Path.getFullName "./src/ui"
 let uiDeployDir = Path.combine uiDir "deploy"
 let deployDir = Path.getFullName "./deploy"
 
+let devConsoleDir = Path.getFullName "./src/dev-console"
+
 let platformTool tool winTool =
     let tool = if Environment.isUnix then tool else winTool
     match ProcessUtils.tryFindFileOnPath tool with
@@ -66,9 +68,7 @@ let openBrowser url =
     |> Proc.run
     |> ignore
 
-Target.create "clean" (fun _ ->
-    [ deployDir ; uiDeployDir ] |> Shell.cleanDirs
-)
+Target.create "clean" (fun _ -> [ deployDir ; uiDeployDir ] |> Shell.cleanDirs)
 
 Target.create "restore-ui" (fun _ ->
     printfn "Yarn version:"
@@ -87,24 +87,12 @@ Target.create "run" (fun _ ->
     [ server ; client ; browser ] |> Async.Parallel |> Async.RunSynchronously |> ignore
 )
 
-Target.create "build-server" (fun _ ->
-    runDotNet "build -c Release" serverDir
-)
-
-Target.create "build-ui" (fun _ ->
-    runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__
-)
-
+Target.create "build-server" (fun _ -> runDotNet "build -c Release" serverDir)
+Target.create "build-ui" (fun _ -> runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__)
 Target.create "build" (fun _ -> ())
 
-Target.create "publish-server" (fun _ ->
-    runDotNet (sprintf "publish -c Release -o \"%s\"" deployDir) serverDir
-)
-
-Target.create "publish-ui" (fun _ ->
-    Shell.copyDir (Path.combine deployDir "public") uiDeployDir FileFilter.allFiles
-)
-
+Target.create "publish-server" (fun _ -> runDotNet (sprintf "publish -c Release -o \"%s\"" deployDir) serverDir)
+Target.create "publish-ui" (fun _ -> Shell.copyDir (Path.combine deployDir "public") uiDeployDir FileFilter.allFiles)
 Target.create "publish" (fun _ -> ())
 
 Target.create "arm-template" (fun _ ->
@@ -147,13 +135,15 @@ Target.create "deploy-azure" (fun _ ->
     client.UploadData(destinationUri, zipFile |> IO.File.ReadAllBytes) |> ignore
 )
 
+Target.create "run-dev-console" (fun _ -> runDotNet "run" devConsoleDir)
+
 Target.create "help" (fun _ ->
     printfn "\nThese useful build targets can be run via 'fake build -t {target}':"
     printfn "\n\trun -> builds, runs and watches [Debug] server and [non-production] ui (served via webpack-dev-server)"
     printfn "\n\tbuild -> builds [Release] server and [production] ui (which writes output to .\\src\\ui\\deploy)"
     printfn "\tpublish -> builds [Release] server and [production] ui and copies output to .\\deploy"
     printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\deploy and deploys to Azure"
-    // TODO-NMB...printfn "\n\tdev-console -> builds and runs [Debug] dev-console"
+    printfn "\n\trun-dev-console -> builds and runs [Debug] dev-console"
     // TODO-NMB: gh-pages?...
     printfn "\n\thelp -> shows this list of build targets\n"
 )
