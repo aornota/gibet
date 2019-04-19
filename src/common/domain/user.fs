@@ -25,7 +25,7 @@ type AuthenticatedUser<'TUserType> = {
     UserId : UserId
     Rvn : Rvn
     UserName : UserName
-    // TODO-NMB: e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png?...AvatarUrl : string
+    // TODO-NMB: e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png?...AvatarUrl : string option
     UserType : 'TUserType
     // TODO-NMB: Derive "permissions" dynamically (e.g. canDoXyz userType)?...Permissions : Permissions
     MustChangePasswordReason : MustChangePasswordReason option

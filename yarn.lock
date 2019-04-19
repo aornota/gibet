@@ -2303,10 +2303,10 @@ fable-babel-plugins@^2.2.0:
   resolved "https://registry.yarnpkg.com/fable-babel-plugins/-/fable-babel-plugins-2.2.0.tgz#2c61be1bd1afb1f03da4e66ccaa1bfecf92063a3"
   integrity sha512-4g8CIyXCILk5LLiwNPtvtrPy3YuV5eJV18SYJCZxu3A1BSKNvPGHLSg5YcFJ2zt4qmBvSkBewlQ2bVQYG+TnrQ==
 
-fable-compiler@^2.3.0:
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/fable-compiler/-/fable-compiler-2.3.0.tgz#22dd0c0b16bb1cd6a8e85c6b379a6058c74b22fd"
-  integrity sha512-Za4BALmI2BffWNQ91rjUk4x1MxKve7iWWCXuITuM+u4eO766ztzhtGHGRXsQlojDwSxyYbq3ahf2YAwHp2BJ3g==
+fable-compiler@^2.3.3:
+  version "2.3.3"
+  resolved "https://registry.yarnpkg.com/fable-compiler/-/fable-compiler-2.3.3.tgz#a38dd255f6e565979e07bb7a7f631d2f2e674478"
+  integrity sha512-hiWL4K+s8L3RfC3onTPB1B1iSdw7yVXAIBgEFn9e2PZIoLZDVU31gk6l7hJvhbbJv4PvvPMtPQ3VefBalXOYTw==
 
 fable-loader@^2.1.6:
   version "2.1.6"
@@ -4620,10 +4620,10 @@ sass-loader@^7.1.0:
     pify "^3.0.0"
     semver "^5.5.0"
 
-sass@^1.18.0:
-  version "1.18.0"
-  resolved "https://registry.yarnpkg.com/sass/-/sass-1.18.0.tgz#f34371c31e268e555c2ac8e43d2b64d194e7d090"
-  integrity sha512-Mc579V+BhH693tqt+lvph+gmRqmC6BjtsEVsjkW1944DEA5a0wPuCi781hL3fY4EDuqZnEVPbu42CZRywwE97g==
+sass@^1.19.0:
+  version "1.19.0"
+  resolved "https://registry.yarnpkg.com/sass/-/sass-1.19.0.tgz#5de82c713d4299fac57384ef5219534a37fe3e6c"
+  integrity sha512-8kzKCgxCzh8/zEn3AuRwzLWVSSFj8omkiGwqdJdeOufjM+I88dXxu9LYJ/Gw4rRTHXesN0r1AixBuqM6yLQUJw==
   dependencies:
     chokidar "^2.0.0"
 
