@@ -1,23 +1,24 @@
 {
-	"editor.fontSize": 13,
-	"files.exclude": {
-		".fable/":true,
-		".fake/":true,
-        ".paket/":true,
-        ".vscode/extensions.json":true,
-        ".vscode/launch.json":true,
-        ".vscode/tasks.json":true,
-        "deploy/":true,
-		"node_modules":true,
-		"paket-files/":true,
-		"src/**/bin":true,
-		"src/**/obj":true,
-		"src/ui/deploy/":true,
-		".editorconfig":true,
-		".gitignore":true,
-		"arm-template.json":true,
-		"LICENSE":true,
-		"paket.lock":true,
-		"yarn.lock":true
+	"editor.fontSize": 13
+	, "files.exclude": {
+		".fable/": true
+		, ".fake/": true
+        , ".paket/": true
+        , ".vscode/extensions.json": true
+        , ".vscode/launch.json": true
+        , ".vscode/tasks.json": true
+        , "deploy/": true
+		, "node_modules/": true
+		, "paket-files/": true
+		, "src/**/bin": true
+		, "src/**/obj": true
+		, "src/ui/deploy/": true
+		, ".editorconfig": true
+		, ".gitignore": true
+        , "arm-template.json": true
+        , "deploy.zip": true
+		, "LICENSE": true
+		, "paket.lock": true
+		, "yarn.lock": true
 	}
 }

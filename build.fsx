@@ -107,24 +107,20 @@ Target.create "publish-ui" (fun _ ->
 
 Target.create "publish" (fun _ -> ())
 
-#nowarn "52" // TODO-NMB: Obviate need to suppress warning caused by "Guid.NewGuid().ToString().ToLower().Split '-' |> Array.head"...
-
 Target.create "arm-template" (fun _ ->
-    let environment = Environment.environVarOrDefault "environment" (Guid.NewGuid().ToString().ToLower().Split '-' |> Array.head)
     let armTemplate = "arm-template.json"
-    let resourceGroupName = "safe-" + environment
+    let environment = "gibet"
     let authCtx =
-        // You can safely replace these with your own subscription and client IDs hard-coded into this script.
-        let subscriptionId = try Environment.environVar "subscriptionId" |> Guid.Parse with _ -> failwith "Invalid Subscription ID. This should be your Azure Subscription ID."
-        let clientId = try Environment.environVar "clientId" |> Guid.Parse with _ -> failwith "Invalid Client ID. This should be the Client ID of a Native application registered in Azure with permission to create resources in your subscription."
-        Trace.tracefn "Deploying template '%s' to resource group '%s' in subscription '%O'..." armTemplate resourceGroupName subscriptionId
+        let subscriptionId = Guid("9ad207a4-28b9-48a4-b6ba-710c35034343") // azure-djnarration
+        let clientId = Guid("14af985d-5718-4398-be45-7563042c7db7") // gibet [Azure AD application]
+        Trace.tracefn "Deploying template '%s' to resource group '%s' in subscription '%O'..." armTemplate environment subscriptionId
         subscriptionId |> authenticateDevice Trace.trace { ClientId = clientId ; TenantId = None } |> Async.RunSynchronously
     let deployment =
-        let location = Environment.environVarOrDefault "location" Region.EuropeWest.Name
-        let pricingTier = Environment.environVarOrDefault "pricingTier" "F1" // TODO-NMB...
-        { DeploymentName = "SAFE-template-deploy" // TODO-NMB...
-          ResourceGroup = New(resourceGroupName, Region.Create location)
-          ArmTemplate = IO.File.ReadAllText armTemplate
+        let location = Region.UKSouth.Name
+        let pricingTier = "F1"
+        { DeploymentName = environment
+          ResourceGroup = New(environment, Region.Create location)
+          ArmTemplate = armTemplate |> IO.File.ReadAllText
           Parameters =
               Simple
                   [ "environment", ArmString environment
@@ -135,20 +131,20 @@ Target.create "arm-template" (fun _ ->
     |> deployWithProgress authCtx
     |> Seq.iter (function
         | DeploymentInProgress(state, operations) -> Trace.tracefn "State is %s; completed %d operations" state operations
-        | DeploymentError(statusCode, message) -> Trace.traceError <| sprintf "DEPLOYMENT ERROR: %s - '%s'" statusCode message
+        | DeploymentError(statusCode, message) -> Trace.traceError <| sprintf "Deployment error: %s -> '%s'" statusCode message
         | DeploymentCompleted d -> deploymentOutputs <- d)
 )
 
 Target.create "deploy-azure" (fun _ ->
     let zipFile = "deploy.zip"
-    IO.File.Delete zipFile
+    zipFile |> IO.File.Delete
     Zip.zip deployDir zipFile !!(deployDir + @"\**\**")
     let appName = deploymentOutputs.Value.WebAppName.value
     let appPassword = deploymentOutputs.Value.WebAppPassword.value
     let destinationUri = sprintf "https://%s.scm.azurewebsites.net/api/zipdeploy" appName
     let client = new TimeoutWebClient(Credentials = NetworkCredential("$" + appName, appPassword))
     Trace.tracefn "Uploading %s to %s..." zipFile destinationUri
-    client.UploadData(destinationUri, IO.File.ReadAllBytes zipFile) |> ignore
+    client.UploadData(destinationUri, zipFile |> IO.File.ReadAllBytes) |> ignore
 )
 
 Target.create "help" (fun _ ->
@@ -156,7 +152,7 @@ Target.create "help" (fun _ ->
     printfn "\n\trun -> builds, runs and watches [Debug] server and [non-production] ui (served via webpack-dev-server)"
     printfn "\n\tbuild -> builds [Release] server and [production] ui (which writes output to .\\src\\ui\\deploy)"
     printfn "\tpublish -> builds [Release] server and [production] ui and copies output to .\\deploy"
-    // TODO-NMB...printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\deploy and deploys to Azure"
+    printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\deploy and deploys to Azure"
     // TODO-NMB...printfn "\n\tdev-console -> builds and runs [Debug] dev-console"
     // TODO-NMB: gh-pages?...
     printfn "\n\thelp -> shows this list of build targets\n"

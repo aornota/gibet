@@ -1,11 +1,10 @@
 .fable/
 .fake/
-.vs/
+deploy/
+node_modules/
+paket-files/
+src/ui/deploy/
 obj/
 bin/
-packages/
-paket-files/
-node_modules/
-src/Client/public/js/
-deploy
+deploy.zip
 yarn-error.log
