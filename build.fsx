@@ -74,8 +74,7 @@ Target.create "restore-ui" (fun _ ->
     printfn "Yarn version:"
     runTool yarnTool "--version" __SOURCE_DIRECTORY__
     runTool yarnTool "install --frozen-lockfile" __SOURCE_DIRECTORY__
-    runDotNet "restore" uiDir
-)
+    runDotNet "restore" uiDir)
 
 Target.create "run" (fun _ ->
     let server = async { runDotNet "watch run" serverDir }
@@ -84,8 +83,7 @@ Target.create "run" (fun _ ->
         do! Async.Sleep 5000
         openBrowser "http://localhost:8080"
     }
-    [ server ; client ; browser ] |> Async.Parallel |> Async.RunSynchronously |> ignore
-)
+    [ server ; client ; browser ] |> Async.Parallel |> Async.RunSynchronously |> ignore)
 
 Target.create "build-server" (fun _ -> runDotNet "build -c Release" serverDir)
 Target.create "build-ui" (fun _ -> runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__)
@@ -120,8 +118,7 @@ Target.create "arm-template" (fun _ ->
     |> Seq.iter (function
         | DeploymentInProgress(state, operations) -> Trace.tracefn "State is %s; completed %d operations" state operations
         | DeploymentError(statusCode, message) -> Trace.traceError <| sprintf "Deployment error: %s -> '%s'" statusCode message
-        | DeploymentCompleted d -> deploymentOutputs <- d)
-)
+        | DeploymentCompleted d -> deploymentOutputs <- d))
 
 Target.create "deploy-azure" (fun _ ->
     let zipFile = "deploy.zip"
@@ -132,8 +129,7 @@ Target.create "deploy-azure" (fun _ ->
     let destinationUri = sprintf "https://%s.scm.azurewebsites.net/api/zipdeploy" appName
     let client = new TimeoutWebClient(Credentials = NetworkCredential("$" + appName, appPassword))
     Trace.tracefn "Uploading %s to %s..." zipFile destinationUri
-    client.UploadData(destinationUri, zipFile |> IO.File.ReadAllBytes) |> ignore
-)
+    client.UploadData(destinationUri, zipFile |> IO.File.ReadAllBytes) |> ignore)
 
 Target.create "run-dev-console" (fun _ -> runDotNet "run" devConsoleDir)
 
@@ -145,8 +141,7 @@ Target.create "help" (fun _ ->
     printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\deploy and deploys to Azure"
     printfn "\n\trun-dev-console -> builds and runs [Debug] dev-console"
     // TODO-NMB: gh-pages?...
-    printfn "\n\thelp -> shows this list of build targets\n"
-)
+    printfn "\n\thelp -> shows this list of build targets\n")
 
 "clean" ==> "restore-ui"
 
