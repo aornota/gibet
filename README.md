@@ -28,10 +28,11 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 - Installed SAFE templates for .NET Core: _dotnet new -i "SAFE.Template::*"_
 - Created from template: _dotnet new SAFE -- server giraffe -- layout fulma-basic -- communication remoting -- pattern default -- deploy azure -- js-deps yarn_
 
-### Building / running
+### Running / building / deploying
 
-- Build for production / release: _fake build --target build_ (or _fake build -t build_)
 - Run / watch: _fake build --target run_ (or _fake build -t run_)
+- Build for production / release: _fake build --target build_ (or _fake build -t build_)
+- Deploy to Azure: _fake build --target deploy-azure_ (or _fake build -t deploy-azure_); see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
 - Help (lists key targets): _fake build --target help_ (or _fake build_)
 
 ## To do
