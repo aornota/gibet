@@ -1,6 +1,6 @@
 module Aornota.Gibet.DevConsole.TestAgent
 
-open Aornota.Gibet.DevConsole.ResilientMailbox
+open Aornota.Gibet.Common.ResilientMailbox
 
 open Serilog
 

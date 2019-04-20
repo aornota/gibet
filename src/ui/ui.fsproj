@@ -16,7 +16,7 @@
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\domain\temp-counter.fs" /><!--TEMP-NMB...-->
         <Compile Include="..\common\api\route.fs" />
-        <Compile Include="..\common\api\temp-counter-api.fs" /><!--TEMP-NMB...-->
+        <Compile Include="..\common\api\temp-i-counter-api.fs" /><!--TEMP-NMB...-->
         <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->
         <!--TODO-NMB?...<Compile Include="..\ui-theme-bulma\..." />-->
         <Compile Include="..\ui-common\local-storage.fs" />

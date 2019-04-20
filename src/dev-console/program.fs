@@ -37,7 +37,7 @@ let private mainAsync argv = async {
         testAgent.Fail()
         logger.Debug("Posting Decrement to TestAgent")
         testAgent.Decrement()
-        do! Async.Sleep(2500) *)
+        do! Async.Sleep 2500 *)
         // #endregion
 
         logger.Information("TODO-NMB...")

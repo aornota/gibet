@@ -6,9 +6,9 @@
        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
     <ItemGroup>
+        <Compile Include="..\common\resilient-mailbox.fs" />
         <Compile Include="console.fs" />
         <Compile Include="logger.fs" />
-        <Compile Include="resilient-mailbox.fs" />
         <Compile Include="test-agent.fs" />
         <Compile Include="program.fs" />
     </ItemGroup>

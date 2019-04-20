@@ -9,6 +9,8 @@ open System.Security.Cryptography
 
 open Jose
 
+// TODO-NMB: Switch to using Thoth.Json (i.e. rather than JsonConverter)?...
+
 let [<Literal>] private JWT_KEY_FILE = "./secret/jwt.txt"
 
 let private jwtKey =
@@ -23,13 +25,13 @@ let private jwtKey =
 let private encode (Json json) = JWT.Encode(json, jwtKey, JweAlgorithm.A256KW, JweEncryption.A256CBC_HS512)
 let private decode text = JWT.Decode(text, jwtKey, JweAlgorithm.A256KW, JweEncryption.A256CBC_HS512) |> Json
 
-let toJwt (userId:UserId, permissions:Permissions) =
+let toJwt (userId:UserId, userType:UserType) =
     try
-        (userId, permissions) |> toJson |> encode |> Jwt |> Ok
+        (userId, userType) |> toJson |> encode |> Jwt |> Ok
     with | exn -> exn.Message |> Error
 
 let fromJwt (Jwt jwt) =
     try
-        let userId, permissions = jwt |> decode |> ofJson<UserId * Permissions>
+        let userId, permissions = jwt |> decode |> ofJson<UserId * UserType>
         (userId, permissions) |> Ok
     with | exn -> exn.Message |> Error
