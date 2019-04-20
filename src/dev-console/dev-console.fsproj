@@ -7,7 +7,11 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="..\common\if-debug.fs" />
-        <Compile Include="dev-console.fs" />
+        <Compile Include="console.fs" />
+        <Compile Include="logger.fs" />
+        <Compile Include="resilient-mailbox.fs" />
+        <Compile Include="test-agent.fs" />
+        <Compile Include="program.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
