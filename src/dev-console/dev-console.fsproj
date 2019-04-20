@@ -6,7 +6,6 @@
        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="..\common\if-debug.fs" />
         <Compile Include="console.fs" />
         <Compile Include="logger.fs" />
         <Compile Include="resilient-mailbox.fs" />

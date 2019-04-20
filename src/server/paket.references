@@ -4,8 +4,13 @@ group server
     Elmish.Bridge.Giraffe
     Fable.JsonConverter
     Fable.Remoting.Giraffe
+    FsToolkit.ErrorHandling
     Giraffe
+    Giraffe.SerilogExtensions
     jose-jwt
     Microsoft.AspNetCore
     Microsoft.AspNetCore.StaticFiles
+	Serilog
+	Serilog.Sinks.Literate
+	Serilog.Sinks.RollingFile
     WindowsAzure.Storage

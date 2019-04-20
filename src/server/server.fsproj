@@ -22,6 +22,7 @@
         <Compile Include="..\server-common\json-converter.fs" />
         <Compile Include="jwt.fs" />
         <Compile Include="api\temp-counter-api.fs" /><!--TEMP-NMB...-->
+        <Compile Include="logger.fs" />
         <Compile Include="host-run.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />

@@ -5,6 +5,6 @@ node_modules/
 paket-files/
 bin/
 obj/
-src/dev-console/*.log
+logs/
 deploy.zip
 yarn-error.log

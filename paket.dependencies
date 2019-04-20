@@ -25,10 +25,15 @@ group server
     nuget Elmish.Bridge.Giraffe
     nuget Fable.JsonConverter
     nuget Fable.Remoting.Giraffe
+    nuget FsToolkit.ErrorHandling
     nuget Giraffe
+    nuget Giraffe.SerilogExtensions
     nuget jose-jwt
     nuget Microsoft.AspNetCore
     nuget Microsoft.AspNetCore.StaticFiles
+	nuget Serilog
+	nuget Serilog.Sinks.Literate
+	nuget Serilog.Sinks.RollingFile
     nuget WindowsAzure.Storage
 
 group ui

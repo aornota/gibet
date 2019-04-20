@@ -1,6 +1,7 @@
-module Aornota.Gibet.Common.Api.CounterApi
+module Aornota.Gibet.Common.Api.ICounterApi
 
 open Aornota.Gibet.Common.Domain.Counter
 
-type CounterApi = {
-    initialCounter : unit -> Async<Counter> }
+type ICounterApi = {
+    initialCounter : unit -> Async<Counter>
+}
