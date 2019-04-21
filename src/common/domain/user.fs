@@ -18,10 +18,7 @@ type User = {
     UserId : UserId
     Rvn : Rvn
     UserName : UserName
-    UserType : UserType
-    // TODO-NMB?...AvatarUrl : string option // e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png
-    MustChangePasswordReason : MustChangePasswordReason option
-    LastActivity : DateTimeOffset option }
+    UserType : UserType } // TODO-NMB?...AvatarUrl : string option // e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png
 
 type Jwt = | Jwt of string
 
@@ -43,3 +40,31 @@ let validatePassword (Password password) =
 let validateConfirmationPassword newPassword confirmationPassword =
     if newPassword <> confirmationPassword then "Confirmation password must match new password" |> Some
     else confirmationPassword |> validatePassword
+
+let canCreateUsers userType =
+    match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false
+let canCreateUser forUserType userType =
+    if userType |> canCreateUsers |> not then false
+    else
+        match userType, forUserType with
+        | BenevolentDictatorForLife, _ -> true
+        | Administrator, Administrator -> true
+        | Administrator, Pleb -> true
+        | Administrator, PersonaNonGrata -> true
+        | _ -> false
+let canChangePassword forUserId (userId, userType) =
+    if forUserId <> userId then false
+    else
+        match userType with
+        | BenevolentDictatorForLife | Administrator | Pleb -> true
+        | PersonaNonGrata -> false
+let canResetPassword (forUserId, forUserType) (userId, userType) =
+    if forUserId = userId then false
+    else userType |> canCreateUser forUserType
+let canChangeUserType (forUserId, forUserType) (userId, userType) =
+    if forUserId = userId then false
+    else userType |> canCreateUser forUserType
+let canChangeUserTypeTo (forUserId, forUserType, newUserType) (userId, userType) =
+    if (userId, userType) |> canChangeUserType (forUserId, forUserType) |> not then false
+    else if forUserType = newUserType then false
+    else userType |> canCreateUser newUserType

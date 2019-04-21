@@ -1,6 +1,7 @@
 module Aornota.Gibet.Server.Api.UserApiAgent
 
 open Aornota.Gibet.Common
+open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.ResilientMailbox
@@ -20,8 +21,8 @@ open Serilog
    Does not enforce actual/expected Rvn/s (but IUserRepo does). *)
 
 type private Input =
-    | SignIn of UserName * Password * AsyncReplyChannelResult<AuthUser, string>
-    | AutoSignIn of Jwt * AsyncReplyChannelResult<AuthUser, string>
+    | SignIn of UserName * Password * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
+    | AutoSignIn of Jwt * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
     | SignOut of Jwt * AsyncReplyChannelResult<unit, string>
     | GetUsers of Jwt * AsyncReplyChannelResult<User list, string>
     | CreateUser of Jwt * UserName * Password * UserType * AsyncReplyChannelResult<unit, string>
@@ -34,18 +35,22 @@ type private UserDict = Dictionary<UserId, User>
 type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
     let agent = ResilientMailbox<_>.Start(fun inbox ->
         let rec loop (userDict:UserDict) = async {
-            match! inbox.Receive() with
+            let! input = inbox.Receive ()
+            (* TEMP-NMB...
+            do! ifDebugSleepAsync 100 500 *)
+            match input with
             | SignIn(userName, password, reply) -> // TODO-NMB: Handle Jwt properly...
-                let! userId = (userName, password) |> userRepo.SignIn
+                let! repoResult = (userName, password) |> userRepo.SignIn
                 let result = result {
-                    let! userId = userId
-                    let! authUser =
-                        if userId |> userDict.ContainsKey then
+                    let! (userId, mustChangePasswordReason) = repoResult
+                    let! tuple =
+                        if debugFakeError () then sprintf "Fake SignIn error: %A" userName |> Error
+                        else if userId |> userDict.ContainsKey then
                             let user = userDict.[userId]
-                            let jwt = "Fake Jwt! Sad!" |> Jwt // TEMP-NMB (see also GetUsers(...) above)...
-                            { User = user ; Jwt = jwt } |> Ok
+                            let jwt = "Fake Jwt!" |> Jwt // TEMP-NMB (see also GetUsers(...) below)...
+                            ({ User = user ; Jwt = jwt }, mustChangePasswordReason) |> Ok
                         else INVALID_CREDENTIALS |> Error
-                    return authUser }
+                    return tuple }
                 result |> reply.Reply
                 return! userDict |> loop
             | AutoSignIn(Jwt jwt, reply) -> // TODO-NMB...
@@ -54,7 +59,8 @@ type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
                 return! userDict |> loop
             | GetUsers(Jwt jwt, reply) -> // TODO-NMB: Verify jwt properly...
                 let result =
-                    if jwt = "Fake Jwt! Sad!" then // TEMP-NMB (see also SignIn(...) above)...
+                    if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error
+                    else if jwt = "Fake Jwt!" then // TEMP-NMB (see also SignIn(...) above)...
                         userDict.Values |> List.ofSeq |> Ok
                     else NOT_ALLOWED |> Error
                 match result with

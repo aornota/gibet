@@ -12,10 +12,8 @@ type ResilientMailbox<'T> private(f:ResilientMailbox<'T> -> Async<unit>) as self
             try return! f self
             with exn ->
                 event.Trigger(exn)
-                return! loop()
-            }
-        loop()
-        )
+                return! loop() }
+        loop())
     member __.OnError = event.Publish
     member __.Start() = inbox.Start()
     member __.Receive() = inbox.Receive()

@@ -23,6 +23,7 @@
         <Compile Include="..\ui-common\local-storage.fs" />
         <Compile Include="..\ui-common\marked.fs" />
         <!--TODO-NMB?...<Compile Include="..\ui-common\notifications.fs" />-->
+        <Compile Include="..\ui-common\remote-data.fs" />
         <Compile Include="..\ui-common\render-markdown.fs" />
         <Compile Include="..\ui-common\should-never-happen.fs" />
         <Compile Include="..\ui-common\timestamp-helper.fs" />

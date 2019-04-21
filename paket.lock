@@ -1659,9 +1659,6 @@ NUGET
       System.Reflection.Emit.Lightweight (>= 4.3)
       System.Threading.Tasks.Extensions (>= 4.4)
       System.ValueTuple (>= 4.4)
-    WindowsAzure.Storage (9.3.3)
-      NETStandard.Library (>= 1.6.1)
-      Newtonsoft.Json (>= 10.0.2)
 
 GROUP ui
 STORAGE: NONE

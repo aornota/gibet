@@ -24,8 +24,8 @@
         <Compile Include="jwt.fs" />
         <Compile Include="repo\i-user-repo.fs" />
         <Compile Include="repo\in-memory-user-repo-agent.fs" />
-        <!--TODO-NMB?...<Compile Include="repo\mssql-user-repo.fs" />-->
-        <!--TODO-NMB?...<Compile Include="repo\sqlite-user-repo.fs" />-->
+        <!--TODO-NMB?...<Compile Include="repo\mssql-user-repo-agent.fs" />-->
+        <!--TODO-NMB?...<Compile Include="repo\sqlite-user-repo-agent.fs" />-->
         <Compile Include="repo\user-test-data.fs" />
         <Compile Include="api\user-api-agent.fs" />
         <Compile Include="logger.fs" />

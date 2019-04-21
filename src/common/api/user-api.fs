@@ -9,8 +9,8 @@ let [<Literal>] NOT_ALLOWED = "Not allowed"
 // TODO-NMB: Will need some sort of ConnectionId and/or AffinityId (a.k.a. SessionId)?...
 
 type UserApi = {
-    signIn : UserName * Password -> AsyncResult<AuthUser, string>
-    autoSignIn : Jwt -> AsyncResult<AuthUser, string>
+    signIn : UserName * Password -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
+    autoSignIn : Jwt -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     signOut : Jwt -> AsyncResult<unit, string>
     getUsers : Jwt -> AsyncResult<User list, string>
     createUser : Jwt * UserName * Password * UserType -> AsyncResult<unit, string>

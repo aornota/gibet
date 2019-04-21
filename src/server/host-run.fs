@@ -22,7 +22,6 @@ open Fable.Remoting.Giraffe
 open Fable.Remoting.Server
 
 open Serilog
-open Aornota.Gibet.Server.Api
 
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
 

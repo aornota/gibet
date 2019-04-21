@@ -34,7 +34,6 @@ group server
 	nuget Serilog
 	nuget Serilog.Sinks.Literate
 	nuget Serilog.Sinks.RollingFile
-    nuget WindowsAzure.Storage
 
 group ui
 

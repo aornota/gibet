@@ -18,7 +18,7 @@ open Serilog
    Does not enforce any length (&c.) restrictions on UserName or Password. *)
 
 type private Input =
-    | SignIn of UserName * Password * AsyncReplyChannelResult<UserId, string>
+    | SignIn of UserName * Password * AsyncReplyChannelResult<UserId * MustChangePasswordReason option, string>
     | GetUsers of AsyncReplyChannelResult<User list, string>
     | CreateUser of UserId option * UserName * Password * UserType * AsyncReplyChannelResult<User, string>
     | ChangePassword of UserId * Password * Rvn * AsyncReplyChannelResult<User, string>
@@ -28,7 +28,8 @@ type private Input =
 type private InMemoryUser = {
     User : User
     Salt : Salt
-    Hash : Hash }
+    Hash : Hash
+    MustChangePasswordReason : MustChangePasswordReason option }
 
 type private ImUserDict = Dictionary<UserId, InMemoryUser>
 
@@ -42,11 +43,13 @@ let private addUser (imUserDict:ImUserDict) (logger:ILogger) (userId, userName, 
             UserId = userId
             Rvn = initialRvn
             UserName = userName
-            UserType = userType
-            MustChangePasswordReason = FirstSignIn |> Some
-            LastActivity = None }
+            UserType = userType }
         let salt = salt()
-        let imUser = { User = user ; Salt = salt ; Hash = hash(password, salt) }
+        let imUser = {
+            User = user
+            Salt = salt
+            Hash = hash(password, salt)
+            MustChangePasswordReason = FirstSignIn |> Some }
         (userId, imUser) |> imUserDict.Add
         return imUser.User }
     match result with
@@ -83,7 +86,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ =
                         if imUser.Hash = hash(password, imUser.Salt) then () |> Ok
                         else INVALID_CREDENTIALS |> Error
-                    return imUser.User.UserId }
+                    return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
                 | Ok _ -> logger.Debug("Able to sign in as {userName}", userName)
                 | Error error -> logger.Warning("Unable to sign in as {userName}: {error}", userName, error)
@@ -101,9 +104,9 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let result = result {
                     let! imUser = userId |> findUserId imUserDict
                     let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
-                    let user = { imUser.User with Rvn = rvn |> incrementRvn ; MustChangePasswordReason = None }
+                    let user = { imUser.User with Rvn = rvn |> incrementRvn }
                     let salt = salt()
-                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash }
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = None }
                     let! _ = imUser |> updateUser imUserDict
                     return user }
                 match result with
@@ -115,9 +118,9 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let result = result {
                     let! imUser = userId |> findUserId imUserDict
                     let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
-                    let user = { imUser.User with Rvn = rvn |> incrementRvn ; MustChangePasswordReason = PasswordReset |> Some }
+                    let user = { imUser.User with Rvn = rvn |> incrementRvn }
                     let salt = salt()
-                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash }
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = PasswordReset |> Some }
                     let! _ = imUser |> updateUser imUserDict
                     return user }
                 match result with
