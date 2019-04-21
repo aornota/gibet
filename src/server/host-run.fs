@@ -1,7 +1,7 @@
 module Aornota.Gibet.Server.Host.Run
 
 open Aornota.Gibet.Common.Api
-open Aornota.Gibet.Server.Api.UserApi
+open Aornota.Gibet.Server.Api.UserApiAgent
 open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Repo
 open Aornota.Gibet.Server.Repo.IUserRepo
@@ -22,6 +22,7 @@ open Fable.Remoting.Giraffe
 open Fable.Remoting.Server
 
 open Serilog
+open Aornota.Gibet.Server.Api
 
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
 
@@ -46,7 +47,7 @@ let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not su
 
 let private webAppWithLogging = userApi |> SerilogAdapter.Enable // TODO-NMB: Replace "userApi" with "choose [ userApi ; {xyzApi} ]"...
 
-let private userRepo = Log.Logger |> InMemoryUserRepo.InMemoryUserRepo :> IUserRepo
+let private userRepo = Log.Logger |> InMemoryUserRepoAgent.InMemoryUserRepoAgent :> IUserRepo
 //#if DEBUG
 userRepo |> UserTestData.create Log.Logger |> Async.RunSynchronously |> ignore
 //#endif
@@ -63,7 +64,7 @@ let private configure(applicationBuilder:IApplicationBuilder) =
 let private configureServices(services:IServiceCollection) =
     Log.Logger |> services.AddSingleton |> ignore
     userRepo |> services.AddSingleton |> ignore
-    services.AddSingleton<UserApi, UserApi>() |> ignore
+    services.AddSingleton<UserApiAgent, UserApiAgent>() |> ignore
     services.AddGiraffe() |> ignore
 
 let private host =

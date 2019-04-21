@@ -18,16 +18,16 @@
         <Compile Include="..\common\units-of-measure.fs" />
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\api\route.fs" />
-        <Compile Include="..\common\api\i-user-api.fs" />
+        <Compile Include="..\common\api\user-api.fs" />
         <!--TODO-NMB?...<Compile Include="..\server-common\helpers.fs" />-->
         <Compile Include="..\server-common\json-converter.fs" />
         <Compile Include="jwt.fs" />
         <Compile Include="repo\i-user-repo.fs" />
-        <Compile Include="repo\in-memory-user-repo.fs" />
+        <Compile Include="repo\in-memory-user-repo-agent.fs" />
         <!--TODO-NMB?...<Compile Include="repo\mssql-user-repo.fs" />-->
         <!--TODO-NMB?...<Compile Include="repo\sqlite-user-repo.fs" />-->
         <Compile Include="repo\user-test-data.fs" />
-        <Compile Include="api\user-api.fs" />
+        <Compile Include="api\user-api-agent.fs" />
         <Compile Include="logger.fs" />
         <Compile Include="host-run.fs" />
     </ItemGroup>

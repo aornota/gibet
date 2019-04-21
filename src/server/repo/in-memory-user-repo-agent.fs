@@ -1,4 +1,4 @@
-module Aornota.Gibet.Server.Repo.InMemoryUserRepo
+module Aornota.Gibet.Server.Repo.InMemoryUserRepoAgent
 
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
@@ -70,7 +70,7 @@ let private findUserName (imUserDict:ImUserDict) error userName =
     | [ imUser ] -> imUser |> Ok
     | _ :: _ | [] -> error |> Error
 
-type InMemoryUserRepo(logger:ILogger) =
+type InMemoryUserRepoAgent(logger:ILogger) =
     let agent = ResilientMailbox<_>.Start(fun inbox ->
         let rec loop (imUserDict:ImUserDict)  = async {
             match! inbox.Receive() with

@@ -1,7 +1,7 @@
-module Aornota.Gibet.Server.Api.UserApi
+module Aornota.Gibet.Server.Api.UserApiAgent
 
 open Aornota.Gibet.Common
-open Aornota.Gibet.Common.Api.IUserApi
+open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.ResilientMailbox
 open Aornota.Gibet.Common.Revision
@@ -31,7 +31,7 @@ type private Input =
 
 type private UserDict = Dictionary<UserId, User>
 
-type UserApi(userRepo:IUserRepo, logger:ILogger) =
+type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
     let agent = ResilientMailbox<_>.Start(fun inbox ->
         let rec loop (userDict:UserDict) = async {
             match! inbox.Receive() with
@@ -87,7 +87,7 @@ type UserApi(userRepo:IUserRepo, logger:ILogger) =
     member __.ChangeUserType(jwt, userId, userType, rvn) = (fun reply -> (jwt, userId, userType, rvn, reply) |> ChangeUserType) |> agent.PostAndAsyncReply
 
 let userApiReader = reader {
-    let! userApi = resolve<UserApi>()
+    let! userApi = resolve<UserApiAgent>()
     return {
         signIn = userApi.SignIn
         autoSignIn = userApi.AutoSignIn

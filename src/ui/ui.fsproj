@@ -16,7 +16,7 @@
         <Compile Include="..\common\units-of-measure.fs" />
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\api\route.fs" />
-        <Compile Include="..\common\api\i-user-api.fs" />
+        <Compile Include="..\common\api\user-api.fs" />
         <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->
         <!--TODO-NMB?...<Compile Include="..\ui-theme-bulma\..." />-->
         <!--TODO-NMB?...<Compile Include="..\ui-common\lazy-view-or-hmr.fs" />-->

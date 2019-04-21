@@ -1,4 +1,4 @@
-module Aornota.Gibet.Common.Api.IUserApi
+module Aornota.Gibet.Common.Api.UserApi
 
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
@@ -8,7 +8,7 @@ let [<Literal>] NOT_ALLOWED = "Not allowed"
 
 // TODO-NMB: Will need some sort of ConnectionId and/or AffinityId (a.k.a. SessionId)?...
 
-type IUserApi = {
+type UserApi = {
     signIn : UserName * Password -> AsyncResult<AuthUser, string>
     autoSignIn : Jwt -> AsyncResult<AuthUser, string>
     signOut : Jwt -> AsyncResult<unit, string>
