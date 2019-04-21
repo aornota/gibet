@@ -2,7 +2,6 @@
 
 open Aornota.Gibet.DevConsole.Console
 open Aornota.Gibet.DevConsole.Logger
-//open Aornota.Gibet.DevConsole.TestAgent
 
 open System
 
@@ -24,20 +23,6 @@ let private mainAsync argv = async {
         logger.Information("This is an information message: {test}", test)
         logger.Warning("This is a warning message")
         failwith "Fake error. Sad!" *)
-        // #endregion
-        // #region TestAgent and ResilientMailbox<'T>
-        (* let initialValue = 5
-        logger.Debug("Creating TestAgent with initial value {initialValue}", initialValue)
-        let testAgent = TestAgent(initialValue, logger)
-        logger.Debug("Posting Increment to TestAgent")
-        testAgent.Increment()
-        logger.Debug("Posting Increment to TestAgent")
-        testAgent.Increment()
-        logger.Debug("Posting Fail to TestAgent")
-        testAgent.Fail()
-        logger.Debug("Posting Decrement to TestAgent")
-        testAgent.Decrement()
-        do! Async.Sleep 2500 *)
         // #endregion
 
         logger.Information("TODO-NMB...")

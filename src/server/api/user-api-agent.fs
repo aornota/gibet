@@ -4,7 +4,6 @@ open Aornota.Gibet.Common
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.ResilientMailbox
 open Aornota.Gibet.Common.Revision
 // TODO-NMB...open Aornota.Gibet.Server.Jwt
 open Aornota.Gibet.Server.Repo.IUserRepo
@@ -33,7 +32,7 @@ type private Input =
 type private UserDict = Dictionary<UserId, User>
 
 type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
-    let agent = ResilientMailbox<_>.Start(fun inbox ->
+    let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop (userDict:UserDict) = async {
             let! input = inbox.Receive ()
             (* TEMP-NMB...
@@ -82,7 +81,7 @@ type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
         | Ok users -> users |> List.iter (fun user -> (user.UserId, user) |> userDict.Add)
         | Error _ -> logger.Warning("No Users in IUserRepo")
         userDict |> loop)
-    do agent.OnError.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
+    do agent.Error.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
     member __.SignIn(userName, password) = (fun reply -> (userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
     member __.AutoSignIn(jwt) = (fun reply -> (jwt, reply) |> AutoSignIn) |> agent.PostAndAsyncReply
     member __.SignOut(jwt) = (fun reply -> (jwt, reply) |> SignOut) |> agent.PostAndAsyncReply

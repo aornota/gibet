@@ -2,7 +2,6 @@ module Aornota.Gibet.Server.Repo.InMemoryUserRepoAgent
 
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.ResilientMailbox
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Server.Repo.IUserRepo
 
@@ -74,7 +73,7 @@ let private findUserName (imUserDict:ImUserDict) error userName =
     | _ :: _ | [] -> error |> Error
 
 type InMemoryUserRepoAgent(logger:ILogger) =
-    let agent = ResilientMailbox<_>.Start(fun inbox ->
+    let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop (imUserDict:ImUserDict)  = async {
             match! inbox.Receive() with
             | SignIn(userName, password, reply) ->
@@ -143,7 +142,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 return! imUserDict |> loop }
         logger.Information("Starting InMemoryUserRepo agent...")
         ImUserDict() |> loop)
-    do agent.OnError.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
+    do agent.Error.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
     interface IUserRepo with
         member __.SignIn(userName, password) = (fun reply -> (userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
         member __.GetUsers() = (fun reply -> reply |> GetUsers) |> agent.PostAndAsyncReply

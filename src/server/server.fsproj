@@ -12,7 +12,6 @@
         <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
         <Compile Include="..\common\markdown.fs" />
         <Compile Include="..\common\optional-builder.fs" />
-        <Compile Include="..\common\resilient-mailbox.fs" />
         <Compile Include="..\common\revision.fs" />
         <Compile Include="..\common\unexpected-error.fs" />
         <Compile Include="..\common\units-of-measure.fs" />
