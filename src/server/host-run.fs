@@ -1,11 +1,9 @@
 module Aornota.Gibet.Server.Host.Run
 
 open Aornota.Gibet.Common.Api
-open Aornota.Gibet.Server.Api.CounterApi // TEMP-NMB...
-// TODO-NMB...open Aornota.Gibet.Server.Api.UserApi
+open Aornota.Gibet.Server.Api.UserApi
 open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Repo
-open Aornota.Gibet.Server.Repo.InMemoryUserRepo
 open Aornota.Gibet.Server.Repo.IUserRepo
 
 open System
@@ -39,16 +37,16 @@ let private publicPath =
 
 // TODO-NMB: Add Elmish.Bridge...
 
-let private counterApi =
+let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Remoting.createApi()
     // TODO-NMB: Custom error handling?...
     |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.fromReader counterApiReader
+    |> Remoting.fromReader userApiReader
     |> Remoting.buildHttpHandler
 
-let private webAppWithLogging = counterApi |> SerilogAdapter.Enable // TODO-NMB: Use "choose [ TEMP-NMB...counterApi ; ... ] |> SerilogAdapter.Enable" for multiple APIs...
+let private webAppWithLogging = userApi |> SerilogAdapter.Enable // TODO-NMB: Replace "userApi" with "choose [ userApi ; {xyzApi} ]"...
 
-let private userRepo = Log.Logger |> InMemoryUserRepo :> IUserRepo
+let private userRepo = Log.Logger |> InMemoryUserRepo.InMemoryUserRepo :> IUserRepo
 //#if DEBUG
 userRepo |> UserTestData.create Log.Logger |> Async.RunSynchronously |> ignore
 //#endif
@@ -63,8 +61,9 @@ let private configure(applicationBuilder:IApplicationBuilder) =
         .UseGiraffe(webAppWithLogging)
 
 let private configureServices(services:IServiceCollection) =
-    Log.Logger |> services.AddSingleton |> ignore // seems to be necessary to add Log.Logger for "let! logger = resolve<ILogger>()" stuff (e.g. in TEMP-NMB...counterApiReader)
+    Log.Logger |> services.AddSingleton |> ignore
     userRepo |> services.AddSingleton |> ignore
+    services.AddSingleton<UserApi, UserApi>() |> ignore
     services.AddGiraffe() |> ignore
 
 let private host =

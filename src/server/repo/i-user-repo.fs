@@ -8,6 +8,8 @@ open System
 open System.Security.Cryptography
 open System.Text
 
+let [<Literal>] INVALID_CREDENTIALS = "Invalid credentials"
+
 type IUserRepo =
     abstract SignIn: UserName * Password -> AsyncResult<UserId, string>
     abstract GetUsers: unit -> AsyncResult<User list, string>
@@ -28,7 +30,6 @@ let salt() =
     let bytes : byte[] = Array.zeroCreate 32
     rng.GetBytes(bytes)
     bytes |> Convert.ToBase64String |> Salt
-
 let hash(Password password, Salt salt) =
     let bytes = sprintf "%s|%s" password salt |> encoding.GetBytes |> sha512.ComputeHash
     bytes |> Convert.ToBase64String |> Hash

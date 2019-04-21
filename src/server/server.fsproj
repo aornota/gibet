@@ -17,10 +17,8 @@
         <Compile Include="..\common\unexpected-error.fs" />
         <Compile Include="..\common\units-of-measure.fs" />
         <Compile Include="..\common\domain\user.fs" />
-        <Compile Include="..\common\domain\temp-counter.fs" /><!--TEMP-NMB...-->
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\i-user-api.fs" />
-        <Compile Include="..\common\api\temp-i-counter-api.fs" /><!--TEMP-NMB...-->
         <!--TODO-NMB?...<Compile Include="..\server-common\helpers.fs" />-->
         <Compile Include="..\server-common\json-converter.fs" />
         <Compile Include="jwt.fs" />
@@ -30,7 +28,6 @@
         <!--TODO-NMB?...<Compile Include="repo\sqlite-user-repo.fs" />-->
         <Compile Include="repo\user-test-data.fs" />
         <Compile Include="api\user-api.fs" />
-        <Compile Include="api\temp-counter-api.fs" /><!--TEMP-NMB...-->
         <Compile Include="logger.fs" />
         <Compile Include="host-run.fs" />
     </ItemGroup>

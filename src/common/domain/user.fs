@@ -4,11 +4,11 @@ open Aornota.Gibet.Common.Revision
 
 open System
 
-type UserId = | UserId of guid : Guid with
+type UserId = | UserId of Guid with
     static member Create() = Guid.NewGuid() |> UserId
 
-type UserName = | UserName of userName : string
-type Password = | Password of password : string
+type UserName = | UserName of string
+type Password = | Password of string
 
 type UserType = | BenevolentDictatorForLife | Administrator | Pleb | PersonaNonGrata
 
@@ -23,7 +23,7 @@ type User = {
     MustChangePasswordReason : MustChangePasswordReason option
     LastActivity : DateTimeOffset option }
 
-type Jwt = | Jwt of jwt : string
+type Jwt = | Jwt of string
 
 type AuthUser = {
     User : User

@@ -1,11 +1,11 @@
 module Aornota.Gibet.Ui.Program.ServerApi
 
 open Aornota.Gibet.Common.Api
-open Aornota.Gibet.Common.Api.ICounterApi // TEMP-NMB...
+open Aornota.Gibet.Common.Api.IUserApi
 
 open Fable.Remoting.Client
 
-let counterApi =
+let userApi =
     Remoting.createApi()
     |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.buildProxy<ICounterApi>
+    |> Remoting.buildProxy<IUserApi>

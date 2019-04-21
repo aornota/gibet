@@ -14,12 +14,9 @@
         <Compile Include="..\common\revision.fs" />
         <Compile Include="..\common\unexpected-error.fs" />
         <Compile Include="..\common\units-of-measure.fs" />
-        <!--TODO-NMB?...<Compile Include="..\common\domain\..." />-->
         <Compile Include="..\common\domain\user.fs" />
-        <Compile Include="..\common\domain\temp-counter.fs" /><!--TEMP-NMB...-->
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\i-user-api.fs" />
-        <Compile Include="..\common\api\temp-i-counter-api.fs" /><!--TEMP-NMB...-->
         <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->
         <!--TODO-NMB?...<Compile Include="..\ui-theme-bulma\..." />-->
         <!--TODO-NMB?...<Compile Include="..\ui-common\lazy-view-or-hmr.fs" />-->

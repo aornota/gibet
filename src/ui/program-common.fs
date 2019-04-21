@@ -1,12 +1,17 @@
 module Aornota.Gibet.Ui.Program.Common
 
-open Aornota.Gibet.Common.Domain.Counter
+open Aornota.Gibet.Common.Domain.User
 
-type State = { Counter : Counter option }
+type State = {
+    AuthUser : AuthUser option
+    SignInError : string option
+    Users : (User list) option
+    GetUsersError : string option }
 
 type Input =
-    | Increment
-    | Decrement
-    | InitialCountLoaded of Result<Counter, exn>
+    | SignIn
+    | SignInResult of Result<Result<AuthUser, string>, exn>
+    | GetUsers
+    | GetUsersResult of Result<Result<User list, string>, exn>
 
 let [<Literal>] GIBET = "gibet (α)"
