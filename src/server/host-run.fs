@@ -48,9 +48,9 @@ let private webApp = counterApi // TODO-NMB: Use choose [ counterApi ; ... ] for
 let private webAppWithLogging = SerilogAdapter.Enable webApp
 
 let private userRepo = InMemoryUserRepo Log.Logger :> IUserRepo
-#if DEBUG
+//#if DEBUG
 userRepo |> UserTestData.create Log.Logger |> Async.RunSynchronously |> ignore
-#endif
+//#endif
 
 let private configureLogging(loggingBuilder:ILoggingBuilder) =
     loggingBuilder.ClearProviders() |> ignore // to suppress "info: Microsoft.AspNetCore.Hosting.Internal.WebHost" stuff
@@ -62,7 +62,7 @@ let private configure(applicationBuilder:IApplicationBuilder) =
         .UseGiraffe(webAppWithLogging)
 
 let private configureServices(services:IServiceCollection) =
-    services.AddSingleton Log.Logger |> ignore // seems to be necessary for "let! logger = resolve<ILogger>()" stuff
+    services.AddSingleton Log.Logger |> ignore // seems to be necessary for "let! logger = resolve<ILogger>()" stuff (e.g. in TEMP-NMB...counterApiReader)
     services.AddSingleton userRepo |> ignore
     services.AddGiraffe() |> ignore
 
