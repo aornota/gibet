@@ -4,7 +4,7 @@ open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 
-// TODO-NMB: Will need some sort of ConnectionId / AffinityId (a.k.a. SessionId)?...
+// TODO-NMB: Will need some sort of ConnectionId and/or AffinityId (a.k.a. SessionId)?...
 
 type IUserApi = {
     signIn : UserName * Password -> AsyncResult<AuthUser, string>

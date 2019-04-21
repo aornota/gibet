@@ -140,7 +140,7 @@ type InMemoryUserRepo(logger:ILogger) =
                 | Error error -> logger.Warning("Unable to change user type for {userId}: {error}", userId, error)
                 result |> reply.Reply
                 return! imUsers |> loop }
-        logger.Information("Starting InMemoryUserRepo...")
+        logger.Information("Starting InMemoryUserRepo agent...")
         UserDict() |> loop)
     do agent.OnError.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
     interface IUserRepo with

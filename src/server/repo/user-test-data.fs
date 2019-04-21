@@ -10,7 +10,7 @@ open FsToolkit.ErrorHandling
 open Serilog
 
 let create (logger:ILogger) (userRepo:IUserRepo) = asyncResult {
-    logger.Information("Creating user/s test data...")
+    logger.Information("Creating User test data...")
     let initialPassword = "password" |> Password
     let nephId, neph, nephPassword = Guid "00000000-0001-0000-0000-000000000000" |> UserId, "neph" |> UserName, "neph" |> Password
     let rosieId, rosie = Guid "00000000-0000-0001-0000-000000000000" |> UserId, "rosie" |> UserName
@@ -31,5 +31,5 @@ let create (logger:ILogger) (userRepo:IUserRepo) = asyncResult {
     let! hughUser = userRepo.ChangeUserType(hughUser.UserId, Administrator, hughUser.Rvn)
     let! _ = userRepo.ChangePassword(hughUser.UserId, hughPassword, hughUser.Rvn)
     let! _ = userRepo.SignIn(hugh, hughPassword)
-    logger.Information("...user/s test data created")
+    logger.Information("...User test data created")
     return () }

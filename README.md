@@ -37,8 +37,8 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 
 ## To do
 
-- [ ] will Fable.Remoting and Elmish.Bridge work with pre-release dependencies (Fable.Core &c.)?
-- [ ] extend functionality, e.g. User/s repository (via ASP.NET Core dependency injection?) / simple chat client? / &c.
-- [ ] more dependencies: bulma-checkradio/bulma-pageloader/bulma-tooltip/Fulma.Extensions?
+- [ ] will Elmish.Bridge work with pre-release dependencies (Fable.Core &c.)?
+- [ ] extend functionality, e.g. User repository (via ASP.NET Core dependency injection) | simple chat client? | &c.
+- [ ] more dependencies (via Fulma.Extensions.Wikiki?): bulma-tooltip? | bulma-pageloader? | bulma-checkradio? | &c.
 - [ ] automated testing?
 - [ ] additional documentation, e.g. [gh-pages branch](https://aornota.github.io/gibet/)?
