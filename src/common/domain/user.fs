@@ -30,16 +30,16 @@ type AuthUser = {
     Jwt : Jwt }
 
 let validateUserName (userNames:UserName list) (UserName userName) =
-    if String.IsNullOrWhiteSpace userName then "User name must not be blank" |> Error
-    else if userName.Trim().Length < 3 then "User name must be at least 3 characters" |> Error
+    if String.IsNullOrWhiteSpace userName then "User name must not be blank" |> Some
+    else if userName.Trim().Length < 3 then "User name must be at least 3 characters" |> Some
     // TODO-NMB: Limit to specific characters?...
-    else if userNames |> List.map (fun (UserName userName) -> userName.ToLower().Trim()) |> List.contains (userName.ToLower().Trim()) then "User name already in use" |> Error
-    else () |> Ok
+    else if userNames |> List.map (fun (UserName userName) -> userName.ToLower().Trim()) |> List.contains (userName.ToLower().Trim()) then "User name is not available" |> Some
+    else None
 let validatePassword (Password password) =
-    if String.IsNullOrWhiteSpace password then "Password must not be blank" |> Error
-    else if password.Trim().Length < 6 then "Password must be at least 6 characters" |> Error
+    if String.IsNullOrWhiteSpace password then "Password must not be blank" |> Some
+    else if password.Trim().Length < 6 then "Password must be at least 6 characters" |> Some
     // TODO-NMB: Other restrictions?...
-    else () |> Ok
-let validateConfirmPassword (Password newPassword) (Password confirmationPassword) =
-    if newPassword <> confirmationPassword then "Confirmation password must match new password" |> Error
-    else validatePassword(Password confirmationPassword)
+    else None
+let validateConfirmationPassword newPassword confirmationPassword =
+    if newPassword <> confirmationPassword then "Confirmation password must match new password" |> Some
+    else confirmationPassword |> validatePassword

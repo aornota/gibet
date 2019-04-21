@@ -1,15 +1,34 @@
 module Aornota.Gibet.Server.Repo.IUserRepo
 
+open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 
-// TODO-NMB: Does FsToolkit.ErrorHandling provide alternative to Async<Result<_>>?...
+open System
+open System.Security.Cryptography
+open System.Text
 
 type IUserRepo =
-    abstract SignIn: UserName * Password -> Async<Result<UserId, string>>
-    abstract GetUsers: unit -> Async<Result<User list, string>>
-    abstract CreateUser: UserId option * UserName * Password * UserType -> Async<Result<User, string>>
-    abstract ChangePassword: UserId * Password * Rvn -> Async<Result<User, string>>
-    abstract ResetPassword: UserId * Password * Rvn -> Async<Result<User, string>>
-    abstract ChangeUserType: UserId * UserType * Rvn -> Async<Result<User, string>>
-    // TODO-NMB: More...
+    abstract SignIn: UserName * Password -> AsyncResult<UserId, string>
+    abstract GetUsers: unit -> AsyncResult<User list, string>
+    abstract CreateUser: UserId option * UserName * Password * UserType -> AsyncResult<User, string>
+    abstract ChangePassword: UserId * Password * Rvn -> AsyncResult<User, string>
+    abstract ResetPassword: UserId * Password * Rvn -> AsyncResult<User, string>
+    abstract ChangeUserType: UserId * UserType * Rvn -> AsyncResult<User, string>
+    // TODO-NMB: More?...
+
+type Salt = | Salt of string
+type Hash = | Hash of string
+
+let private rng = RandomNumberGenerator.Create()
+let private sha512 = SHA512.Create()
+let private encoding = Encoding.UTF8
+
+let salt() =
+    let bytes : byte[] = Array.zeroCreate 32
+    rng.GetBytes(bytes)
+    bytes |> Convert.ToBase64String |> Salt
+
+let hash(Password password, Salt salt) =
+    let bytes = sprintf "%s|%s" password salt |> encoding.GetBytes |> sha512.ComputeHash
+    bytes |> Convert.ToBase64String |> Hash

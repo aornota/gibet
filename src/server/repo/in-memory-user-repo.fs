@@ -1,5 +1,6 @@
 module Aornota.Gibet.Server.Repo.InMemoryUserRepo
 
+open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.ResilientMailbox
 open Aornota.Gibet.Common.Revision
@@ -11,6 +12,11 @@ open FsToolkit.ErrorHandling
 
 open Serilog
 
+(* Enforces unique UserId.
+   Enforces actual/expected Rnv/s.
+   Does not enforce unique UserName (but cannot sign in with non-unique UserName).
+   Does not enforce any length (&c.) restrictions on UserName or Password. *)
+
 type private Input =
     | SignIn of UserName * Password * AsyncReplyChannel<Result<UserId, string>>
     | GetUsers of AsyncReplyChannel<Result<User list, string>>
@@ -21,8 +27,8 @@ type private Input =
 
 type private ImMemoryUser = {
     User : User
-    // TODO-NMB: Change to PasswordSalt and PasswordHash...
-    Password : Password }
+    Salt : Salt
+    Hash : Hash }
 
 type private UserDict = Dictionary<UserId, ImMemoryUser>
 
@@ -30,10 +36,10 @@ let [<Literal>] INVALID_CREDENTIALS = "Invalid credentials"
 
 let private addUser (imUsers:UserDict) (logger:ILogger) (userId, userName, password, userType) =
     let userId = userId |> Option.defaultValue (UserId.Create())
-    let userNames = imUsers.Values |> List.ofSeq |> List.map (fun imUser -> imUser.User.UserName)
     let result = result {
-        let! _ = userName |> validateUserName userNames
-        let! _ = password |> validatePassword
+        let! _ =
+            if imUsers.ContainsKey userId then sprintf "%A already exists" userId |> Error
+            else () |> Ok
         let user = {
             UserId = userId
             Rvn = initialRvn
@@ -41,10 +47,9 @@ let private addUser (imUsers:UserDict) (logger:ILogger) (userId, userName, passw
             UserType = userType
             MustChangePasswordReason = FirstSignIn |> Some
             LastActivity = None }
-        let imUser = { User = user ; Password = password }
-        let! _ =
-            if imUsers.ContainsKey(userId) then sprintf "%A already exists" userId |> Error
-            else (userId, imUser) |> imUsers.Add |> Ok
+        let salt = salt()
+        let imUser = { User = user ; Salt = salt ; Hash = hash(password, salt) }
+        (userId, imUser) |> imUsers.Add
         return imUser.User }
     match result with
     | Ok user -> logger.Debug("Added {user}", user)
@@ -53,20 +58,19 @@ let private addUser (imUsers:UserDict) (logger:ILogger) (userId, userName, passw
 
 let private updateUser (imUsers:UserDict) imUser =
     let userId = imUser.User.UserId
-    if imUsers.ContainsKey(userId) then
+    if imUsers.ContainsKey userId then
         imUsers.[userId] <- imUser
         () |> Ok
     else sprintf "Unable to update %A" userId |> Error
 
 let private findUserId (imUsers:UserDict) userId =
-    match imUsers.Values |> List.ofSeq |> List.tryFind (fun imUser -> imUser.User.UserId = userId) with
-    | Some imUser -> imUser |> Ok
-    | None -> sprintf "Unable to find %A" userId |> Error
+    if imUsers.ContainsKey userId then imUsers.[userId] |> Ok
+    else sprintf "Unable to find %A" userId |> Error
 
 let private findUserName (imUsers:UserDict) error userName =
-    match imUsers.Values |> List.ofSeq |> List.tryFind (fun imUser -> imUser.User.UserName = userName) with
-    | Some imUser -> imUser |> Ok
-    | None -> error |> Error
+    match imUsers.Values |> List.ofSeq |> List.filter (fun imUser -> imUser.User.UserName = userName) with
+    | [ imUser ] -> imUser |> Ok
+    | _ :: _ | [] -> error |> Error
 
 type InMemoryUserRepo(logger:ILogger) =
     let agent = ResilientMailbox<_>.Start(fun inbox ->
@@ -79,7 +83,7 @@ type InMemoryUserRepo(logger:ILogger) =
                         if imUser.User.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
                         else () |> Ok
                     let! _ =
-                        if imUser.Password = password then () |> Ok
+                        if imUser.Hash = hash(password, imUser.Salt) then () |> Ok
                         else INVALID_CREDENTIALS |> Error
                     return imUser.User.UserId }
                 match result with
@@ -98,10 +102,10 @@ type InMemoryUserRepo(logger:ILogger) =
             | ChangePassword(userId, password, rvn, reply) ->
                 let result = result {
                     let! imUser = userId |> findUserId imUsers
-                    let! _ = password |> validatePassword
-                    let! _ = rvn |> validateRvn imUser.User.Rvn
+                    let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = rvn |> incrementRvn ; MustChangePasswordReason = None }
-                    let imUser = { imUser with User = user ; Password = password }
+                    let salt = salt()
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash }
                     let! _ = imUser |> updateUser imUsers
                     return user }
                 match result with
@@ -112,10 +116,10 @@ type InMemoryUserRepo(logger:ILogger) =
             | ResetPassword(userId, password, rvn, reply) ->
                 let result = result {
                     let! imUser = userId |> findUserId imUsers
-                    let! _ = password |> validatePassword
-                    let! _ = rvn |> validateRvn imUser.User.Rvn
+                    let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = rvn |> incrementRvn ; MustChangePasswordReason = PasswordReset |> Some }
-                    let imUser = { imUser with User = user ; Password = password }
+                    let salt = salt()
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash }
                     let! _ = imUser |> updateUser imUsers
                     return user }
                 match result with
@@ -126,7 +130,7 @@ type InMemoryUserRepo(logger:ILogger) =
             | ChangeUserType(userId, userType, rvn, reply) ->
                 let result = result {
                     let! imUser = userId |> findUserId imUsers
-                    let! _ = rvn |> validateRvn imUser.User.Rvn
+                    let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = rvn |> incrementRvn ; UserType = userType }
                     let imUser = { imUser with User = user }
                     let! _ = imUser |> updateUser imUsers
@@ -136,7 +140,7 @@ type InMemoryUserRepo(logger:ILogger) =
                 | Error error -> logger.Warning("Unable to change user type for {userId}: {error}", userId, error)
                 result |> reply.Reply
                 return! imUsers |> loop }
-        logger.Debug("Starting InMemoryUserRepo...")
+        logger.Information("Starting InMemoryUserRepo...")
         UserDict() |> loop)
     do agent.OnError.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
     interface IUserRepo with

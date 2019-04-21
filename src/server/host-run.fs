@@ -1,11 +1,10 @@
 module Aornota.Gibet.Server.Host.Run
 
 open Aornota.Gibet.Common.Api
-open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Server.Api.CounterApi // TEMP-NMB...
 open Aornota.Gibet.Server.Api.UserApi
 open Aornota.Gibet.Server.Logger
+open Aornota.Gibet.Server.Repo
 open Aornota.Gibet.Server.Repo.InMemoryUserRepo
 open Aornota.Gibet.Server.Repo.IUserRepo
 
@@ -49,28 +48,9 @@ let private webApp = counterApi // TODO-NMB: Use choose [ counterApi ; ... ] for
 let private webAppWithLogging = SerilogAdapter.Enable webApp
 
 let private userRepo = InMemoryUserRepo Log.Logger :> IUserRepo
-// #region Add initial Users
-Log.Logger.Debug("Adding initial users...")
-async {
-    let nephId = Guid "00000000-0001-0000-0000-000000000000" |> UserId
-    let rosieId = Guid "00000000-0000-0001-0000-000000000000" |> UserId
-    let hughId = Guid "00000000-0000-0002-0000-000000000000" |> UserId
-    let willId = Guid "00000000-0000-0000-0001-000000000000" |> UserId
-    let! _ = userRepo.CreateUser(nephId |> Some, "neph" |> UserName, "password" |> Password, BenevolentDictatorForLife)
-    let! _ = userRepo.CreateUser(rosieId |> Some, "rosie" |> UserName, "password" |> Password, Administrator)
-    let! _ = userRepo.CreateUser(hughId |> Some, "hugh" |> UserName, "password" |> Password, Pleb)
-    let! _ = userRepo.CreateUser(willId |> Some, "will" |> UserName, "password" |> Password, Pleb)
-    let! _ = userRepo.CreateUser(None, "satan" |> UserName, "password" |> Password, PersonaNonGrata)
-    let! _ = userRepo.SignIn("neph" |> UserName, "password" |> Password)
-    let! _ = userRepo.SignIn("rosie" |> UserName, "drowssap" |> Password)
-    let! _ = userRepo.SignIn("hguh" |> UserName, "password" |> Password)
-    let! _ = userRepo.SignIn("satan" |> UserName, "password" |> Password)
-    let! _ = userRepo.ChangePassword(rosieId, "drowssap" |> Password, initialRvn)
-    let! _ = userRepo.SignIn("rosie" |> UserName, "drowssap" |> Password)
-    let! _ = userRepo.ChangeUserType(hughId, Administrator, initialRvn)
-    return ()
-} |> Async.RunSynchronously
-// #endregion
+#if DEBUG
+userRepo |> UserTestData.create Log.Logger |> Async.RunSynchronously |> ignore
+#endif
 
 let private configureLogging(loggingBuilder:ILoggingBuilder) =
     loggingBuilder.ClearProviders() |> ignore // to suppress "info: Microsoft.AspNetCore.Hosting.Internal.WebHost" stuff

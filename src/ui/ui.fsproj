@@ -5,27 +5,30 @@
         <TreatWarningsAsErrors>false</TreatWarningsAsErrors><!--TODO-NMB: Enable this (once Fable.Remoting.Client issues resolved)?...-->
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="..\common\units-of-measure.fs" />
-        <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
-        <Compile Include="..\common\unexpected-error.fs" />
+        <Compile Include="..\common\error-handling.fs" />
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
+        <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
         <Compile Include="..\common\markdown.fs" />
+        <Compile Include="..\common\optional-builder.fs" />
         <Compile Include="..\common\revision.fs" />
+        <Compile Include="..\common\unexpected-error.fs" />
+        <Compile Include="..\common\units-of-measure.fs" />
         <!--TODO-NMB?...<Compile Include="..\common\domain\..." />-->
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\domain\temp-counter.fs" /><!--TEMP-NMB...-->
         <Compile Include="..\common\api\route.fs" />
+        <Compile Include="..\common\api\i-user-api.fs" />
         <Compile Include="..\common\api\temp-i-counter-api.fs" /><!--TEMP-NMB...-->
         <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->
         <!--TODO-NMB?...<Compile Include="..\ui-theme-bulma\..." />-->
-        <Compile Include="..\ui-common\local-storage.fs" />
         <!--TODO-NMB?...<Compile Include="..\ui-common\lazy-view-or-hmr.fs" />-->
+        <Compile Include="..\ui-common\local-storage.fs" />
+        <Compile Include="..\ui-common\marked.fs" />
+        <!--TODO-NMB?...<Compile Include="..\ui-common\notifications.fs" />-->
+        <Compile Include="..\ui-common\render-markdown.fs" />
         <Compile Include="..\ui-common\should-never-happen.fs" />
         <Compile Include="..\ui-common\timestamp-helper.fs" />
-        <Compile Include="..\ui-common\marked.fs" />
-        <Compile Include="..\ui-common\render-markdown.fs" />
-        <!--TODO-NMB?...<Compile Include="..\ui-common\notifications.fs" />-->
         <Compile Include="..\ui-common\toasts.fs" />
         <!--TODO-NMB?...<Compile Include="ui-shared.fs" />-->
         <!--TODO-NMB?...<Compile Include="pages\..." />-->

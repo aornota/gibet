@@ -1,18 +1,19 @@
 module Aornota.Gibet.Common.Api.IUserApi
 
+open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 
-// TODO-NMB: Will need some sort of ConnectionId / AffinityId? Store in AuthUser.Jwt?...
-// TODO-NMB: Does FsToolkit.ErrorHandling provide alternative to Async<Result<_>>?...
+// TODO-NMB: Will need some sort of ConnectionId / AffinityId (a.k.a. SessionId)?...
 
 type IUserApi = {
-    signIn : UserName * Password -> Async<Result<AuthUser, string>>
-    signOut : Jwt -> Async<Result<unit, string>>
-    getUsers : Jwt -> Async<Result<User list, string>>
-    createUser : Jwt * UserName * Password * UserType -> Async<Result<unit, string>>
-    changePassword : Jwt * Password * Rvn -> Async<Result<unit, string>>
-    resetPassword : Jwt * UserId * Password * Rvn -> Async<Result<unit, string>>
-    changeUserType : Jwt * UserId * UserType * Rvn -> Async<Result<unit, string>>
-    // TODO-NMB: More...
+    signIn : UserName * Password -> AsyncResult<AuthUser, string>
+    autoSignIn : Jwt -> AsyncResult<AuthUser, string>
+    signOut : Jwt -> AsyncResult<unit, string>
+    getUsers : Jwt -> AsyncResult<User list, string>
+    createUser : Jwt * UserName * Password * UserType -> AsyncResult<unit, string>
+    changePassword : Jwt * Password * Rvn -> AsyncResult<unit, string>
+    resetPassword : Jwt * UserId * Password * Rvn -> AsyncResult<unit, string>
+    changeUserType : Jwt * UserId * UserType * Rvn -> AsyncResult<unit, string>
+    // TODO-NMB: More?...
 }
