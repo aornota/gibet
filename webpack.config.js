@@ -6,6 +6,8 @@ var htmlWebpackPlugin = require('html-webpack-plugin');
 var copyWebpackPlugin = require('copy-webpack-plugin');
 var miniCssExtractPlugin = require("mini-css-extract-plugin");
 
+var port = process.env.SERVER_PORT || "8085"
+
 var config = {
     indexHtmlTemplate: "./src/ui/index.html"
     , fsharpEntry: "./src/ui/ui.fsproj"
@@ -17,8 +19,12 @@ var config = {
     // TODO-NMB: Redirect WebSocket requests (i.e. once using Elmish.Bridge)?...
     , devServerProxy: {
         '/api/*': {
-            target: 'http://localhost:' + (process.env.SERVER_PORT || "8085")
+            target: 'http://localhost:' + port
             , changeOrigin: true
+        }
+        , '/socket': {
+            target: 'http://localhost:' + port
+            , ws: true
         }
     }
     , babel: {

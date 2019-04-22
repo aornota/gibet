@@ -52,19 +52,19 @@ let canCreateUser forUserType userType =
         | Administrator, Pleb -> true
         | Administrator, PersonaNonGrata -> true
         | _ -> false
-let canChangePassword forUserId (userId, userType) =
+let canChangePassword forUserId (userId:UserId, userType) =
     if forUserId <> userId then false
     else
         match userType with
         | BenevolentDictatorForLife | Administrator | Pleb -> true
         | PersonaNonGrata -> false
-let canResetPassword (forUserId, forUserType) (userId, userType) =
+let canResetPassword (forUserId, forUserType) (userId:UserId, userType) =
     if forUserId = userId then false
     else userType |> canCreateUser forUserType
-let canChangeUserType (forUserId, forUserType) (userId, userType) =
+let canChangeUserType (forUserId, forUserType) (userId:UserId, userType) =
     if forUserId = userId then false
     else userType |> canCreateUser forUserType
-let canChangeUserTypeTo (forUserId, forUserType, newUserType) (userId, userType) =
+let canChangeUserTypeTo (forUserId, forUserType, newUserType) (userId:UserId, userType) =
     if (userId, userType) |> canChangeUserType (forUserId, forUserType) |> not then false
     else if forUserType = newUserType then false
     else userType |> canCreateUser newUserType

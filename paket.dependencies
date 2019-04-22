@@ -22,7 +22,7 @@ group server
     storage: none
 
     nuget FSharp.Core
-    nuget Elmish.Bridge.Giraffe
+    nuget Elmish.Bridge.Giraffe prerelease
     nuget Fable.JsonConverter
     nuget Fable.Remoting.Giraffe
     nuget FsToolkit.ErrorHandling
@@ -34,6 +34,7 @@ group server
 	nuget Serilog
 	nuget Serilog.Sinks.Literate
 	nuget Serilog.Sinks.RollingFile
+    nuget Thoth.Json.Net prerelease
 
 group ui
 
@@ -42,7 +43,7 @@ group ui
     storage: none
 
     nuget Fable.Core prerelease
-    nuget Elmish.Bridge.Client
+    nuget Elmish.Bridge.Client prerelease
 	nuget Elmish.Toastr
     nuget Fable.Elmish prerelease
 	nuget Fable.Elmish.Browser prerelease

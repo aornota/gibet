@@ -1,7 +1,10 @@
 module Aornota.Gibet.Server.Host.Run
 
 open Aornota.Gibet.Common.Api
+open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Server.Api.UserApiAgent
+open Aornota.Gibet.Server.Bridge.Hub
+open Aornota.Gibet.Server.Bridge.State
 open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Repo
 open Aornota.Gibet.Server.Repo.IUserRepo
@@ -21,6 +24,9 @@ open Giraffe.SerilogExtensions
 open Fable.Remoting.Giraffe
 open Fable.Remoting.Server
 
+open Elmish
+open Elmish.Bridge
+
 open Serilog
 
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
@@ -35,7 +41,14 @@ let private publicPath =
     let publicPath = ("..", "ui/public") |> Path.Combine |> Path.GetFullPath // e.g. when served via webpack-dev-server
     if Directory.Exists publicPath then publicPath else "public" |> Path.GetFullPath // e.g. when published/deployed
 
-// TODO-NMB: Add Elmish.Bridge...
+let private bridge : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
+    Bridge.mkServer BRIDGE_ENDPOINT initialize transition
+    |> Bridge.register RemoteServer
+    |> Bridge.whenDown Disconnected
+#if DEBUG
+    |> Bridge.withConsoleTrace
+#endif
+    |> Bridge.run Giraffe.server
 
 let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Remoting.createApi()
@@ -44,7 +57,11 @@ let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not su
     |> Remoting.fromReader userApiReader
     |> Remoting.buildHttpHandler
 
-let private webAppWithLogging = userApi |> SerilogAdapter.Enable // TODO-NMB: Replace "userApi" with "choose [ userApi ; {xyzApi} ]"...
+let private webAppWithLogging =
+    choose [
+        bridge
+        userApi
+    ] |> SerilogAdapter.Enable
 
 let private userRepo = Log.Logger |> InMemoryUserRepoAgent.InMemoryUserRepoAgent :> IUserRepo
 //#if DEBUG
@@ -63,6 +80,7 @@ let private configure(applicationBuilder:IApplicationBuilder) =
 let private configureServices(services:IServiceCollection) =
     Log.Logger |> services.AddSingleton |> ignore
     userRepo |> services.AddSingleton |> ignore
+    hub |> services.AddSingleton |> ignore
     services.AddSingleton<UserApiAgent, UserApiAgent>() |> ignore
     services.AddGiraffe() |> ignore
 

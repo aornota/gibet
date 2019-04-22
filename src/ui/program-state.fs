@@ -1,5 +1,7 @@
 module Aornota.Gibet.Ui.Program.State
 
+open Aornota.Gibet.Common.Bridge
+open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.UI.Common.RemoteData
 open Aornota.Gibet.Ui.Program.Common
@@ -17,7 +19,8 @@ let transition input state : State * Cmd<Input> =
     match input, state.AuthUserData, state.UsersData with
     | SignIn, NotRequested _, _ | SignIn, Failed _, _ ->
         let neph, nephPassword = "neph" |> UserName, "neph" |> Password
-        let cmd = Cmd.OfAsync.either userApi.signIn (neph, nephPassword) (Ok >> SignInResult) (Error >> SignInResult)
+        let connection = ConnectionId.Create(), AffinityId.Create() // TEMP-NMB...
+        let cmd = Cmd.OfAsync.either userApi.signIn (connection, neph, nephPassword) (Ok >> SignInResult) (Error >> SignInResult)
         { state with AuthUserData = Pending }, cmd
     | SignInResult(Ok(Ok(authUser, mustChangePasswordReason))), Pending, _ ->
         { state with AuthUserData = (authUser, mustChangePasswordReason) |> Received }, Cmd.none
@@ -26,7 +29,8 @@ let transition input state : State * Cmd<Input> =
     | SignInResult(Error exn), Pending, _ ->
         state, exn.Message |> Error |> Ok |> SignInResult |> Cmd.ofMsg
     | GetUsers, Received(authUser, _), NotRequested _ | GetUsers, Received(authUser, _), Failed _ | GetUsers, Received(authUser, _), Received _ ->
-        let cmd = Cmd.OfAsync.either userApi.getUsers authUser.Jwt (Ok >> GetUsersResult) (Error >> GetUsersResult)
+        let connection = ConnectionId.Create(), AffinityId.Create() // TEMP-NMB...
+        let cmd = Cmd.OfAsync.either userApi.getUsers (connection, authUser.Jwt) (Ok >> GetUsersResult) (Error >> GetUsersResult)
         { state with UsersData = Pending }, cmd
     | GetUsersResult(Ok(Ok users)), Received _, Pending ->
         { state with UsersData = users |> Received }, Cmd.none

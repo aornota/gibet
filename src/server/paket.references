@@ -13,3 +13,4 @@ group server
 	Serilog
 	Serilog.Sinks.Literate
 	Serilog.Sinks.RollingFile
+    Thoth.Json.Net

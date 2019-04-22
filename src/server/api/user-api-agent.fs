@@ -3,12 +3,16 @@ module Aornota.Gibet.Server.Api.UserApiAgent
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Api.UserApi
+open Aornota.Gibet.Common.Bridge
+open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 // TODO-NMB...open Aornota.Gibet.Server.Jwt
 open Aornota.Gibet.Server.Repo.IUserRepo
 
 open System.Collections.Generic
+
+open Elmish.Bridge
 
 open FsToolkit.ErrorHandling
 
@@ -20,25 +24,25 @@ open Serilog
    Does not enforce actual/expected Rvn/s (but IUserRepo does). *)
 
 type private Input =
-    | SignIn of UserName * Password * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
-    | AutoSignIn of Jwt * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
-    | SignOut of Jwt * AsyncReplyChannelResult<unit, string>
-    | GetUsers of Jwt * AsyncReplyChannelResult<User list, string>
-    | CreateUser of Jwt * UserName * Password * UserType * AsyncReplyChannelResult<unit, string>
-    | ChangePassword of Jwt * Password * Rvn * AsyncReplyChannelResult<unit, string>
-    | ResetPassword of Jwt * UserId * Password * Rvn * AsyncReplyChannelResult<unit, string>
-    | ChangeUserType of Jwt * UserId * UserType * Rvn * AsyncReplyChannelResult<unit, string>
+    | SignIn of Connection * UserName * Password * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
+    | AutoSignIn of Connection * Jwt * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
+    | SignOut of Connection * Jwt * AsyncReplyChannelResult<unit, string>
+    | GetUsers of Connection * Jwt * AsyncReplyChannelResult<User list, string>
+    | CreateUser of Connection * Jwt * UserName * Password * UserType * AsyncReplyChannelResult<unit, string>
+    | ChangePassword of Connection * Jwt * Password * Rvn * AsyncReplyChannelResult<unit, string>
+    | ResetPassword of Connection * Jwt * UserId * Password * Rvn * AsyncReplyChannelResult<unit, string>
+    | ChangeUserType of Connection * Jwt * UserId * UserType * Rvn * AsyncReplyChannelResult<unit, string>
 
 type private UserDict = Dictionary<UserId, User>
 
-type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
+type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, RemoteUiInput>, logger:ILogger) =
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop (userDict:UserDict) = async {
             let! input = inbox.Receive ()
             (* TEMP-NMB...
             do! ifDebugSleepAsync 100 500 *)
             match input with
-            | SignIn(userName, password, reply) -> // TODO-NMB: Handle Jwt properly...
+            | SignIn(connection, userName, password, reply) -> // TODO-NMB: Handle Jwt properly...
                 let! repoResult = (userName, password) |> userRepo.SignIn
                 let result = result {
                     let! (userId, mustChangePasswordReason) = repoResult
@@ -52,11 +56,11 @@ type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
                     return tuple }
                 result |> reply.Reply
                 return! userDict |> loop
-            | AutoSignIn(Jwt jwt, reply) -> // TODO-NMB...
+            | AutoSignIn(connection, Jwt jwt, reply) -> // TODO-NMB...
                 return! userDict |> loop
-            | SignOut(Jwt jwt, reply) -> // TODO-NMB...
+            | SignOut(connection, Jwt jwt, reply) -> // TODO-NMB...
                 return! userDict |> loop
-            | GetUsers(Jwt jwt, reply) -> // TODO-NMB: Verify jwt properly...
+            | GetUsers(connection, Jwt jwt, reply) -> // TODO-NMB: Verify jwt properly...
                 let result =
                     if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error
                     else if jwt = "Fake Jwt!" then // TEMP-NMB (see also SignIn(...) above)...
@@ -67,29 +71,31 @@ type UserApiAgent(userRepo:IUserRepo, logger:ILogger) =
                 | Error error -> logger.Warning("Unable to get Users: {error}", error)
                 result |> reply.Reply
                 return! userDict |> loop
-            | CreateUser(Jwt jwt, userName, password, userType, reply) -> // TODO-NMB...
+            | CreateUser(connection, Jwt jwt, userName, password, userType, reply) -> // TODO-NMB...
                 return! userDict |> loop
-            | ChangePassword(Jwt jwt, password, rvn, reply) -> // TODO-NMB...
+            | ChangePassword(connection, Jwt jwt, password, rvn, reply) -> // TODO-NMB...
                 return! userDict |> loop
-            | ResetPassword(Jwt jwt, userId, password, rvn, reply) -> // TODO-NMB...
+            | ResetPassword(connection, Jwt jwt, userId, password, rvn, reply) -> // TODO-NMB...
                 return! userDict|> loop
-            | ChangeUserType(Jwt jwt, userId, userType, rvn, reply) -> // TODO-NMB...
+            | ChangeUserType(connection, Jwt jwt, userId, userType, rvn, reply) -> // TODO-NMB...
                 return! userDict |> loop }
         logger.Information("Starting UserApi agent...")
         let userDict = UserDict()
         match userRepo.GetUsers() |> Async.RunSynchronously with
-        | Ok users -> users |> List.iter (fun user -> (user.UserId, user) |> userDict.Add)
-        | Error _ -> logger.Warning("No Users in IUserRepo")
+        | Ok users ->
+            if users.Length > 0 then users |> List.iter (fun user -> (user.UserId, user) |> userDict.Add)
+            else logger.Warning("No Users in IUserRepo")
+        | Error error -> logger.Warning("Unable to get Users: {error}", error)
         userDict |> loop)
     do agent.Error.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
-    member __.SignIn(userName, password) = (fun reply -> (userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
-    member __.AutoSignIn(jwt) = (fun reply -> (jwt, reply) |> AutoSignIn) |> agent.PostAndAsyncReply
-    member __.SignOut(jwt) = (fun reply -> (jwt, reply) |> SignOut) |> agent.PostAndAsyncReply
-    member __.GetUsers(jwt) = (fun reply -> (jwt, reply) |> GetUsers) |> agent.PostAndAsyncReply
-    member __.CreateUser(jwt, userName, password, userType) = (fun reply -> (jwt, userName, password, userType, reply) |> CreateUser) |> agent.PostAndAsyncReply
-    member __.ChangePassword(jwt, password, rvn) = (fun reply -> (jwt, password, rvn, reply) |> ChangePassword) |> agent.PostAndAsyncReply
-    member __.ResetPassword(jwt, userId, password, rvn) = (fun reply -> (jwt, userId, password, rvn, reply) |> ResetPassword) |> agent.PostAndAsyncReply
-    member __.ChangeUserType(jwt, userId, userType, rvn) = (fun reply -> (jwt, userId, userType, rvn, reply) |> ChangeUserType) |> agent.PostAndAsyncReply
+    member __.SignIn(connection, userName, password) = (fun reply -> (connection, userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
+    member __.AutoSignIn(connection, jwt) = (fun reply -> (connection, jwt, reply) |> AutoSignIn) |> agent.PostAndAsyncReply
+    member __.SignOut(connection, jwt) = (fun reply -> (connection, jwt, reply) |> SignOut) |> agent.PostAndAsyncReply
+    member __.GetUsers(connection, jwt) = (fun reply -> (connection, jwt, reply) |> GetUsers) |> agent.PostAndAsyncReply
+    member __.CreateUser(connection, jwt, userName, password, userType) = (fun reply -> (connection, jwt, userName, password, userType, reply) |> CreateUser) |> agent.PostAndAsyncReply
+    member __.ChangePassword(connection, jwt, password, rvn) = (fun reply -> (connection, jwt, password, rvn, reply) |> ChangePassword) |> agent.PostAndAsyncReply
+    member __.ResetPassword(connection, jwt, userId, password, rvn) = (fun reply -> (connection, jwt, userId, password, rvn, reply) |> ResetPassword) |> agent.PostAndAsyncReply
+    member __.ChangeUserType(connection, jwt, userId, userType, rvn) = (fun reply -> (connection, jwt, userId, userType, rvn, reply) |> ChangeUserType) |> agent.PostAndAsyncReply
 
 let userApiReader = reader {
     let! userApi = resolve<UserApiAgent>()
