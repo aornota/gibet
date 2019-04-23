@@ -14,10 +14,12 @@ open Serilog
 (* Enforces unique UserId.
    Enforces actual/expected Rvn/s.
    Does not enforce unique UserName (but cannot sign in with non-unique UserName).
-   Does not enforce any length (&c.) restrictions on UserName or Password. *)
+   Does not enforce any length (&c.) restrictions on UserName or Password.
+   Does not prevent SignIn/AutoSignIn if PersonaNonGrata. *)
 
 type private Input =
     | SignIn of UserName * Password * AsyncReplyChannelResult<UserId * MustChangePasswordReason option, string>
+    | AutoSignIn of UserId * AsyncReplyChannelResult<UserId * MustChangePasswordReason option, string>
     | GetUsers of AsyncReplyChannelResult<User list, string>
     | CreateUser of UserId option * UserName * Password * UserType * AsyncReplyChannelResult<User, string>
     | ChangePassword of UserId * Password * Rvn * AsyncReplyChannelResult<User, string>
@@ -80,15 +82,21 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let result = result {
                     let! imUser = userName |> findUserName imUserDict INVALID_CREDENTIALS
                     let! _ =
-                        if imUser.User.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
-                        else () |> Ok
-                    let! _ =
                         if imUser.Hash = hash(password, imUser.Salt) then () |> Ok
                         else INVALID_CREDENTIALS |> Error
                     return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
                 | Ok _ -> logger.Debug("Able to sign in as {userName}", userName)
                 | Error error -> logger.Warning("Unable to sign in as {userName}: {error}", userName, error)
+                result |> reply.Reply
+                return! imUserDict |> loop
+            | AutoSignIn(userId, reply) ->
+                let result = result {
+                    let! imUser = userId |> findUserId imUserDict
+                    return (imUser.User.UserId, imUser.MustChangePasswordReason) }
+                match result with
+                | Ok _ -> logger.Debug("Able to automatically sign in as {userId}", userId)
+                | Error error -> logger.Warning("Unable to automatically sign in as {userId}: {error}", userId, error)
                 result |> reply.Reply
                 return! imUserDict |> loop
             | GetUsers reply ->
@@ -145,6 +153,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
     do agent.Error.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
     interface IUserRepo with
         member __.SignIn(userName, password) = (fun reply -> (userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
+        member __.AutoSignIn(userId) = (fun reply -> (userId, reply) |> AutoSignIn) |> agent.PostAndAsyncReply
         member __.GetUsers() = (fun reply -> reply |> GetUsers) |> agent.PostAndAsyncReply
         member __.CreateUser(userId, userName, password, userType) = (fun reply -> (userId, userName, password, userType, reply) |> CreateUser) |> agent.PostAndAsyncReply
         member __.ChangePassword(userId, password, rvn) = (fun reply -> (userId, password, rvn, reply) |> ChangePassword) |> agent.PostAndAsyncReply

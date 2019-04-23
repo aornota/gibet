@@ -32,6 +32,10 @@ type SignOutInput =
     | SignOutResult of Result<unit, string>
     | SignOutExn of exn
 
+type GetUsersInput =
+    | GetUsersResult of Result<User list, string>
+    | GetUsersExn of exn
+
 (* type SignInModalInput =
     | UserNameChanged of string
     | PasswordChanged of string
@@ -57,11 +61,10 @@ type SignOutInput =
     | UnauthInput of UnauthInput
     | AuthInput of AuthInput *)
 
-type AppState = {
+type AppState = { // TODO-NMB?...StaticModal : StaticModal option
     AffinityId : AffinityId
     Theme : Theme
     NavbarBurgerIsActive : bool }
-    // TODO-NMB?...StaticModal : StaticModal option
 
 type Input =
     | RegisterConnection of AppState * LastUser option
@@ -74,19 +77,12 @@ type Input =
     | ShowStaticModal of staticModal : StaticModal
     | HideStaticModal *)
     // TODO-NMB...| AppInput of AppInput
-    // TEMP-NMB...
-    | TempSignIn
-    // ...TEMP-NMB
+    | TempSignIn // TEMP-NMB...
     | SignInInput of SignInInput
-    // TEMP-NMB...
-    | TempSignOut
-    // ...TEMP-NMB
+    | TempSignOut // TEMP-NMB...
     | SignOutInput of SignOutInput
-    // TEMP-NMB...
-    | TempGetUsers
-    | TempGetUsersResult of Result<User list, string>
-    | TempGetUsersExn of exn
-    // ...TEMP-NMB
+    | TempGetUsers // TEMP-NMB...
+    | GetUsersInput of GetUsersInput
 
 type RegisteringConnectionState = {
     AppState : AppState
@@ -125,9 +121,7 @@ type State =
 
 let [<Literal>] GIBET = "gibet (α)"
 
-// TEMP-NMB...
-let users (usersData:RemoteData<User list, string>) =
+let users (usersData:RemoteData<User list, string>) = // TEMP-NMB?...
     match usersData |> receivedData with
     | Some users -> users
     | None -> []
-// ...TEMP-NMB

@@ -13,7 +13,21 @@ open Fable.React.Props
 open Fulma
 open Fulma.Extensions.Wikiki
 
-let private safeComponents =
+let private button text onClick enabled loading = // TEMP-NMB...
+    Button.button [
+        yield Button.IsFullWidth
+        yield IsLink |> Button.Color
+        if enabled then yield onClick |> Button.OnClick
+        yield loading |> Button.IsLoading
+        yield Button.Props [ enabled |> not |> Disabled ]
+    ] [ text |> str ]
+
+let private pageLoader semantic = // TEMP-NMB...
+    PageLoader.pageLoader [
+        semantic |> PageLoader.Color
+        true |> PageLoader.IsActive ] []
+
+let private safeComponents = // TEMP-NMB...
     let components =
         span [] [
             a [ Href "https://github.com/giraffe-fsharp/Giraffe/" ] [ str "Giraffe" ]
@@ -30,21 +44,38 @@ let private safeComponents =
         str " powered by: "
         components ]
 
-let private button text onClick enabled loading =
-    Button.button [
-        yield Button.IsFullWidth
-        yield IsLink |> Button.Color
-        if enabled then yield onClick |> Button.OnClick
-        yield loading |> Button.IsLoading
-        yield Button.Props [ enabled |> not |> Disabled ]
-    ] [ text |> str ]
+let private signIn enabled pending status dispatch = // TEMP-NMB...
+    Column.column [] [
+        yield button "TempSignIn" (fun _ -> dispatch TempSignIn) enabled pending
+        match status with
+        | Some status ->
+            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ status |> Markdown |> contentFromMarkdown ]
+        | None -> () ]
+let private signOut enabled pending dispatch = // TEMP-NMB...
+    Column.column [] [
+        yield button "TempSignOut" (fun _ -> dispatch TempSignOut) enabled pending ]
+let private getUsers enabled pending status dispatch = // TEMP-NMB...
+    Column.column [] [
+        yield button "TempGetUsers" (fun _ -> dispatch TempGetUsers) enabled pending
+        match status with
+        | Some status ->
+            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ status |> Markdown |> contentFromMarkdown ]
+        | None -> () ]
 
-let private pageLoader semantic =
-    PageLoader.pageLoader [
-        semantic |> PageLoader.Color
-        true |> PageLoader.IsActive ] []
+let private content tempSignIn tempSignOut tempGetUsers = // TEMP-NMB...
+    div [] [
+        Navbar.navbar [ Navbar.Color IsLight ] [ Navbar.Item.div [] [ Heading.h2 [] [ str GIBET ] ] ]
+        Container.container [] [
+            Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h3 [] [ "Work-in-progress..." |> str  ] ]
+            Columns.columns [] [
+                tempSignIn
+                tempSignOut
+                tempGetUsers
+            ]
+        ]
+        Footer.footer [] [ Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ safeComponents ] ] ]
 
-let render state dispatch =
+let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
     match state with
     | InitializingConnection false | ReadingPreferences ->
         IsLink |> pageLoader
@@ -55,42 +86,37 @@ let render state dispatch =
         semantic |> pageLoader
     | AutomaticallySigningIn _ -> // TODO-NMB...
         IsPrimary |> pageLoader
-    | _ ->
-        //let authUserData, usersData = state.AuthUserData, state.UsersData
-        div [] [
-            Navbar.navbar [ Navbar.Color IsInfo ] [ Navbar.Item.div [] [ Heading.h2 [] [ str GIBET ] ] ]
-            Container.container [] [
-                Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h3 [] [ "Work-in-progress..." |> str  ] ]
-                (* Columns.columns [] [
-                    Column.column [] [
-                        yield button "Test SignIn" (fun _ -> dispatch SignIn) (authUserData |> signedIn |> not) (authUserData |> pending)
-                        let signInStatus =
-                            match authUserData |> receivedData, authUserData |> failure with
-                            | Some (authUser, mustChangePasswordReason), _ ->
-                                let extra =
-                                    match mustChangePasswordReason with
-                                    | Some mustChangePasswordReason -> sprintf " -> must change password: _%A_" mustChangePasswordReason
-                                    | None -> ""
-                                let (UserName userName) = authUser.User.UserName
-                                sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra |> Some
-                            | _, Some error -> sprintf "**Error** -> _%s_" error |> Some
-                            | _ -> None
-                        match signInStatus with
-                        | Some signInStatus ->
-                            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ signInStatus |> Markdown |> contentFromMarkdown ]
-                        | None -> () ]
-                    Column.column [] [
-                        yield button "Test GetUsers" (fun _ -> dispatch GetUsers) (authUserData |> signedIn) (usersData |> pending)
-                        let getUsersStatus =
-                            match usersData |> receivedData, usersData |> failure with
-                            | Some users, _ ->
-                                let users = users |> List.filter (fun user -> user.UserType <> PersonaNonGrata)
-                                sprintf "**%i** User/s (excluding _personae non grata_)" users.Length |> Some
-                            | _, Some error -> sprintf "**Error** -> _%s_" error |> Some
-                            | _ -> None
-                        match getUsersStatus with
-                        | Some getUsersStatus ->
-                            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ getUsersStatus |> Markdown |> contentFromMarkdown ]
-                        | None -> () ] ] *)
-            ]
-            Footer.footer [] [ Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ safeComponents ] ] ]
+    | Unauth unauthState -> // TODO-NMB...
+        let signInStatus =
+            match unauthState.SigningIn, unauthState.SignInError with
+            | true, _ -> None
+            | false, Some signInError -> sprintf "**Error** -> _%s_" signInError |> Some
+            | false, None -> None
+        let signIn = signIn true unauthState.SigningIn signInStatus dispatch
+        let signOut = signOut false false dispatch
+        let getUsers = getUsers false false None dispatch
+        content signIn signOut getUsers
+    | Auth authState -> // TODO-NMB...
+        let signInStatus =
+            let extra =
+                match authState.MustChangePasswordReason with
+                | Some mustChangePasswordReason -> sprintf " -> must change password: _%A_" mustChangePasswordReason
+                | None -> ""
+            let authUser = authState.AuthUser
+            let (UserName userName) = authUser.User.UserName
+            sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra |> Some
+        let signingOut = authState.SigningOut
+        let getUsersPending, getUsersStatus =
+            let usersData = authState.UsersData
+            let pending = usersData |> pending
+            let failure = usersData |> failure
+            let filteredUsers = usersData |> users |> List.filter (fun user -> user.UserType <> PersonaNonGrata)
+            match pending, failure, filteredUsers with
+            | true, _, _ -> pending, None
+            | false, Some failure, _ -> pending, sprintf "**Error** -> _%s_" failure |> Some
+            | false, None, h :: t -> pending, sprintf "**%i** User/s (excluding _personae non grata_)" (h :: t).Length |> Some
+            | false, None, [] -> pending, None
+        let signIn = signIn false false signInStatus dispatch
+        let signOut = signOut true signingOut dispatch
+        let getUsers = getUsers (signingOut |> not) getUsersPending getUsersStatus dispatch
+        content signIn signOut getUsers

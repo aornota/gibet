@@ -12,6 +12,7 @@ let [<Literal>] INVALID_CREDENTIALS = "Invalid credentials"
 
 type IUserRepo =
     abstract SignIn: UserName * Password -> AsyncResult<UserId * MustChangePasswordReason option, string>
+    abstract AutoSignIn: UserId -> AsyncResult<UserId * MustChangePasswordReason option, string>
     abstract GetUsers: unit -> AsyncResult<User list, string>
     abstract CreateUser: UserId option * UserName * Password * UserType -> AsyncResult<User, string>
     abstract ChangePassword: UserId * Password * Rvn -> AsyncResult<User, string>

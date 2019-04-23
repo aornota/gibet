@@ -18,9 +18,11 @@ open Elmish.Bridge
 open FsToolkit.ErrorHandling
 
 open Serilog
+open Microsoft.AspNetCore.Http.Features
 
 (* TODO-NMB...Enforces unique UserName.
    TODO-NMB...Enforces length (&c.) restrictions on UserName and Password.
+   Prevents SignIn/AutoSignIn if PersonaNonGrata.
    Does not enforce unique UserId (but IUserRepo does).
    Does not enforce actual/expected Rvn/s (but IUserRepo does). *)
 
@@ -43,7 +45,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
             (* TEMP-NMB...
             do! ifDebugSleepAsync 100 500 *)
             match input with
-            | SignIn(connection, userName, password, reply) ->
+            | SignIn(connection, userName, password, reply) -> // TODO-NMB: hub...
                 let! repoResult = (userName, password) |> userRepo.SignIn
                 let result = result {
                     let! _ = if debugFakeError () then sprintf "Fake SignIn error: %A" userName |> Error else () |> Ok
@@ -51,38 +53,65 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                     let! user =
                         if userId |> userDict.ContainsKey then userDict.[userId] |> Ok
                         else INVALID_CREDENTIALS |> Error
+                    let! _ =
+                        if user.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
+                        else () |> Ok
                     let! jwt = (user.UserId, user.UserType) |> toJwt
+                    // TODO-NMB: Interaction with hub, e.g. UserSignedIn (send to *this* connection [to update HubState], then transition sends RemoteUiInput to *other*-signed-in)...
                     return { User = user ; Jwt = jwt }, mustChangePasswordReason }
                 result |> reply.Reply
                 return! userDict |> loop
-            | AutoSignIn(connection, Jwt jwt, reply) ->
-
-                // TODO-NMB...
+            | AutoSignIn(connection, jwt, reply) -> // TODO-NMB: hub...
+                let result = result {
+                    let! _ = if debugFakeError () then sprintf "Fake AutoSignIn error: %A" jwt |> Error else () |> Ok
+                    return! jwt |> fromJwt }
+                let! result = async { // TODO-NMB: Make this less horrible?!...
+                    match result with
+                    | Ok(userId, userType) ->
+                        let! repoResult = userId |> userRepo.AutoSignIn
+                        return
+                            match repoResult with
+                            | Ok(userId, mustChangePasswordReason) ->
+                                if userId |> userDict.ContainsKey then
+                                    let user = userDict.[userId]
+                                    if userType <> user.UserType || user.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
+                                    else
+                                        match (user.UserId, user.UserType) |> toJwt with
+                                        | Ok jwt ->
+                                            // TODO-NMB: Interaction with hub, e.g. UserSignedIn (send to *this* connection [to update HubState], then transition sends RemoteUiInput to *other*-signed-in)...
+                                            ({ User = user ; Jwt = jwt }, mustChangePasswordReason) |> Ok
+                                        | Error error -> error |> Error
+                                else INVALID_CREDENTIALS |> Error
+                            | Error error -> error |> Error
+                    | Error error -> return error |> Error }
+                result |> reply.Reply
                 return! userDict |> loop
-
-            | SignOut(connection, Jwt jwt, reply) ->
-
-                // TODO-NMB...
+            | SignOut(connection, jwt, reply) -> // TODO-NMB: hub...
+                let result = result {
+                    let! _ = if debugFakeError () then sprintf "Fake SignOut error: %A" jwt |> Error else () |> Ok
+                    let! _ = jwt |> fromJwt // all authenticated Users allowed to SignOut (so no need to check UserType)
+                    // TODO-NMB: Interaction with hub, e.g. UserSignedOut (send to *this* connection [to update HubState], then transition sends RemoteUiInput/s)...
+                    return () }
+                result |> reply.Reply
                 return! userDict |> loop
-
-            | GetUsers(connection, jwt, reply) ->
+            | GetUsers(connection, jwt, reply) -> // TODO-NMB: hub...
                 let result = result {
                     let! _ = if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error else () |> Ok
-                    let! _ = jwt |> fromJwt
-                    // Note: All authenticated Users allowed to GetUsers, so no need to check UserType matches userDict.
+                    let! _ = jwt |> fromJwt // all authenticated Users allowed to GetUsers (so no need to check UserType)
+                    // TODO-NMB: Interaction with hub, e.g. GotUsers (send to *this* connection [to update HubState])...
                     return userDict.Values |> List.ofSeq }
                 match result with
                 | Ok users ->  logger.Debug("Got {count} User/s", users.Length)
                 | Error error -> logger.Warning("Unable to get Users: {error}", error)
                 result |> reply.Reply
                 return! userDict |> loop
-            | CreateUser(connection, Jwt jwt, userName, password, userType, reply) -> // TODO-NMB...
+            | CreateUser(connection, jwt, userName, password, userType, reply) -> // TODO-NMB...
                 return! userDict |> loop
-            | ChangePassword(connection, Jwt jwt, password, rvn, reply) -> // TODO-NMB...
+            | ChangePassword(connection, jwt, password, rvn, reply) -> // TODO-NMB...
                 return! userDict |> loop
-            | ResetPassword(connection, Jwt jwt, userId, password, rvn, reply) -> // TODO-NMB...
+            | ResetPassword(connection, jwt, userId, password, rvn, reply) -> // TODO-NMB...
                 return! userDict|> loop
-            | ChangeUserType(connection, Jwt jwt, userId, userType, rvn, reply) -> // TODO-NMB...
+            | ChangeUserType(connection, jwt, userId, userType, rvn, reply) -> // TODO-NMB...
                 return! userDict |> loop }
         logger.Information("Starting UserApi agent...")
         let userDict = UserDict()

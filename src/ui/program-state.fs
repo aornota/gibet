@@ -18,12 +18,22 @@ open Elmish.Bridge
 open Fable.Import
 
 open Thoth.Json
-open System.Data
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
 let private setBodyClass theme =
     Browser.document.body.className <- theme |> themeClass
+
+let private readPreferencesCmd =
+    let readPreferences() = async {
+        (* TEMP-NMB...
+        do! ifDebugSleepAsync 20 400 *)
+        return APP_PREFERENCES_KEY |> Key  |> readJson |> Option.map (fun (Json json) -> json |> Decode.Auto.fromString<Preferences>) }
+    Cmd.OfAsync.either readPreferences () (ReadPreferencesResult >> PreferencesInput) (ReadPreferencesExn >> PreferencesInput)
+let private writePreferencesCmd preferences =
+    let writePreferences preferences = async {
+        Encode.Auto.toString<Preferences>(4, preferences) |> Json |> writeJson (APP_PREFERENCES_KEY |> Key) }
+    Cmd.OfAsync.either writePreferences preferences (WritePreferencesOk >> PreferencesInput) (WritePreferencesExn >> PreferencesInput)
 
 let private preferencesOrDefault state =
     let appState, lastUser =
@@ -42,17 +52,12 @@ let private preferencesOrDefault state =
         Theme = theme
         LastUser = lastUser
     }
+let private writePreferencesOrDefault state =
+    let preferences = state |> preferencesOrDefault
+    state, preferences |> writePreferencesCmd
 
-let private readPreferencesCmd =
-    let readPreferences() = async {
-        (* TEMP-NMB...
-        do! ifDebugSleepAsync 20 400 *)
-        return APP_PREFERENCES_KEY |> Key  |> readJson |> Option.map (fun (Json json) -> json |> Decode.Auto.fromString<Preferences>) }
-    Cmd.OfAsync.either readPreferences () (ReadPreferencesResult >> PreferencesInput) (ReadPreferencesExn >> PreferencesInput)
-let private writePreferencesCmd preferences =
-    let writePreferences preferences = async {
-        Encode.Auto.toString<Preferences>(4, preferences) |> Json |> writeJson (APP_PREFERENCES_KEY |> Key) }
-    Cmd.OfAsync.either writePreferences preferences (WritePreferencesOk >> PreferencesInput) (WritePreferencesExn >> PreferencesInput)
+let private getUsersCmd(connection, jwt) =
+    Cmd.OfAsync.either userApi.getUsers (connection, jwt) GetUsersResult GetUsersExn |> Cmd.map GetUsersInput
 
 let private registeringConnectionState(appState, lastUser) = {
     AppState = appState
@@ -122,11 +127,9 @@ let transition input state : State * Cmd<Input> =
         state, (appState, preferences.LastUser) |> RegisterConnection |> Cmd.ofMsg
     | PreferencesInput(ReadPreferencesResult None), ReadingPreferences, _ ->
         let preferences = state |> preferencesOrDefault
-        let cmds =
-            Cmd.batch [
-               preferences |> writePreferencesCmd
-               preferences |> Ok |> Some |> ReadPreferencesResult |> PreferencesInput |> Cmd.ofMsg
-            ]
+        let cmds = Cmd.batch [
+            preferences |> writePreferencesCmd
+            preferences |> Ok |> Some |> ReadPreferencesResult |> PreferencesInput |> Cmd.ofMsg ]
         state, cmds
     | PreferencesInput(ReadPreferencesResult(Some(Error error))), ReadingPreferences, _ -> // TODO-NMB: Call addDebugError (no need for toast)?...
         sprintf "ReadPreferencesResult -> %s" error |> Browser.console.log
@@ -139,60 +142,78 @@ let transition input state : State * Cmd<Input> =
         sprintf "WritePreferencesExn -> %s" exn.Message |> Browser.console.log
         state, Cmd.none
     // #endregion
+    // #region ToggleTheme | ToggleNavbarBurger
     | ToggleTheme, _, Some appState ->
         let appState = { appState with Theme = match appState.Theme with | Light -> Dark | Dark -> Light }
         appState.Theme |> setBodyClass
-        state |> updateAppState appState, state |> preferencesOrDefault |> writePreferencesCmd
+        state |> updateAppState appState |> writePreferencesOrDefault
     | ToggleNavbarBurger, _, Some appState ->
         let appState = { appState with NavbarBurgerIsActive = appState.NavbarBurgerIsActive |> not }
-        state |> updateAppState appState, state |> preferencesOrDefault |> writePreferencesCmd
-    // TEMP-NMB...
-    | TempSignIn, Unauth unauthState, _ ->
+        state |> updateAppState appState |> writePreferencesOrDefault
+    // #endregion
+    | TempSignIn, Unauth unauthState, _ -> // TEMP-NMB...
         let userName, password = "neph" |> UserName, "neph" |> Password
         let cmd = Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.Connection, userName, password) SignInResult SignInExn |> Cmd.map SignInInput
         { unauthState with SigningIn = true ; SignInError = None } |> Unauth, cmd
-    // ...TEMP-NMB
     // #region SignInInput
-    | SignInInput(AutoSignInResult(Ok(authUser, mustChangePasswordReason))), AutomaticallySigningIn automaticallySigningInState, _ -> // TODO-NMB: Toast | auto-request UsersData?...
-        (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, authUser, mustChangePasswordReason) |> authState |> Auth, Cmd.none
-    | SignInInput(AutoSignInResult(Error error)), AutomaticallySigningIn automaticallySigningInState, _ -> // TODO-NMB: Toast?...
-        (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, error |> Some) |> unauthState |> Unauth, Cmd.none
+    | SignInInput(AutoSignInResult(Ok(authUser, mustChangePasswordReason))), AutomaticallySigningIn automaticallySigningInState, _ ->
+        let authState = (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, authUser, mustChangePasswordReason) |> authState
+        let (UserName userName) = authUser.User.UserName
+        let cmds = Cmd.batch [
+            sprintf "You have been automatically signed in as <strong>%s</strong>" userName |> successToastCmd
+            authState |> Auth |> preferencesOrDefault |> writePreferencesCmd
+            (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd ]
+        { authState with UsersData = Pending } |> Auth, cmds
+    | SignInInput(AutoSignInResult(Error error)), AutomaticallySigningIn automaticallySigningInState, _ ->
+        let state = (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, error |> Some) |> unauthState |> Unauth
+        let (UserName userName), _ = automaticallySigningInState.LastUser
+        let cmds = Cmd.batch [
+            sprintf "Unable to automatically sign in as <strong>%s</strong>" userName |> warningToastCmd
+            state |> preferencesOrDefault |> writePreferencesCmd ]
+        state, cmds
     | SignInInput(AutoSignInExn exn), Unauth _, _ ->
         state, exn.Message |> Error |> AutoSignInResult |> SignInInput |> Cmd.ofMsg
-    | SignInInput(SignInResult(Ok(authUser, mustChangePasswordReason))), Unauth unauthState, _ -> // TODO-NMB: Toast | auto-request UsersData?...
-        (unauthState.AppState, unauthState.ConnectionState, authUser, mustChangePasswordReason) |> authState |> Auth, Cmd.none
-    | SignInInput(SignInResult(Error error)), Unauth unauthState, _ -> // TODO-NMB: Toast?...
-        { unauthState with SigningIn = false ; SignInError = error |> Some } |> Unauth, Cmd.none
+    | SignInInput(SignInResult(Ok(authUser, mustChangePasswordReason))), Unauth unauthState, _ ->
+        let authState = (unauthState.AppState, unauthState.ConnectionState, authUser, mustChangePasswordReason) |> authState
+        let (UserName userName) = authUser.User.UserName
+        let cmds = Cmd.batch [
+            sprintf "You have been signed in as <strong>%s</strong>" userName |> successToastCmd
+            authState |> Auth |> preferencesOrDefault |> writePreferencesCmd
+            (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd ]
+        { authState with UsersData = Pending } |> Auth, cmds
+    | SignInInput(SignInResult(Error error)), Unauth unauthState, _ ->
+        let state = { unauthState with SigningIn = false ; SignInError = error |> Some } |> Unauth
+        state, Cmd.none // no need for toast (since error will be displayed on SignInModal)
     | SignInInput(SignInExn exn), Unauth _, _ ->
         state, exn.Message |> Error |> SignInResult |> SignInInput |> Cmd.ofMsg
     // #endregion
-    // TEMP-NMB...
-    | TempSignOut, Auth authState, _ ->
+    | TempSignOut, Auth authState, _ -> // TEMP-NMB...
         let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.Connection, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map SignOutInput
         { authState with SigningOut = true } |> Auth, cmd
-    // ...TEMP-NMB
     // #region SignOutInput
-    | SignOutInput(SignOutResult(Ok _)), Auth authState, _ -> // TODO-NMB: Toast...
-        (authState.AppState, authState.ConnectionState, None) |> unauthState |> Unauth, Cmd.none
+    | SignOutInput(SignOutResult(Ok _)), Auth authState, _ ->
+        let state = (authState.AppState, authState.ConnectionState, None) |> unauthState |> Unauth
+        let cmds = Cmd.batch [
+            "You have signed out" |> successToastCmd
+            state |> preferencesOrDefault |> writePreferencesCmd ]
+        state, cmds
     | SignOutInput(SignOutResult(Error error)), Auth _, _ -> // TODO-NMB: Call addDebugError (no need for toast)?...
         sprintf "SignOutResult -> %s" error |> Browser.console.log
         state, () |> Ok |> SignOutResult |> SignOutInput |> Cmd.ofMsg
     | SignOutInput(SignOutExn exn), Auth _, _ ->
         state, exn.Message |> Error |> SignOutResult |> SignOutInput |> Cmd.ofMsg
     // #endregion
-    // TEMP-NMB...
-    (*
-    | TempGetUsers, Received(authUser, _), NotRequested _ | TempGetUsers, Received(authUser, _), Failed _ | TempGetUsers, Received(authUser, _), Received _ ->
-        let connection = ConnectionId.Create(), AffinityId.Create() // TEMP-NMB...
-        let cmd = Cmd.OfAsync.either userApi.getUsers (connection, authUser.Jwt) TempGetUsersResult TempGetUsersExn
-        { state with UsersData = Pending }, cmd
-    | TempGetUsersResult(Ok users), Received _, Pending ->
-        { state with UsersData = users |> Received }, Cmd.none
-    | TempGetUsersResult(Error error), Received _, Pending ->
-        { state with UsersData = error |> Failed }, Cmd.none
-    | TempGetUsersExn exn, Received _, Pending ->
-        state, exn.Message |> Error |> TempGetUsersResult |> Cmd.ofMsg *)
-    // ...TEMP-NMB
+    | TempGetUsers, Auth authState, _ -> // TEMP-NMB...
+        let cmd = (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd
+        { authState with UsersData = Pending } |> Auth, cmd
+    // #region GetUsersInput
+    | GetUsersInput(GetUsersResult(Ok users)), Auth authState, _ ->
+        { authState with UsersData = users |> Received } |> Auth, Cmd.none
+    | GetUsersInput(GetUsersResult(Error error)), Auth authState, _ ->
+        { authState with UsersData = error |> Failed } |> Auth, Cmd.none
+    | GetUsersInput(GetUsersExn exn), Auth _, _ ->
+        state, exn.Message |> Error |> GetUsersResult |> GetUsersInput |> Cmd.ofMsg
+    // #endregion
     | _ -> // TODO-NMB: Call shouldNeverHappen?...
         sprintf "Unexpected input when %A -> %A" state input |> Browser.console.log
         state, Cmd.none
