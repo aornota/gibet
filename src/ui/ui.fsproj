@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <TreatWarningsAsErrors>false</TreatWarningsAsErrors><!--TODO-NMB: Enable this (once Fable.Remoting.Client issues resolved)?...-->
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors><!--TEMP-NMB: Until Fable.Remoting.Client updated to prevent "This construct is deprecated" warnings (e.g. "Use Browser")...-->
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="..\common\error-handling.fs" />
@@ -17,6 +17,7 @@
         <Compile Include="..\common\domain\affinity.fs" />
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\bridge\bridge.fs" />
+        <Compile Include="..\common\api\connection.fs" />
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\user-api.fs" />
         <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->
@@ -28,8 +29,9 @@
         <Compile Include="..\ui-common\remote-data.fs" />
         <Compile Include="..\ui-common\render-markdown.fs" />
         <Compile Include="..\ui-common\should-never-happen.fs" />
+        <Compile Include="..\ui-common\theme.fs" />
         <Compile Include="..\ui-common\timestamp-helper.fs" />
-        <Compile Include="..\ui-common\toasts.fs" />
+        <Compile Include="..\ui-common\toast.fs" />
         <!--TODO-NMB?...<Compile Include="ui-shared.fs" />-->
         <!--TODO-NMB?...<Compile Include="pages\..." />-->
         <Compile Include="program-server-api.fs" />

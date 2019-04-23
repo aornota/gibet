@@ -20,17 +20,14 @@ createObj [ "sanitize" ==> true ] |> unbox |> Globals.marked.setOptions |> ignor
 
 let private bridgeConfig =
     Bridge.endpoint BRIDGE_ENDPOINT
-    |> Bridge.withMapping RemoteUi
+    |> Bridge.withMapping RemoteUiInput
     |> Bridge.withWhenDown Disconnected
-    |> Bridge.withRetryTime 30 // TEMP-NMB...
 
 Program.mkProgram initialize transition render
 |> Program.withBridgeConfig bridgeConfig
-#if DEBUG
-|> Program.withConsoleTrace
-#endif
 |> Program.withReactSynchronous "elmish-app" // i.e. "<div id="elmish-app">" in index.html
 #if DEBUG
+|> Program.withConsoleTrace
 |> Program.withDebugger
 #endif
 |> Program.run

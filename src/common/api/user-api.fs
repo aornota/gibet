@@ -1,7 +1,7 @@
 module Aornota.Gibet.Common.Api.UserApi
 
 open Aornota.Gibet.Common
-open Aornota.Gibet.Common.Bridge
+open Aornota.Gibet.Common.Api.Connection
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 

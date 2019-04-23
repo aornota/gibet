@@ -1,11 +1,15 @@
 module Aornota.Gibet.Server.Logger
 
+open System
+
 open Giraffe.SerilogExtensions
 
 open Serilog
-//open Serilog.Formatting.Json
+// TODO-NMB?...open Serilog.Formatting.Json
 
 let [<Literal>] private LOG_FILE_NAME = "logs/server_{Date}.log"
+let [<Literal>] private FILE_SIZE_LIMIT = 1_000_000L
+let [<Literal>] private RETAINED_FILE_COUNT = 7
 
 let createLogger() =
     LoggerConfiguration()
@@ -15,7 +19,7 @@ let createLogger() =
         .WriteTo.LiterateConsole()
 #else
         .MinimumLevel.Information()
-        //.WriteTo.RollingFile(JsonFormatter(), LOG_FILE_NAME)
-        .WriteTo.RollingFile(LOG_FILE_NAME)
+        // TODO-NMB?....WriteTo.RollingFile(JsonFormatter(), LOG_FILE_NAME)
+        .WriteTo.RollingFile(LOG_FILE_NAME, fileSizeLimitBytes = Nullable<int64>(FILE_SIZE_LIMIT), retainedFileCountLimit = Nullable<int>(RETAINED_FILE_COUNT))
 #endif
         .CreateLogger()

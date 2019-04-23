@@ -21,13 +21,14 @@ open Microsoft.Extensions.Logging
 open Giraffe
 open Giraffe.SerilogExtensions
 
-open Fable.Remoting.Giraffe
-open Fable.Remoting.Server
-
 open Elmish
 open Elmish.Bridge
 
+open Fable.Remoting.Giraffe
+open Fable.Remoting.Server
+
 open Serilog
+open Aornota.Gibet.Common
 
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
 
@@ -35,16 +36,15 @@ Log.Logger <- createLogger()
 
 Log.Logger.Information("Starting server...")
 
-// TODO-NMB?...let private serverStarted = DateTimeOffset.UtcNow
-
 let private publicPath =
     let publicPath = ("..", "ui/public") |> Path.Combine |> Path.GetFullPath // e.g. when served via webpack-dev-server
     if Directory.Exists publicPath then publicPath else "public" |> Path.GetFullPath // e.g. when published/deployed
 
 let private bridge : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Bridge.mkServer BRIDGE_ENDPOINT initialize transition
-    |> Bridge.register RemoteServer
+    |> Bridge.register RemoteServerInput
     |> Bridge.whenDown Disconnected
+    |> Bridge.withServerHub hub
 #if DEBUG
     |> Bridge.withConsoleTrace
 #endif
@@ -52,8 +52,8 @@ let private bridge : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sur
 
 let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Remoting.createApi()
-    // TODO-NMB: Custom error handling?...
     |> Remoting.withRouteBuilder Route.builder
+    // TODO-NMB?...|> Remoting.withErrorHandler...
     |> Remoting.fromReader userApiReader
     |> Remoting.buildHttpHandler
 
@@ -75,17 +75,19 @@ let private configure(applicationBuilder:IApplicationBuilder) =
     applicationBuilder
         .UseDefaultFiles()
         .UseStaticFiles()
+        .UseWebSockets()
         .UseGiraffe(webAppWithLogging)
 
 let private configureServices(services:IServiceCollection) =
     Log.Logger |> services.AddSingleton |> ignore
-    userRepo |> services.AddSingleton |> ignore
     hub |> services.AddSingleton |> ignore
+    userRepo |> services.AddSingleton |> ignore
     services.AddSingleton<UserApiAgent, UserApiAgent>() |> ignore
     services.AddGiraffe() |> ignore
 
 let private host =
     WebHost.CreateDefaultBuilder()
+        .UseKestrel()
         .UseWebRoot(publicPath)
         .UseContentRoot(publicPath)
         .ConfigureLogging(Action<ILoggingBuilder> configureLogging)

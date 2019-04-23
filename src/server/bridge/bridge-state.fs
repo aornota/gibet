@@ -5,15 +5,32 @@ open Aornota.Gibet.Common.Bridge
 //open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Server.Bridge.Hub
 
+open System
+
 open Elmish
 
+open Serilog
+
+let private serverStarted = DateTimeOffset.UtcNow
+
 let initialize (clientDispatch:Dispatch<RemoteUiInput>) () =
+    Initialized |> clientDispatch
     NotConnected, Cmd.none
 
-let transition clientDispatch input state : HubState * Cmd<ServerInput> = // TODO-NMB: Logging (or via withConsoleTrace)?...
-    match input with
-    | RemoteServer _ -> // TODO-NMB...
-        state, Cmd.none
-    | Disconnected ->
-        // TODO-NMB: Send RemoteUiInput.UserSignedOut if last connection for User?...
-        NotConnected, Cmd.none
+let transition clientDispatch input state : HubState * Cmd<ServerInput> =
+    let state =
+        match input, state with
+        | RemoteServerInput(Register affinityId), NotConnected ->
+            let connectionState = {
+                ConnectionId = ConnectionId.Create()
+                AffinityId = affinityId
+                User = None }
+            (connectionState.ConnectionId, serverStarted) |> Registered |> clientDispatch
+            connectionState |> Connected
+        // TODO-NMB: More RemoteServerInput...
+        | Disconnected, Connected _ -> // TODO-NMB: Send RemoteUiInput.UserSignedOut if last connection for User?...
+            NotConnected
+        | _ ->
+            Log.Logger.Warning("Unexpected input when {state} -> {input}", state, input)
+            state
+    state, Cmd.none

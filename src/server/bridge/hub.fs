@@ -7,7 +7,7 @@ open Aornota.Gibet.Common.Domain.User
 open Elmish.Bridge
 
 type ServerInput =
-    | RemoteServer of RemoteServerInput
+    | RemoteServerInput of RemoteServerInput
     | Disconnected
 
 // TODO-NMB?...type UnauthSubscriptions = ...
@@ -27,4 +27,4 @@ type HubState =
 
 let hub =
     ServerHub<HubState, ServerInput, RemoteUiInput>()
-        .RegisterServer(RemoteServer)
+        .RegisterServer(RemoteServerInput)

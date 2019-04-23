@@ -1,4 +1,4 @@
-module Aornota.UI.Common.Toasts
+module Aornota.Gibet.UI.Common.Toast
 
 open Elmish
 open Elmish.Toastr

@@ -16,13 +16,12 @@ var config = {
     , outputDir: "./src/ui/deploy"
     , assetsDir: "./src/ui/public"
     , devServerPort: 8080
-    // TODO-NMB: Redirect WebSocket requests (i.e. once using Elmish.Bridge)?...
     , devServerProxy: {
         '/api/*': {
             target: 'http://localhost:' + port
             , changeOrigin: true
         }
-        , '/socket': {
+        , '/bridge': {
             target: 'http://localhost:' + port
             , ws: true
         }

@@ -2,14 +2,16 @@ module Aornota.Gibet.Ui.Program.Render
 
 open Aornota.Gibet.Common.Domain.User // TEMP-NMB...
 open Aornota.Gibet.Common.Markdown // TEMP-NMB...
-open Aornota.Gibet.UI.Common.RemoteData
+open Aornota.Gibet.UI.Common.RemoteData // TEMP-NMB...
 open Aornota.Gibet.UI.Common.Render.Markdown // TEMP-NMB...
+open Aornota.Gibet.UI.Common.Theme
 open Aornota.Gibet.Ui.Program.Common
 
 open Fable.React
 open Fable.React.Props
 
 open Fulma
+open Fulma.Extensions.Wikiki
 
 let private safeComponents =
     let components =
@@ -37,41 +39,58 @@ let private button text onClick enabled loading =
         yield Button.Props [ enabled |> not |> Disabled ]
     ] [ text |> str ]
 
+let private pageLoader semantic =
+    PageLoader.pageLoader [
+        semantic |> PageLoader.Color
+        true |> PageLoader.IsActive ] []
+
 let render state dispatch =
-    let authUserData, usersData = state.AuthUserData, state.UsersData
-    div [] [
-        Navbar.navbar [ Navbar.Color IsInfo ] [ Navbar.Item.div [] [ Heading.h2 [] [ str GIBET ] ] ]
-        Container.container [] [
-            Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h3 [] [ "Work-in-progress..." |> str  ] ]
-            Columns.columns [] [
-                Column.column [] [
-                    yield button "Test SignIn" (fun _ -> dispatch SignIn) (authUserData |> signedIn |> not) (authUserData |> pending)
-                    let signInStatus =
-                        match authUserData |> receivedData, authUserData |> failure with
-                        | Some (authUser, mustChangePasswordReason), _ ->
-                            let extra =
-                                match mustChangePasswordReason with
-                                | Some mustChangePasswordReason -> sprintf " -> must change password: _%A_" mustChangePasswordReason
-                                | None -> ""
-                            let (UserName userName) = authUser.User.UserName
-                            sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra |> Some
-                        | _, Some error -> sprintf "**Error** -> _%s_" error |> Some
-                        | _ -> None
-                    match signInStatus with
-                    | Some signInStatus ->
-                        yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ signInStatus |> Markdown |> contentFromMarkdown ]
-                    | None -> () ]
-                Column.column [] [
-                    yield button "Test GetUsers" (fun _ -> dispatch GetUsers) (authUserData |> signedIn) (usersData |> pending)
-                    let getUsersStatus =
-                        match usersData |> receivedData, usersData |> failure with
-                        | Some users, _ ->
-                            let users = users |> List.filter (fun user -> user.UserType <> PersonaNonGrata)
-                            sprintf "**%i** User/s (excluding _personae non grata_)" users.Length |> Some
-                        | _, Some error -> sprintf "**Error** -> _%s_" error |> Some
-                        | _ -> None
-                    match getUsersStatus with
-                    | Some getUsersStatus ->
-                        yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ getUsersStatus |> Markdown |> contentFromMarkdown ]
-                    | None -> () ] ] ]
-        Footer.footer [] [ Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ safeComponents ] ] ]
+    match state with
+    | InitializingConnection false | ReadingPreferences ->
+        IsLink |> pageLoader
+    | InitializingConnection true -> // TODO-NMB...
+        IsWarning |> pageLoader
+    | RegisteringConnection registeringConnectionState -> // TODO-NMB...
+        let semantic = match registeringConnectionState.AppState.Theme with | Light -> IsLight | Dark -> IsDark
+        semantic |> pageLoader
+    | AutomaticallySigningIn _ -> // TODO-NMB...
+        IsPrimary |> pageLoader
+    | _ ->
+        //let authUserData, usersData = state.AuthUserData, state.UsersData
+        div [] [
+            Navbar.navbar [ Navbar.Color IsInfo ] [ Navbar.Item.div [] [ Heading.h2 [] [ str GIBET ] ] ]
+            Container.container [] [
+                Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h3 [] [ "Work-in-progress..." |> str  ] ]
+                (* Columns.columns [] [
+                    Column.column [] [
+                        yield button "Test SignIn" (fun _ -> dispatch SignIn) (authUserData |> signedIn |> not) (authUserData |> pending)
+                        let signInStatus =
+                            match authUserData |> receivedData, authUserData |> failure with
+                            | Some (authUser, mustChangePasswordReason), _ ->
+                                let extra =
+                                    match mustChangePasswordReason with
+                                    | Some mustChangePasswordReason -> sprintf " -> must change password: _%A_" mustChangePasswordReason
+                                    | None -> ""
+                                let (UserName userName) = authUser.User.UserName
+                                sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra |> Some
+                            | _, Some error -> sprintf "**Error** -> _%s_" error |> Some
+                            | _ -> None
+                        match signInStatus with
+                        | Some signInStatus ->
+                            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ signInStatus |> Markdown |> contentFromMarkdown ]
+                        | None -> () ]
+                    Column.column [] [
+                        yield button "Test GetUsers" (fun _ -> dispatch GetUsers) (authUserData |> signedIn) (usersData |> pending)
+                        let getUsersStatus =
+                            match usersData |> receivedData, usersData |> failure with
+                            | Some users, _ ->
+                                let users = users |> List.filter (fun user -> user.UserType <> PersonaNonGrata)
+                                sprintf "**%i** User/s (excluding _personae non grata_)" users.Length |> Some
+                            | _, Some error -> sprintf "**Error** -> _%s_" error |> Some
+                            | _ -> None
+                        match getUsersStatus with
+                        | Some getUsersStatus ->
+                            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ getUsersStatus |> Markdown |> contentFromMarkdown ]
+                        | None -> () ] ] *)
+            ]
+            Footer.footer [] [ Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ safeComponents ] ] ]

@@ -7,17 +7,13 @@ open System
 type ConnectionId = | ConnectionId of Guid with
     static member Create() = Guid.NewGuid() |> ConnectionId
 
-type Connection = ConnectionId * AffinityId
-
 type RemoteUiInput = // TODO-NMB: All server->ui inputs (e.g. UserSignedIn | UserSignedOut | &c.)...
-    | Connected of ConnectionId
+    | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)
+    | Registered of ConnectionId * DateTimeOffset
     // TODO-NMB?...| UserActivity of UserId
-    | ToDo
 
 type RemoteServerInput = // TODO-NMB: All ui->server [and api->server] inputs (e.g. UserSignedIn | &c.)...
-    | Connect of AffinityId
-    | Disconnected
+    | Register of AffinityId
     // TODO-NMB?...| UserActivity
-    | ToDo
 
-let [<Literal>] BRIDGE_ENDPOINT = "/socket"
+let [<Literal>] BRIDGE_ENDPOINT = "/bridge"

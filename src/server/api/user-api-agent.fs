@@ -2,12 +2,13 @@ module Aornota.Gibet.Server.Api.UserApiAgent
 
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.IfDebug
+open Aornota.Gibet.Common.Api.Connection
 open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
-// TODO-NMB...open Aornota.Gibet.Server.Jwt
+open Aornota.Gibet.Server.Jwt
 open Aornota.Gibet.Server.Repo.IUserRepo
 
 open System.Collections.Generic
@@ -42,30 +43,34 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
             (* TEMP-NMB...
             do! ifDebugSleepAsync 100 500 *)
             match input with
-            | SignIn(connection, userName, password, reply) -> // TODO-NMB: Handle Jwt properly...
+            | SignIn(connection, userName, password, reply) ->
                 let! repoResult = (userName, password) |> userRepo.SignIn
                 let result = result {
+                    let! _ = if debugFakeError () then sprintf "Fake SignIn error: %A" userName |> Error else () |> Ok
                     let! (userId, mustChangePasswordReason) = repoResult
-                    let! tuple =
-                        if debugFakeError () then sprintf "Fake SignIn error: %A" userName |> Error
-                        else if userId |> userDict.ContainsKey then
-                            let user = userDict.[userId]
-                            let jwt = "Fake Jwt!" |> Jwt // TEMP-NMB (see also GetUsers(...) below)...
-                            ({ User = user ; Jwt = jwt }, mustChangePasswordReason) |> Ok
+                    let! user =
+                        if userId |> userDict.ContainsKey then userDict.[userId] |> Ok
                         else INVALID_CREDENTIALS |> Error
-                    return tuple }
+                    let! jwt = (user.UserId, user.UserType) |> toJwt
+                    return { User = user ; Jwt = jwt }, mustChangePasswordReason }
                 result |> reply.Reply
                 return! userDict |> loop
-            | AutoSignIn(connection, Jwt jwt, reply) -> // TODO-NMB...
+            | AutoSignIn(connection, Jwt jwt, reply) ->
+
+                // TODO-NMB...
                 return! userDict |> loop
-            | SignOut(connection, Jwt jwt, reply) -> // TODO-NMB...
+
+            | SignOut(connection, Jwt jwt, reply) ->
+
+                // TODO-NMB...
                 return! userDict |> loop
-            | GetUsers(connection, Jwt jwt, reply) -> // TODO-NMB: Verify jwt properly...
-                let result =
-                    if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error
-                    else if jwt = "Fake Jwt!" then // TEMP-NMB (see also SignIn(...) above)...
-                        userDict.Values |> List.ofSeq |> Ok
-                    else NOT_ALLOWED |> Error
+
+            | GetUsers(connection, jwt, reply) ->
+                let result = result {
+                    let! _ = if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error else () |> Ok
+                    let! _ = jwt |> fromJwt
+                    // Note: All authenticated Users allowed to GetUsers, so no need to check UserType matches userDict.
+                    return userDict.Values |> List.ofSeq }
                 match result with
                 | Ok users ->  logger.Debug("Got {count} User/s", users.Length)
                 | Error error -> logger.Warning("Unable to get Users: {error}", error)

@@ -1,35 +1,133 @@
 module Aornota.Gibet.Ui.Program.Common
 
+open Aornota.Gibet.Common.Api.Connection
 open Aornota.Gibet.Common.Bridge
+open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.UI.Common.RemoteData
+open Aornota.Gibet.UI.Common.Theme
 
-type State = {
-    AuthUserData : RemoteData<AuthUser * MustChangePasswordReason option, string>
-    UsersData : RemoteData<User list, string> }
+open System
+
+type LastUser = UserName * Jwt
+
+type Preferences = {
+    AffinityId : AffinityId
+    Theme : Theme
+    LastUser : LastUser option }
+
+type PreferencesInput =
+    | ReadPreferencesResult of Result<Preferences, string> option
+    | ReadPreferencesExn of exn
+    | WritePreferencesOk of unit
+    | WritePreferencesExn of exn
+
+type SignInInput =
+    | AutoSignInResult of Result<AuthUser * MustChangePasswordReason option, string>
+    | AutoSignInExn of exn
+    | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
+    | SignInExn of exn
+
+type SignOutInput =
+    | SignOutResult of Result<unit, string>
+    | SignOutExn of exn
+
+(* type SignInModalInput =
+    | UserNameChanged of string
+    | PasswordChanged of string
+    | SignIn
+    | CancelSignIn *)
+
+(* type UnauthInput =
+    | ShowSignInModal
+    | SignInModalInput of SignInModalInput *)
+
+(* type ChangePasswordModalInput =
+    | NewPasswordChanged of string
+    | ConfirmPasswordChanged of string
+    | ChangePassword
+    | CancelChangePassword *)
+
+(* type AuthInput =
+    | ShowChangePasswordModal
+    | ChangePasswordModalInput of ChangePasswordModalInput
+    | SignOut *)
+
+(* type AppInput =
+    | UnauthInput of UnauthInput
+    | AuthInput of AuthInput *)
+
+type AppState = {
+    AffinityId : AffinityId
+    Theme : Theme
+    NavbarBurgerIsActive : bool }
+    // TODO-NMB?...StaticModal : StaticModal option
 
 type Input =
-    | RemoteUi of RemoteUiInput
+    | RegisterConnection of AppState * LastUser option
+    | RemoteUiInput of RemoteUiInput
     | Disconnected
-    | SignIn
-    | SignInResult of Result<Result<AuthUser * MustChangePasswordReason option, string>, exn>
-    | GetUsers
-    | GetUsersResult of Result<Result<User list, string>, exn>
+    | PreferencesInput of PreferencesInput
+    | ToggleTheme
+    | ToggleNavbarBurger
+    (* TODO-NMB?...
+    | ShowStaticModal of staticModal : StaticModal
+    | HideStaticModal *)
+    // TODO-NMB...| AppInput of AppInput
+    // TEMP-NMB...
+    | TempSignIn
+    // ...TEMP-NMB
+    | SignInInput of SignInInput
+    // TEMP-NMB...
+    | TempSignOut
+    // ...TEMP-NMB
+    | SignOutInput of SignOutInput
+    // TEMP-NMB...
+    | TempGetUsers
+    | TempGetUsersResult of Result<User list, string>
+    | TempGetUsersExn of exn
+    // ...TEMP-NMB
+
+type RegisteringConnectionState = {
+    AppState : AppState
+    LastUser : LastUser option }
+
+type ConnectionState = {
+    Connection : Connection
+    ServerStarted : DateTimeOffset }
+
+type AutomaticallySigningInState = {
+    AppState : AppState
+    ConnectionState : ConnectionState
+    LastUser : LastUser }
+
+type UnauthState = {
+    AppState : AppState
+    ConnectionState : ConnectionState
+    SigningIn : bool
+    SignInError : string option }
+
+type AuthState = {
+    AppState : AppState
+    ConnectionState : ConnectionState
+    AuthUser : AuthUser
+    MustChangePasswordReason : MustChangePasswordReason option
+    SigningOut : bool
+    UsersData : RemoteData<User list, string> }
+
+type State =
+    | InitializingConnection of reconnecting : bool
+    | ReadingPreferences
+    | RegisteringConnection of RegisteringConnectionState
+    | AutomaticallySigningIn of AutomaticallySigningInState
+    | Unauth of UnauthState
+    | Auth of AuthState
 
 let [<Literal>] GIBET = "gibet (α)"
 
-let signedIn (authUserData:RemoteData<AuthUser * MustChangePasswordReason option, string>) =
-    authUserData |> received
-let authUser (authUserData:RemoteData<AuthUser * MustChangePasswordReason option, string>) =
-    match authUserData |> receivedData with
-    | Some (authUser, _) -> authUser |> Some
-    | None -> None
-let mustChangePasswordReason (authUserData:RemoteData<AuthUser * MustChangePasswordReason option, string>) =
-    match authUserData |> receivedData with
-    | Some (_, mustChangePasswordReason) -> mustChangePasswordReason
-    | None -> None
-
+// TEMP-NMB...
 let users (usersData:RemoteData<User list, string>) =
     match usersData |> receivedData with
     | Some users -> users
     | None -> []
+// ...TEMP-NMB
