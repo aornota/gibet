@@ -117,6 +117,6 @@ let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
             | false, None, h :: t -> pending, sprintf "**%i** User/s (excluding _personae non grata_)" (h :: t).Length |> Some
             | false, None, [] -> pending, None
         let signIn = signIn false false signInStatus dispatch
-        let signOut = signOut true signingOut dispatch
+        let signOut = signOut (getUsersPending |> not) signingOut dispatch
         let getUsers = getUsers (signingOut |> not) getUsersPending getUsersStatus dispatch
         content signIn signOut getUsers
