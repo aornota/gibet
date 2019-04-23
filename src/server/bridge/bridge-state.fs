@@ -15,12 +15,12 @@ let private serverStarted = DateTimeOffset.UtcNow
 
 let initialize (clientDispatch:Dispatch<RemoteUiInput>) () =
     Initialized |> clientDispatch
-    NotConnected, Cmd.none
+    NotRegistered, Cmd.none
 
 let transition clientDispatch input state : HubState * Cmd<ServerInput> =
     let state =
         match input, state with
-        | RemoteServerInput(Register affinityId), NotConnected ->
+        | RemoteServerInput(Register affinityId), NotRegistered ->
             let connectionState = {
                 ConnectionId = ConnectionId.Create()
                 AffinityId = affinityId
@@ -29,7 +29,7 @@ let transition clientDispatch input state : HubState * Cmd<ServerInput> =
             connectionState |> Connected
         // TODO-NMB: More RemoteServerInput...
         | Disconnected, Connected _ -> // TODO-NMB: Send RemoteUiInput.UserSignedOut if last connection for User?...
-            NotConnected
+            NotRegistered
         | _ ->
             Log.Logger.Warning("Unexpected input when {state} -> {input}", state, input)
             state

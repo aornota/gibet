@@ -22,7 +22,7 @@ type ConnectionState = {
     User : (UserId * AuthSubscriptions) option }
 
 type HubState =
-    | NotConnected
+    | NotRegistered
     | Connected of ConnectionState
 
 let hub =

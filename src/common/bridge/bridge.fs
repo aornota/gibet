@@ -9,7 +9,7 @@ type ConnectionId = | ConnectionId of Guid with
 
 type RemoteUiInput =
     | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)
-    | Registered of ConnectionId * DateTimeOffset
+    | Registered of ConnectionId * serverStarted : DateTimeOffset
     // TODO-NMB?...| UserActivity of UserId
     // TODO-NMB: More server->ui inputs (e.g. UserSignedIn | UserSignedOut | &c.)...
 
