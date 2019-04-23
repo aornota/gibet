@@ -177,7 +177,7 @@ let transition input state : State * Cmd<Input> =
         let authState = (unauthState.AppState, unauthState.ConnectionState, authUser, mustChangePasswordReason) |> authState
         let (UserName userName) = authUser.User.UserName
         let cmds = Cmd.batch [
-            sprintf "You have been signed in as <strong>%s</strong>" userName |> successToastCmd
+            sprintf "You have signed in as <strong>%s</strong>" userName |> successToastCmd
             authState |> Auth |> preferencesOrDefault |> writePreferencesCmd
             (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd ]
         { authState with UsersData = Pending } |> Auth, cmds
