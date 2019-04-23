@@ -76,7 +76,7 @@ let private findUserName (imUserDict:ImUserDict) error userName =
 
 type InMemoryUserRepoAgent(logger:ILogger) =
     let agent = MailboxProcessor<_>.Start(fun inbox ->
-        let rec loop (imUserDict:ImUserDict)  = async {
+        let rec loop (imUserDict:ImUserDict) = async {
             match! inbox.Receive() with
             | SignIn(userName, password, reply) ->
                 let result = result {

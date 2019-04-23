@@ -28,14 +28,43 @@ let transition clientDispatch input state : HubState * Cmd<ServerInput> =
                 User = None }
             (connectionState.ConnectionId, serverStarted) |> Registered |> clientDispatch
             connectionState |> Connected
-        | RemoteServerInput UserActivity, Connected connectionState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+        | RemoteServerInput Activity, Connected connectionState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
             match connectionState.User with
             | Some(userId, _) ->
-                Log.Logger.Warning("TODO-NMB: {userId} |> UserActive |> clientDispatch (for signed-in-HasUsers-different-UserId)...", userId)
+                Log.Logger.Warning("TODO-NMB: {userId} |> UserActivity |> clientDispatch (for different-UserId-HasUsers)...", userId)
             | None -> ()
             connectionState |> Connected
+        | RemoteServerInput(SignedIn userId), Connected connectionState ->
+            let authSubscriptions = { HasUsers = false }
+            let connectionState =
+                match connectionState.User with
+                | Some _ -> connectionState
+                | None ->
+                    Log.Logger.Warning("TODO-NMB: {userId} |> UserSignedIn |> clientDispatch (for different-UserId-HasUsers)...", userId)
+                    { connectionState with User = (userId, authSubscriptions) |> Some }
+            connectionState |> Connected
+        | RemoteServerInput(SignedOut userId), Connected connectionState ->
+            let connectionState =
+                match connectionState.User with
+                | Some (userId, _) ->
+                    // TODO-NMB: Use SendServerIf [ForceSignOut] to sign out same-AffinityId-not-self-HasUsers? And check *there* if no signed in connections for userId?...
+                    Log.Logger.Warning("TODO-NMB: ({userId}, None) |> ForceUserSignOut |> clientDispatch (for same-AffinityId-not-self-HasUsers)...", userId)
+                    Log.Logger.Warning("TODO-NMB: {userId} |> UserSignedOut |> clientDispatch (for different-UserId-HasUsers) - if userId has no signed in connections for different-AffinityID...", userId)
+                    { connectionState with User = None }
+                | None -> connectionState
+            connectionState |> Connected
+        | RemoteServerInput HasUsers, Connected connectionState ->
+            match connectionState.User with
+            | Some(userId, authSubscriptions) ->
+                let authSubscriptions = { authSubscriptions with HasUsers = true }
+                { connectionState with User = (userId, authSubscriptions) |> Some } |> Connected
+            | None -> connectionState |> Connected
         // TODO-NMB: More RemoteServerInput...
-        | Disconnected, Connected _ -> // TODO-NMB: Send RemoteUiInput.UserSignedOut if last connection for User?...
+        | Disconnected, Connected connectionState ->
+            match connectionState.User with
+            | Some(userId, _) ->
+                Log.Logger.Warning("TODO-NMB: {userId} |> UserSignedOut |> clientDispatch (for different-UserId-HasUsers) - if userId has no signed in connections (for any-AffinityID_...", userId)
+            | None -> ()
             NotRegistered
         | _ ->
             Log.Logger.Warning("Unexpected input when {state} -> {input}", state, input)

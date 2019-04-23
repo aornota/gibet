@@ -113,22 +113,23 @@ let transition input state : State * Cmd<Input> =
     | RemoteUiInput(Initialized), InitializingConnection connectionId, _ ->
         connectionId |> ReadingPreferences, readPreferencesCmd
     | RemoteUiInput(Registered(connectionId, serverStarted)), RegisteringConnection registeringConnectionState, _ ->
-        let connectionState = { Connection = (connectionId, registeringConnectionState.AppState.AffinityId) ; ServerStarted = serverStarted }
+        let connectionState = { ConnectionId = connectionId ; ServerStarted = serverStarted }
         match registeringConnectionState.LastUser with
         | Some (userName, jwt) ->
-            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.Connection, jwt) AutoSignInResult AutoSignInExn |> Cmd.map SignInInput
+            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map SignInInput
             (registeringConnectionState.AppState, connectionState, (userName, jwt)) |> automaticallySigningInState |> AutomaticallySigningIn, cmd
         | None ->
             (registeringConnectionState.AppState, connectionState, None) |> unauthState |> Unauth, Cmd.none
-    | RemoteUiInput(UserActive userId), Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+
+    | RemoteUiInput(UserActivity userId), Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         // TODO-NMB: Update Users data...
         state, Cmd.none
+
     // TODO-NMB: More RemoteUiInput...
     | Disconnected, InitializingConnection _, _ ->
         state, Cmd.none
     | Disconnected, _, (_, Some connectionState) ->
-        let connectionId, _ = connectionState.Connection
-        connectionId |> Some |> InitializingConnection, Cmd.none
+        connectionState.ConnectionId |> Some |> InitializingConnection, Cmd.none
     | Disconnected, _, _ ->
         None |> InitializingConnection, Cmd.none
     // #endregion
@@ -177,7 +178,7 @@ let transition input state : State * Cmd<Input> =
     | ActivityDebouncerSelfInput _, _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js) - and ignored anyway
         state, Cmd.none
     | OnDebouncedActivity, Auth _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        RemoteServerInput.UserActivity |> Bridge.Send
+        RemoteServerInput.Activity |> Bridge.Send
         state, Cmd.none
     | OnDebouncedActivity, _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js) - and ignored anyway
         state, Cmd.none
@@ -193,7 +194,7 @@ let transition input state : State * Cmd<Input> =
     // #endregion
     | TempSignIn, Unauth unauthState, _ -> // TEMP-NMB...
         let userName, password = "neph" |> UserName, "neph" |> Password
-        let cmd = Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.Connection, userName, password) SignInResult SignInExn |> Cmd.map SignInInput
+        let cmd = Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map SignInInput
         { unauthState with SigningIn = true ; SignInError = None } |> Unauth, cmd
     // #region SignInInput
     | SignInInput(AutoSignInResult(Ok(authUser, mustChangePasswordReason))), AutomaticallySigningIn automaticallySigningInState, _ ->
@@ -202,7 +203,7 @@ let transition input state : State * Cmd<Input> =
         let cmds = Cmd.batch [
             sprintf "You have been automatically signed in as <strong>%s</strong>" userName |> successToastCmd
             authState |> Auth |> preferencesOrDefault |> writePreferencesCmd
-            (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd ]
+            (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) |> getUsersCmd ]
         { authState with UsersData = Pending } |> Auth, cmds
     | SignInInput(AutoSignInResult(Error error)), AutomaticallySigningIn automaticallySigningInState, _ ->
         let state = (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, error |> Some) |> unauthState |> Unauth
@@ -219,7 +220,7 @@ let transition input state : State * Cmd<Input> =
         let cmds = Cmd.batch [
             sprintf "You have signed in as <strong>%s</strong>" userName |> successToastCmd
             authState |> Auth |> preferencesOrDefault |> writePreferencesCmd
-            (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd ]
+            (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) |> getUsersCmd ]
         { authState with UsersData = Pending } |> Auth, cmds
     | SignInInput(SignInResult(Error error)), Unauth unauthState, _ ->
         let state = { unauthState with SigningIn = false ; SignInError = error |> Some } |> Unauth
@@ -228,7 +229,7 @@ let transition input state : State * Cmd<Input> =
         state, exn.Message |> Error |> SignInResult |> SignInInput |> Cmd.ofMsg
     // #endregion
     | TempSignOut, Auth authState, _ -> // TEMP-NMB...
-        let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.Connection, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map SignOutInput
+        let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map SignOutInput
         { authState with SigningOut = true } |> Auth, cmd
     // #region SignOutInput
     | SignOutInput(SignOutResult(Ok _)), Auth authState, _ ->
@@ -244,11 +245,12 @@ let transition input state : State * Cmd<Input> =
         state, exn.Message |> Error |> SignOutResult |> SignOutInput |> Cmd.ofMsg
     // #endregion
     | TempGetUsers, Auth authState, _ -> // TEMP-NMB...
-        let cmd = (authState.ConnectionState.Connection, authState.AuthUser.Jwt) |> getUsersCmd
+        let cmd = (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) |> getUsersCmd
         { authState with UsersData = Pending } |> Auth, cmd
     // #region GetUsersInput
-    | GetUsersInput(GetUsersResult(Ok users)), Auth authState, _ ->
-        { authState with UsersData = users |> Received } |> Auth, Cmd.none
+    | GetUsersInput(GetUsersResult(Ok(users, rvn))), Auth authState, _ ->
+        let users = users |> List.map (fun (user, signedIn) -> user, signedIn, None)
+        { authState with UsersData = (users, rvn) |> Received } |> Auth, Cmd.none
     | GetUsersInput(GetUsersResult(Error error)), Auth authState, _ ->
         { authState with UsersData = error |> Failed } |> Auth, Cmd.none
     | GetUsersInput(GetUsersExn exn), Auth _, _ ->

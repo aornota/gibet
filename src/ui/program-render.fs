@@ -117,11 +117,12 @@ let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
             let usersData = authState.UsersData
             let pending = usersData |> pending
             let failure = usersData |> failure
-            let filteredUsers = usersData |> users |> List.filter (fun user -> user.UserType <> PersonaNonGrata)
-            match pending, failure, filteredUsers with
+            let allowedUsers = usersData |> users |> List.filter (fun (user, _, _) -> user.UserType <> PersonaNonGrata)
+            let signedInUserCount = usersData |> users |> List.filter (fun (_, signedIn, _) -> signedIn) |> List.length
+            match pending, failure, allowedUsers with
             | true, _, _ -> pending, None
             | false, Some failure, _ -> pending, sprintf "**Error** -> _%s_" failure |> Some
-            | false, None, h :: t -> pending, sprintf "**%i** User/s (excluding _personae non grata_)" (h :: t).Length |> Some
+            | false, None, h :: t -> pending, sprintf "**%i** User/s (excluding _personae non grata_) -> %i signed in" (h :: t).Length signedInUserCount |> Some
             | false, None, [] -> pending, None
         let signIn = signIn false false signInStatus dispatch
         let signOut = signOut (getUsersPending |> not) signingOut dispatch

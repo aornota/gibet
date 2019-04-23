@@ -17,7 +17,6 @@
         <Compile Include="..\common\domain\affinity.fs" />
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\bridge\bridge.fs" />
-        <Compile Include="..\common\api\connection.fs" />
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\user-api.fs" />
         <!--TODO-NMB?...<Compile Include="..\ui-render-bulma\..." />-->

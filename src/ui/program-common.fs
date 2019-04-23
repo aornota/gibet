@@ -1,9 +1,9 @@
 module Aornota.Gibet.Ui.Program.Common
 
-open Aornota.Gibet.Common.Api.Connection
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.UI.Common.RemoteData
 open Aornota.Gibet.UI.Common.Theme
@@ -36,7 +36,7 @@ type SignOutInput =
     | SignOutExn of exn
 
 type GetUsersInput =
-    | GetUsersResult of Result<User list, string>
+    | GetUsersResult of Result<(User * bool) list * Rvn, string>
     | GetUsersExn of exn
 
 (* type SignInModalInput =
@@ -100,7 +100,7 @@ type RegisteringConnectionState = {
     ConnectionId : ConnectionId option }
 
 type ConnectionState = {
-    Connection : Connection
+    ConnectionId : ConnectionId
     ServerStarted : DateTimeOffset }
 
 type AutomaticallySigningInState = {
@@ -121,7 +121,7 @@ type AuthState = {
     MustChangePasswordReason : MustChangePasswordReason option
     ActivityDebouncer : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     SigningOut : bool
-    UsersData : RemoteData<User list, string> }
+    UsersData : RemoteData<(User * bool * DateTimeOffset option) list, string> }
 
 type State =
     | InitializingConnection of ConnectionId option
@@ -133,7 +133,7 @@ type State =
 
 let [<Literal>] GIBET = "gibet (α)"
 
-let users (usersData:RemoteData<User list, string>) = // TEMP-NMB?...
+let users (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) = // TEMP-NMB?...
     match usersData |> receivedData with
-    | Some users -> users
+    | Some(users, _) -> users
     | None -> []
