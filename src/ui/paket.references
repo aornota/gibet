@@ -15,4 +15,5 @@ group ui
     Fable.Remoting.Client
     Fulma
 	Fulma.Extensions.Wikiki.PageLoader
+    Thoth.Elmish.Debouncer
 	Thoth.Json

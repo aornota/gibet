@@ -5,6 +5,7 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
+open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.UI.Common.LocalStorage
 open Aornota.Gibet.UI.Common.RemoteData
 open Aornota.Gibet.UI.Common.Toast
@@ -12,14 +13,18 @@ open Aornota.Gibet.UI.Common.Theme
 open Aornota.Gibet.Ui.Program.Common
 open Aornota.Gibet.Ui.Program.ServerApi
 
+open System
+
 open Elmish
 open Elmish.Bridge
 
 open Fable.Import
 
+open Thoth.Elmish
 open Thoth.Json
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
+let [<Literal>] private ACTIVITY_DEBOUNCER_THRESHOLD = 15.<second> // "ignored" if less than 5.<second>
 
 let private setBodyClass theme =
     Browser.document.body.className <- theme |> themeClass
@@ -38,7 +43,7 @@ let private writePreferencesCmd preferences =
 let private preferencesOrDefault state =
     let appState, lastUser =
         match state with
-        | InitializingConnection _ | ReadingPreferences -> None, None
+        | InitializingConnection _ | ReadingPreferences _ -> None, None
         | RegisteringConnection registeringConnectionState -> registeringConnectionState.AppState |> Some, None
         | AutomaticallySigningIn automaticallySigningInState -> automaticallySigningInState.AppState |> Some, automaticallySigningInState.LastUser |> Some
         | Unauth unauthState -> unauthState.AppState |> Some, None
@@ -59,9 +64,10 @@ let private writePreferencesOrDefault state =
 let private getUsersCmd(connection, jwt) =
     Cmd.OfAsync.either userApi.getUsers (connection, jwt) GetUsersResult GetUsersExn |> Cmd.map GetUsersInput
 
-let private registeringConnectionState(appState, lastUser) = {
+let private registeringConnectionState(appState, lastUser, connectionId) = {
     AppState = appState
-    LastUser = lastUser }
+    LastUser = lastUser
+    ConnectionId = connectionId }
 let private automaticallySigningInState(appState, connectionState, lastUser) = {
     AppState = appState
     ConnectionState = connectionState
@@ -76,33 +82,36 @@ let private authState(appState, connectionState, authUser, mustChangePasswordRea
     ConnectionState = connectionState
     AuthUser = authUser
     MustChangePasswordReason = mustChangePasswordReason
+    ActivityDebouncer = Debouncer.create()
     SigningOut = false
     UsersData = NotRequested }
 
 let private updateAppState appState state =
     match state with
-    | InitializingConnection _ | ReadingPreferences -> state
+    | InitializingConnection _ | ReadingPreferences _ -> state
     | RegisteringConnection registeringConnectionState -> { registeringConnectionState with AppState = appState } |> RegisteringConnection
     | AutomaticallySigningIn automaticallySigningInState -> { automaticallySigningInState with AppState = appState } |> AutomaticallySigningIn
     | Unauth unauthState -> { unauthState with AppState = appState } |> Unauth
     | Auth authState -> { authState with AppState = appState } |> Auth
 
 let initialize() : State * Cmd<Input> =
-    false |> InitializingConnection, Cmd.none
+    None |> InitializingConnection, Cmd.none
 
 let transition input state : State * Cmd<Input> =
-    let appState =
+    let appState, connectionState =
         match state with
-        | InitializingConnection _ | ReadingPreferences  -> None
-        | RegisteringConnection registeringConnectionState -> registeringConnectionState.AppState |> Some
-        | AutomaticallySigningIn automaticallySigningInState -> automaticallySigningInState.AppState |> Some
-        | Unauth unauthState -> unauthState.AppState |> Some
-        | Auth authState -> authState.AppState |> Some
-    match input, state, appState with
+        | InitializingConnection _ | ReadingPreferences _ -> None, None
+        | RegisteringConnection registeringConnectionState -> registeringConnectionState.AppState |> Some, None
+        | AutomaticallySigningIn automaticallySigningInState -> automaticallySigningInState.AppState |> Some, automaticallySigningInState.ConnectionState |> Some
+        | Unauth unauthState -> unauthState.AppState |> Some, unauthState.ConnectionState |> Some
+        | Auth authState -> authState.AppState |> Some, authState.ConnectionState |> Some
+    match input, state, (appState, connectionState) with
     // #region RegisterConnection | RemoteUiInput | Disconnected
-    | RegisterConnection (appState, lastUser), _, _ ->
-        appState.AffinityId |> RemoteServerInput.Register |> Bridge.Send
-        (appState, lastUser) |> registeringConnectionState |> RegisteringConnection, Cmd.none
+    | RegisterConnection(appState, lastUser, connectionId), _, _ ->
+        (appState.AffinityId, connectionId) |> RemoteServerInput.Register |> Bridge.Send
+        (appState, lastUser, connectionId) |> registeringConnectionState |> RegisteringConnection, Cmd.none
+    | RemoteUiInput(Initialized), InitializingConnection connectionId, _ ->
+        connectionId |> ReadingPreferences, readPreferencesCmd
     | RemoteUiInput(Registered(connectionId, serverStarted)), RegisteringConnection registeringConnectionState, _ ->
         let connectionState = { Connection = (connectionId, registeringConnectionState.AppState.AffinityId) ; ServerStarted = serverStarted }
         match registeringConnectionState.LastUser with
@@ -111,30 +120,33 @@ let transition input state : State * Cmd<Input> =
             (registeringConnectionState.AppState, connectionState, (userName, jwt)) |> automaticallySigningInState |> AutomaticallySigningIn, cmd
         | None ->
             (registeringConnectionState.AppState, connectionState, None) |> unauthState |> Unauth, Cmd.none
-    | RemoteUiInput(Initialized), InitializingConnection _, _ ->
-        ReadingPreferences, readPreferencesCmd
+    | RemoteUiInput(UserActive userId), Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+        // TODO-NMB: Update Users data...
+        state, Cmd.none
     // TODO-NMB: More RemoteUiInput...
-    | Disconnected, _, _ -> // TODO-NMB: Rethink what to do on disconnection?...
-        true |> InitializingConnection, Cmd.none
+    | Disconnected, _, (_, Some connectionState) ->
+        let connectionId, _ = connectionState.Connection
+        connectionId |> Some |> InitializingConnection, Cmd.none
     // #endregion
     // #region PreferencesInput
-    | PreferencesInput(ReadPreferencesResult(Some(Ok preferences))), ReadingPreferences, _ ->
+    | PreferencesInput(ReadPreferencesResult(Some(Ok preferences))), ReadingPreferences connectionId, _ ->
         let appState = {
+            Ticks = 0<tick>
             AffinityId = preferences.AffinityId
             Theme = preferences.Theme
             NavbarBurgerIsActive = false }
         appState.Theme |> setBodyClass
-        state, (appState, preferences.LastUser) |> RegisterConnection |> Cmd.ofMsg
-    | PreferencesInput(ReadPreferencesResult None), ReadingPreferences, _ ->
+        state, (appState, preferences.LastUser, connectionId) |> RegisterConnection |> Cmd.ofMsg
+    | PreferencesInput(ReadPreferencesResult None), ReadingPreferences _, _ ->
         let preferences = state |> preferencesOrDefault
         let cmds = Cmd.batch [
             preferences |> writePreferencesCmd
             preferences |> Ok |> Some |> ReadPreferencesResult |> PreferencesInput |> Cmd.ofMsg ]
         state, cmds
-    | PreferencesInput(ReadPreferencesResult(Some(Error error))), ReadingPreferences, _ -> // TODO-NMB: Call addDebugError (no need for toast)?...
+    | PreferencesInput(ReadPreferencesResult(Some(Error error))), ReadingPreferences _, _ -> // TODO-NMB: Call addDebugError (no need for toast)?...
         sprintf "ReadPreferencesResult -> %s" error |> Browser.console.log
         state, None |> ReadPreferencesResult |> PreferencesInput |> Cmd.ofMsg
-    | PreferencesInput(ReadPreferencesExn exn), ReadingPreferences, _ ->
+    | PreferencesInput(ReadPreferencesExn exn), ReadingPreferences _, _ ->
         state, exn.Message |> Error |> Some |> ReadPreferencesResult |> PreferencesInput |> Cmd.ofMsg
     | PreferencesInput(WritePreferencesOk _), _, _ ->
         state, Cmd.none
@@ -142,12 +154,36 @@ let transition input state : State * Cmd<Input> =
         sprintf "WritePreferencesExn -> %s" exn.Message |> Browser.console.log
         state, Cmd.none
     // #endregion
+    // #region OnTick | OnMouseMove | ActivityDebouncerSelfInput | OnDebouncedActivity
+    | OnTick, _, (Some appState, _) -> // note: will only be used when TICK is defined (see webpack.config.js)
+        let appState = { appState with Ticks = appState.Ticks + 1<tick> }
+        state |> updateAppState appState, Cmd.none
+    | OnTick, _, _ -> // note: will only be used when TICK is defined (see webpack.config.js) - and ignored anyway
+        state, Cmd.none
+    | OnMouseMove, Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+        let activityDebouncerThreshold = if ACTIVITY_DEBOUNCER_THRESHOLD >= 5.<second> then ACTIVITY_DEBOUNCER_THRESHOLD else 5.<second>
+        let debouncerState, debouncerCmd =
+            authState.ActivityDebouncer |> Debouncer.bounce (activityDebouncerThreshold |> float |> TimeSpan.FromSeconds) "OnMouseMove" OnDebouncedActivity
+        { authState with ActivityDebouncer = debouncerState } |> Auth, debouncerCmd |> Cmd.map ActivityDebouncerSelfInput
+    | OnMouseMove, _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js) - and ignored anyway
+        state, Cmd.none
+    | ActivityDebouncerSelfInput debouncerInput, Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+        let debouncerState, debouncerCmd = Debouncer.update debouncerInput authState.ActivityDebouncer
+        { authState with ActivityDebouncer = debouncerState } |> Auth, debouncerCmd
+    | ActivityDebouncerSelfInput _, _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js) - and ignored anyway
+        state, Cmd.none
+    | OnDebouncedActivity, Auth _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+        RemoteServerInput.UserActivity |> Bridge.Send
+        state, Cmd.none
+    | OnDebouncedActivity, _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js) - and ignored anyway
+        state, Cmd.none
+    // #endregion
     // #region ToggleTheme | ToggleNavbarBurger
-    | ToggleTheme, _, Some appState ->
+    | ToggleTheme, _, (Some appState, _) ->
         let appState = { appState with Theme = match appState.Theme with | Light -> Dark | Dark -> Light }
         appState.Theme |> setBodyClass
         state |> updateAppState appState |> writePreferencesOrDefault
-    | ToggleNavbarBurger, _, Some appState ->
+    | ToggleNavbarBurger, _, (Some appState, _) ->
         let appState = { appState with NavbarBurgerIsActive = appState.NavbarBurgerIsActive |> not }
         state |> updateAppState appState |> writePreferencesOrDefault
     // #endregion

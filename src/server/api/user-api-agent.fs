@@ -96,7 +96,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                     return () }
                 result |> reply.Reply
                 return! userDict |> loop
-            | GetUsers(connection, jwt, reply) -> // TODO-NMB: hub...
+            | GetUsers(connection, jwt, reply) -> // TODO-NMB: hub (inc. to see if signed in)...
                 let result = result {
                     let! _ = if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error else () |> Ok
                     let! _ = jwt |> fromJwt // all authenticated Users allowed to GetUsers (so no need to check UserType)

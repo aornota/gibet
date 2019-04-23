@@ -7,6 +7,8 @@ open Aornota.Gibet.UI.Common.Render.Markdown // TEMP-NMB...
 open Aornota.Gibet.UI.Common.Theme
 open Aornota.Gibet.Ui.Program.Common
 
+open System
+
 open Fable.React
 open Fable.React.Props
 
@@ -53,7 +55,7 @@ let private signIn enabled pending status dispatch = // TEMP-NMB...
         | None -> () ]
 let private signOut enabled pending dispatch = // TEMP-NMB...
     Column.column [] [
-        yield button "TempSignOut" (fun _ -> dispatch TempSignOut) enabled pending ]
+        button "TempSignOut" (fun _ -> dispatch TempSignOut) enabled pending ]
 let private getUsers enabled pending status dispatch = // TEMP-NMB...
     Column.column [] [
         yield button "TempGetUsers" (fun _ -> dispatch TempGetUsers) enabled pending
@@ -62,24 +64,29 @@ let private getUsers enabled pending status dispatch = // TEMP-NMB...
             yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ status |> Markdown |> contentFromMarkdown ]
         | None -> () ]
 
+// #region content
 let private content tempSignIn tempSignOut tempGetUsers = // TEMP-NMB...
+#if TICK
+    let extra = sprintf " %s" (DateTimeOffset.UtcNow.LocalDateTime.ToString("HH:mm:ss"))
+#else
+    let extra = ""
+#endif
     div [] [
-        Navbar.navbar [ Navbar.Color IsLight ] [ Navbar.Item.div [] [ Heading.h2 [] [ str GIBET ] ] ]
+        Navbar.navbar [ Navbar.Color IsLight ] [ Navbar.Item.div [] [ Heading.h3 [] [ str GIBET ] ] ]
         Container.container [] [
-            Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h3 [] [ "Work-in-progress..." |> str  ] ]
+            Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h4 [] [ sprintf "Work-in-progress...%s" extra |> str ] ]
             Columns.columns [] [
                 tempSignIn
                 tempSignOut
-                tempGetUsers
-            ]
-        ]
+                tempGetUsers ] ]
         Footer.footer [] [ Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ safeComponents ] ] ]
+// #endregion
 
 let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
     match state with
-    | InitializingConnection false | ReadingPreferences ->
+    | InitializingConnection None | ReadingPreferences _ ->
         IsLink |> pageLoader
-    | InitializingConnection true -> // TODO-NMB...
+    | InitializingConnection (Some _) -> // TODO-NMB...
         IsDanger |> pageLoader
     | RegisteringConnection registeringConnectionState -> // TODO-NMB...
         let semantic = match registeringConnectionState.AppState.Theme with | Light -> IsLight | Dark -> IsDark

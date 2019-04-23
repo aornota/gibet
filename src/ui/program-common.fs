@@ -4,10 +4,13 @@ open Aornota.Gibet.Common.Api.Connection
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.UI.Common.RemoteData
 open Aornota.Gibet.UI.Common.Theme
 
 open System
+
+open Thoth.Elmish
 
 type LastUser = UserName * Jwt
 
@@ -62,15 +65,21 @@ type GetUsersInput =
     | AuthInput of AuthInput *)
 
 type AppState = { // TODO-NMB?...StaticModal : StaticModal option
+    Ticks : int<tick> // note: will only be updated when TICK is defined (see webpack.config.js)
     AffinityId : AffinityId
     Theme : Theme
     NavbarBurgerIsActive : bool }
 
+// #region Input
 type Input =
-    | RegisterConnection of AppState * LastUser option
+    | RegisterConnection of AppState * LastUser option * ConnectionId option
     | RemoteUiInput of RemoteUiInput
     | Disconnected
     | PreferencesInput of PreferencesInput
+    | OnTick // note: will only be used when TICK is defined (see webpack.config.js)
+    | OnMouseMove // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    | ActivityDebouncerSelfInput of Debouncer.SelfMessage<Input> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    | OnDebouncedActivity // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     | ToggleTheme
     | ToggleNavbarBurger
     (* TODO-NMB?...
@@ -83,10 +92,12 @@ type Input =
     | SignOutInput of SignOutInput
     | TempGetUsers // TEMP-NMB...
     | GetUsersInput of GetUsersInput
+// #endregion
 
 type RegisteringConnectionState = {
     AppState : AppState
-    LastUser : LastUser option }
+    LastUser : LastUser option
+    ConnectionId : ConnectionId option }
 
 type ConnectionState = {
     Connection : Connection
@@ -108,12 +119,13 @@ type AuthState = {
     ConnectionState : ConnectionState
     AuthUser : AuthUser
     MustChangePasswordReason : MustChangePasswordReason option
+    ActivityDebouncer : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     SigningOut : bool
     UsersData : RemoteData<User list, string> }
 
 type State =
-    | InitializingConnection of reconnecting : bool
-    | ReadingPreferences
+    | InitializingConnection of ConnectionId option
+    | ReadingPreferences of ConnectionId option
     | RegisteringConnection of RegisteringConnectionState
     | AutomaticallySigningIn of AutomaticallySigningInState
     | Unauth of UnauthState
