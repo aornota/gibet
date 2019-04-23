@@ -57,7 +57,8 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                         if user.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
                         else () |> Ok
                     let! jwt = (user.UserId, user.UserType) |> toJwt
-                    // TODO-NMB: Interaction with hub, e.g. UserSignedIn (send to *this* connection [to update HubState], then transition sends RemoteUiInput to *other*-signed-in)...
+                    (* TODO-NMB: Interaction with hub, e.g. send UserSignedIn to *this* connection [to update HubState]...
+                                 ...then bridge-state.transition sends RemoteUiInput to *other*-signed-in)... *)
                     return { User = user ; Jwt = jwt }, mustChangePasswordReason }
                 result |> reply.Reply
                 return! userDict |> loop
@@ -78,7 +79,8 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                                     else
                                         match (user.UserId, user.UserType) |> toJwt with
                                         | Ok jwt ->
-                                            // TODO-NMB: Interaction with hub, e.g. UserSignedIn (send to *this* connection [to update HubState], then transition sends RemoteUiInput to *other*-signed-in)...
+                                            (* TODO-NMB: Interaction with hub, e.g. send UserSignedIn to *this* connection [to update HubState]...
+                                                         ...then bridge-state.transition sends RemoteUiInput to *other*-signed-in)... *)
                                             ({ User = user ; Jwt = jwt }, mustChangePasswordReason) |> Ok
                                         | Error error -> error |> Error
                                 else INVALID_CREDENTIALS |> Error
