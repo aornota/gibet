@@ -7,4 +7,5 @@ bin/
 obj/
 logs/
 deploy.zip
+jwt.txt
 yarn-error.log

@@ -2,7 +2,6 @@ module Aornota.Gibet.Server.Jwt
 
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Json
-//open Aornota.Gibet.Server.Common.JsonConverter
 
 open System.IO
 open System.Security.Cryptography
@@ -11,9 +10,9 @@ open Jose
 
 open Thoth.Json.Net
 
-// TODO-NMB: Switch to using Thoth.Json (i.e. rather than JsonConverter)?...
-
-let [<Literal>] private JWT_KEY_FILE = "./secret/jwt.txt" // TODO-NMB: .gitignore | .vscode...
+let [<Literal>] private JWT_KEY_FILE = "./secret/jwt.txt"
+let [<Literal>] private JWE_ALGORITHM = JweAlgorithm.A256KW
+let [<Literal>] private JWE_ENCRYPTION = JweEncryption.A256CBC_HS512
 
 let private jwtKey =
     let file = JWT_KEY_FILE |> FileInfo
@@ -25,19 +24,14 @@ let private jwtKey =
     file.FullName |> File.ReadAllBytes
 
 let private encode(Json json) =
-    JWT.Encode(json, jwtKey, JweAlgorithm.A256KW, JweEncryption.A256CBC_HS512)
-let private decode text =
-    JWT.Decode(text, jwtKey, JweAlgorithm.A256KW, JweEncryption.A256CBC_HS512) |> Json
+    JWT.Encode(json, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION) |> Jwt
+let private decode(Jwt jwt) =
+    JWT.Decode(jwt, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION) |> Json
 
 let toJwt(userId:UserId, userType:UserType) =
-    try Encode.Auto.toString<UserId * UserType>(4, (userId, userType)) |> Jwt |> Ok
-        (* (userId, userType) |> toJson |> encode |> Jwt |> Ok // using Fable.JsonConverter *)
+    try Encode.Auto.toString<UserId * UserType>(4, (userId, userType)) |> Json |> encode |> Ok
     with | exn -> exn.Message |> Error
-
-let fromJwt(Jwt jwt) =
-    try jwt |> Decode.Auto.fromString<UserId * UserType>
+let fromJwt(jwt) =
+    try let (Json json) = jwt |> decode
+        json |> Decode.Auto.fromString<UserId * UserType>
     with | exn -> exn.Message |> Error
-    (* try
-        let userId, permissions = jwt |> decode |> ofJson<UserId * UserType> // using Fable.JsonConverter
-        (userId, permissions) |> Ok
-    with | exn -> exn.Message |> Error *)

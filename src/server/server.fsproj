@@ -22,7 +22,6 @@
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\user-api.fs" />
         <!--TODO-NMB?...<Compile Include="..\server-common\helpers.fs" />-->
-        <Compile Include="..\server-common\json-converter.fs" />
         <Compile Include="jwt.fs" />
         <Compile Include="repo\i-user-repo.fs" />
         <Compile Include="repo\in-memory-user-repo-agent.fs" />
