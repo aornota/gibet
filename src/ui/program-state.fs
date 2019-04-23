@@ -124,9 +124,13 @@ let transition input state : State * Cmd<Input> =
         // TODO-NMB: Update Users data...
         state, Cmd.none
     // TODO-NMB: More RemoteUiInput...
+    | Disconnected, InitializingConnection _, _ ->
+        state, Cmd.none
     | Disconnected, _, (_, Some connectionState) ->
         let connectionId, _ = connectionState.Connection
         connectionId |> Some |> InitializingConnection, Cmd.none
+    | Disconnected, _, _ ->
+        None |> InitializingConnection, Cmd.none
     // #endregion
     // #region PreferencesInput
     | PreferencesInput(ReadPreferencesResult(Some(Ok preferences))), ReadingPreferences connectionId, _ ->
