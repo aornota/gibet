@@ -18,7 +18,7 @@
         "babel-loader": "^8.0.5",
         "bulma": "^0.7.1",
         "bulma-pageloader": "2.1.0",
-        "copy-webpack-plugin": "^5.0.2",
+        "copy-webpack-plugin": "^5.0.3",
         "core-js": "2.6.5",
         "css-loader": "^2.1.1",
         "fable-compiler": "^2.3.3",

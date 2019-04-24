@@ -95,6 +95,72 @@ let private updateAppState appState state =
     | Unauth unauthState -> { unauthState with AppState = appState } |> Unauth
     | Auth authState -> { authState with AppState = appState } |> Auth
 
+let private handleRemoteUiInput input state =
+    match input, state with
+    | Initialized, InitializingConnection connectionId ->
+        connectionId |> ReadingPreferences, readPreferencesCmd
+    | Registered(connectionId, serverStarted), RegisteringConnection registeringConnectionState ->
+        let connectionState = { ConnectionId = connectionId ; ServerStarted = serverStarted }
+        match registeringConnectionState.LastUser with
+        | Some (userName, jwt) ->
+            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map SignInInput
+            (registeringConnectionState.AppState, connectionState, (userName, jwt)) |> automaticallySigningInState |> AutomaticallySigningIn, cmd
+        | None ->
+            (registeringConnectionState.AppState, connectionState, None, None) |> unauthState |> Unauth, Cmd.none
+    | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+        let usersData = authState.UsersData |> updateActivity userId
+        { authState with UsersData = usersData } |> Auth, Cmd.none
+    | UserSignedIn userId, Auth authState ->
+        let usersData = authState.UsersData |> updateSignedIn (userId, true)
+        let toastCmd =
+            match usersData |> findUser userId with
+            | Some (user, _, _) ->
+                let (UserName userName) = user.UserName
+                sprintf "<strong>%s</strong> has signed in" userName |> infoToastCmd
+            | None -> Cmd.none
+        { authState with UsersData = usersData } |> Auth, toastCmd
+    | UserSignedOut userId, Auth authState ->
+        let usersData = authState.UsersData |> updateSignedIn (userId, false)
+        let toastCmd =
+            match usersData |> findUser userId with
+            | Some (user, _, _) ->
+                let (UserName userName) = user.UserName
+                sprintf "<strong>%s</strong> has signed out" userName |> infoToastCmd
+            | None -> Cmd.none
+        { authState with UsersData = usersData } |> Auth, toastCmd
+    | ForceUserSignOut forcedSignOutReason, Auth authState -> // TODO-NMB: How best to handle Some forcedSignOutReason (in addition to toast), e.g. notification? display SignInModal?...
+        let state = (authState.AppState, authState.ConnectionState, forcedSignOutReason, None) |> unauthState |> Unauth
+        let toastCmd, extra =
+            match forcedSignOutReason with
+            | Some UserTypeChanged -> warningToastCmd, " because your permissions have been changed"
+            | Some PasswordReset -> warningToastCmd, " because your password has been reset"
+            | None -> infoToastCmd, String.Empty
+        let cmds = Cmd.batch [
+            sprintf "You have been signed out%s" extra |> toastCmd
+            state |> preferencesOrDefault |> writePreferencesCmd ]
+        state, cmds
+    | UserUpdated(user, usersRvn), Auth authState -> // TODO-NMB: How best to handle usersRvn mismatch (&c.)?...
+        let usersData = authState.UsersData |> updateUser (user, usersRvn)
+        { authState with UsersData = usersData } |> Auth, Cmd.none
+    | UserAdded(user, usersRvn), Auth authState -> // TODO-NMB: How best to handle usersRvn mismatch (&c.)?...
+        let usersData = authState.UsersData |> addUser (user, usersRvn)
+        { authState with UsersData = usersData } |> Auth, Cmd.none
+    // TODO-NMB: More RemoteUiInput?...
+    | _ -> // TODO-NMB: Call shouldNeverHappen?...
+        sprintf "Unexpected input when %A -> %A" state input |> Browser.console.log
+        state, Cmd.none
+
+let private handleDisconnected state connectionState =
+    match state, connectionState with
+    | InitializingConnection _, _ ->
+        state, Cmd.none
+    | _, Some connectionState ->
+        connectionState.ConnectionId |> Some |> InitializingConnection, Cmd.none
+    | _ ->
+        None |> InitializingConnection, Cmd.none
+
+// TODO-NMB: More divide-and-conquer - which might allow more granular pattern-matching (i.e. expected cases only)...
+
 let initialize() : State * Cmd<Input> =
     None |> InitializingConnection, Cmd.none
 
@@ -107,63 +173,12 @@ let transition input state : State * Cmd<Input> =
         | Unauth unauthState -> unauthState.AppState |> Some, unauthState.ConnectionState |> Some
         | Auth authState -> authState.AppState |> Some, authState.ConnectionState |> Some
     match input, state, (appState, connectionState) with
-    // #region RegisterConnection | RemoteUiInput | Disconnected
     | RegisterConnection(appState, lastUser, connectionId), _, _ ->
         (appState.AffinityId, connectionId) |> RemoteServerInput.Register |> Bridge.Send
         (appState, lastUser, connectionId) |> registeringConnectionState |> RegisteringConnection, Cmd.none
-    | RemoteUiInput(Initialized), InitializingConnection connectionId, _ ->
-        connectionId |> ReadingPreferences, readPreferencesCmd
-    | RemoteUiInput(Registered(connectionId, serverStarted)), RegisteringConnection registeringConnectionState, _ ->
-        let connectionState = { ConnectionId = connectionId ; ServerStarted = serverStarted }
-        match registeringConnectionState.LastUser with
-        | Some (userName, jwt) ->
-            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map SignInInput
-            (registeringConnectionState.AppState, connectionState, (userName, jwt)) |> automaticallySigningInState |> AutomaticallySigningIn, cmd
-        | None ->
-            (registeringConnectionState.AppState, connectionState, None, None) |> unauthState |> Unauth, Cmd.none
-    | RemoteUiInput(UserActivity userId), Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        let usersData = authState.UsersData |> updateActivity userId
-        { authState with UsersData = usersData } |> Auth, Cmd.none
-    | RemoteUiInput(UserSignedIn userId), Auth authState, _ ->
-        let usersData = authState.UsersData |> updateSignedIn (userId, true)
-        let toastCmd =
-            match userId |> findUser usersData with
-            | Some (user, _, _) ->
-                let (UserName userName) = user.UserName
-                sprintf "<strong>%s</strong> has signed in" userName |> infoToastCmd
-            | None -> Cmd.none
-        { authState with UsersData = usersData } |> Auth, toastCmd
-    | RemoteUiInput(UserSignedOut userId), Auth authState, _ ->
-        let usersData = authState.UsersData |> updateSignedIn (userId, false)
-        let toastCmd =
-            match userId |> findUser usersData with
-            | Some (user, _, _) ->
-                let (UserName userName) = user.UserName
-                sprintf "<strong>%s</strong> has signed out" userName |> infoToastCmd
-            | None -> Cmd.none
-        { authState with UsersData = usersData } |> Auth, toastCmd
-    | RemoteUiInput(ForceUserSignOut forcedSignOutReason), Auth authState, _ -> // TODO-NMB: How best to handle Some forcedSignOutReason (in addition to toast), e.g. notification? display SignInModal?...
-        let state = (authState.AppState, authState.ConnectionState, forcedSignOutReason, None) |> unauthState |> Unauth
-        let toastCmd, extra =
-            match forcedSignOutReason with
-            | Some UserTypeChanged -> warningToastCmd, " because your permissions have been changed"
-            | Some PasswordReset -> warningToastCmd, " because your password has been reset"
-            | None -> infoToastCmd, String.Empty
-        let cmds = Cmd.batch [
-            sprintf "You have been signed out%s" extra |> toastCmd
-            state |> preferencesOrDefault |> writePreferencesCmd ]
-        state, cmds
-
-    // TODO-NMB: More RemoteUiInput...
-
-    | Disconnected, InitializingConnection _, _ ->
-        state, Cmd.none
-    | Disconnected, _, (_, Some connectionState) ->
-        connectionState.ConnectionId |> Some |> InitializingConnection, Cmd.none
-    | Disconnected, _, _ ->
-        None |> InitializingConnection, Cmd.none
-    // #endregion
-    // #region PreferencesInput
+    | RemoteUiInput input, _, _ -> handleRemoteUiInput input state
+    | Disconnected, _, _ -> handleDisconnected state connectionState
+    // #region PreferencesInput // TODO-NMB: Divide-and-conquer...
     | PreferencesInput(ReadPreferencesResult(Some(Ok preferences))), ReadingPreferences connectionId, _ ->
         let appState = {
             Ticks = 0<tick>
@@ -189,7 +204,7 @@ let transition input state : State * Cmd<Input> =
         sprintf "WritePreferencesExn -> %s" exn.Message |> Browser.console.log
         state, Cmd.none
     // #endregion
-    // #region OnTick | OnMouseMove | ActivityDebouncerSelfInput | OnDebouncedActivity
+    // #region OnTick | OnMouseMove | ActivityDebouncerSelfInput | OnDebouncedActivity // TODO-NMB: Divide-and-conquer...
     | OnTick, _, (Some appState, _) -> // note: will only be used when TICK is defined (see webpack.config.js)
         let appState = { appState with Ticks = appState.Ticks + 1<tick> }
         state |> updateAppState appState, Cmd.none
@@ -213,7 +228,6 @@ let transition input state : State * Cmd<Input> =
     | OnDebouncedActivity, _, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js) - and ignored anyway
         state, Cmd.none
     // #endregion
-    // #region ToggleTheme | ToggleNavbarBurger
     | ToggleTheme, _, (Some appState, _) ->
         let appState = { appState with Theme = match appState.Theme with | Light -> Dark | Dark -> Light }
         appState.Theme |> setBodyClass
@@ -221,12 +235,11 @@ let transition input state : State * Cmd<Input> =
     | ToggleNavbarBurger, _, (Some appState, _) ->
         let appState = { appState with NavbarBurgerIsActive = appState.NavbarBurgerIsActive |> not }
         state |> updateAppState appState |> writePreferencesOrDefault
-    // #endregion
     | TempSignIn, Unauth unauthState, _ -> // TEMP-NMB...
         let userName, password = "neph" |> UserName, "neph" |> Password
         let cmd = Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map SignInInput
         { unauthState with SigningIn = true ; SignInError = None } |> Unauth, cmd
-    // #region SignInInput
+    // #region SignInInput // TODO-NMB: Divide-and-conquer...
     | SignInInput(AutoSignInResult(Ok(authUser, mustChangePasswordReason))), AutomaticallySigningIn automaticallySigningInState, _ ->
         let authState = (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, authUser, mustChangePasswordReason) |> authState
         let (UserName userName) = authUser.User.UserName
@@ -261,7 +274,7 @@ let transition input state : State * Cmd<Input> =
     | TempSignOut, Auth authState, _ -> // TEMP-NMB...
         let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map SignOutInput
         { authState with SigningOut = true } |> Auth, cmd
-    // #region SignOutInput
+    // #region SignOutInput // TODO-NMB: Divide-and-conquer...
     | SignOutInput(SignOutResult(Ok _)), Auth authState, _ ->
         let state = (authState.AppState, authState.ConnectionState, None, None) |> unauthState |> Unauth
         let cmds = Cmd.batch [
@@ -277,7 +290,7 @@ let transition input state : State * Cmd<Input> =
     | TempGetUsers, Auth authState, _ -> // TEMP-NMB...
         let cmd = (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) |> getUsersCmd
         { authState with UsersData = Pending } |> Auth, cmd
-    // #region GetUsersInput
+    // #region GetUsersInput // TODO-NMB: Divide-and-conquer...
     | GetUsersInput(GetUsersResult(Ok(users, rvn))), Auth authState, _ ->
         let users = users |> List.map (fun (user, signedIn) -> user, signedIn, None)
         { authState with UsersData = (users, rvn) |> Received } |> Auth, Cmd.none

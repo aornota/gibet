@@ -2,6 +2,7 @@ module Aornota.Gibet.Common.Bridge
 
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.Revision
 
 open System
 
@@ -15,6 +16,8 @@ type RemoteUiInput =
     | UserSignedIn of UserId
     | UserSignedOut of UserId
     | ForceUserSignOut of ForcedSignOutReason option
+    | UserUpdated of User * usersRvn : Rvn
+    | UserAdded of User * usersRvn : Rvn
     // TODO-NMB: More?...
 
 type RemoteServerInput =

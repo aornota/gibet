@@ -5,7 +5,6 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 
 open Elmish.Bridge
-open System.Data
 
 type ServerInput =
     | RemoteServerInput of RemoteServerInput
@@ -20,13 +19,13 @@ type HubState =
     | Unauth of ConnectionState // TODO-NMB: Unauthenticated "subscriptions"?...
     | Auth of ConnectionState * UserId * hasUsers : bool
 
-let signedIn hubStates userId =
+let signedIn userId hubStates =
     hubStates
     |> List.exists (fun hubState ->
         match hubState with
         | NotRegistered | Unauth _ -> false
         | Auth(_, otherUserId, _) -> otherUserId = userId)
-let signedInDifferentConnection hubStates (userId, connectionId) =
+let signedInDifferentConnection (userId, connectionId) hubStates =
     hubStates
     |> List.exists (fun hubState ->
         match hubState with
@@ -37,7 +36,12 @@ let sameConnection connectionId hubState =
     match hubState with
     | NotRegistered -> false
     | Unauth connectionState | Auth(connectionState, _, _) -> connectionState.ConnectionId = connectionId
-let sameUserSameAffinityDifferentConnectionSignedIn (userId, affinityId, connectionId) hubState =
+let sameUser userId hubState =
+    match hubState with
+    | NotRegistered -> false
+    | Unauth _ -> false
+    | Auth(_, otherUserId, _) -> otherUserId = userId
+let sameUserSameAffinityDifferentConnection (userId, affinityId, connectionId) hubState =
     match hubState with
     | NotRegistered -> false
     | Unauth _ -> false

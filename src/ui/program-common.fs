@@ -115,6 +115,8 @@ type UnauthState = {
     SigningIn : bool
     SignInError : string option }
 
+type UserData = User * bool * DateTimeOffset option
+
 type AuthState = {
     AppState : AppState
     ConnectionState : ConnectionState
@@ -122,7 +124,7 @@ type AuthState = {
     MustChangePasswordReason : MustChangePasswordReason option
     ActivityDebouncer : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     SigningOut : bool
-    UsersData : RemoteData<(User * bool * DateTimeOffset option) list, string> }
+    UsersData : RemoteData<UserData list, string> }
 
 type State =
     | InitializingConnection of ConnectionId option
@@ -134,16 +136,38 @@ type State =
 
 let [<Literal>] GIBET = "gibet (α)"
 
-let users (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) =
+let users (usersData:RemoteData<UserData list, string>) =
     match usersData |> receivedData with
     | Some(users, _) -> users
     | None -> []
-let findUser (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) userId =
+let findUser userId (usersData:RemoteData<UserData list, string>) =
     match usersData |> receivedData with
     | Some(users, _) -> users |> List.tryFind (fun (user, _, _) -> user.UserId = userId)
     | None -> None
 
-let updateActivity userId (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) =
+// TODO-NMB: What if usersData not Received? What if usersRvn not consistent with current revision? What if user[Id] already exists / not found?...
+let private addOrUpdateUser (user, usersRvn, shouldExist) (usersData:RemoteData<UserData list, string>) =
+    match usersData with
+    | Received(users, _) ->
+        if users |> List.exists (fun (otherUser, _, _) -> otherUser.UserId = user.UserId) then
+            let users =
+                users
+                |> List.map (fun (otherUser, signedIn, lastActivity) ->
+                    if otherUser.UserId = user.UserId then user, signedIn, lastActivity
+                    else otherUser, signedIn, lastActivity)
+            (users, usersRvn) |> Received
+        else
+            let users = (user, false, None) :: users
+            (users, usersRvn) |> Received
+    | _ -> usersData
+
+let addUser (user, usersRvn) (usersData:RemoteData<UserData list, string>) =
+    usersData |> addOrUpdateUser (user, usersRvn, false)
+let updateUser (user, usersRvn) (usersData:RemoteData<UserData list, string>) =
+    usersData |> addOrUpdateUser (user, usersRvn, true)
+
+// TODO-NMB: What if usersData not Received? What if userId not found?...
+let updateActivity userId (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
         let users =
@@ -153,7 +177,7 @@ let updateActivity userId (usersData:RemoteData<(User * bool * DateTimeOffset op
                 else user, signedIn, lastActivity)
         (users, rvn) |> Received
     | _ -> usersData
-let updateSignedIn (userId, signedIn) (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) =
+let updateSignedIn (userId, signedIn) (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
         let users =

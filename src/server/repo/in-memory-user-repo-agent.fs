@@ -34,7 +34,7 @@ type private InMemoryUser = {
 
 type private ImUserDict = Dictionary<UserId, InMemoryUser>
 
-let private addUser (imUserDict:ImUserDict) (logger:ILogger) (userId, userName, password, userType) =
+let private addUser (userId, userName, password, userType, logger:ILogger) (imUserDict:ImUserDict) =
     let userId = userId |> Option.defaultValue (UserId.Create())
     let result = result {
         let! _ =
@@ -58,18 +58,18 @@ let private addUser (imUserDict:ImUserDict) (logger:ILogger) (userId, userName, 
     | Error error -> logger.Warning("Unable to add {userName}: {error}", userName, error)
     result
 
-let private updateUser (imUserDict:ImUserDict) imUser =
+let private updateUser imUser (imUserDict:ImUserDict) =
     let userId = imUser.User.UserId
     if imUserDict.ContainsKey userId then
         imUserDict.[userId] <- imUser
         () |> Ok
     else sprintf "Unable to update %A" userId |> Error
 
-let private findUserId (imUserDict:ImUserDict) userId =
+let private findUserId userId (imUserDict:ImUserDict) =
     if imUserDict.ContainsKey userId then imUserDict.[userId] |> Ok
     else sprintf "Unable to find %A" userId |> Error
 
-let private findUserName (imUserDict:ImUserDict) error userName =
+let private findUserName (userName, error) (imUserDict:ImUserDict) =
     match imUserDict.Values |> List.ofSeq |> List.filter (fun imUser -> imUser.User.UserName = userName) with
     | [ imUser ] -> imUser |> Ok
     | _ :: _ | [] -> error |> Error
@@ -80,7 +80,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
             match! inbox.Receive() with
             | SignIn(userName, password, reply) ->
                 let result = result {
-                    let! imUser = userName |> findUserName imUserDict INVALID_CREDENTIALS
+                    let! imUser = imUserDict |> findUserName (userName, INVALID_CREDENTIALS)
                     let! _ =
                         if imUser.Hash = hash(password, imUser.Salt) then () |> Ok
                         else INVALID_CREDENTIALS |> Error
@@ -92,11 +92,25 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 return! imUserDict |> loop
             | AutoSignIn(userId, reply) ->
                 let result = result {
-                    let! imUser = userId |> findUserId imUserDict
+                    let! imUser = imUserDict |> findUserId userId
                     return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
                 | Ok _ -> logger.Debug("Able to automatically sign in as {userId}", userId)
                 | Error error -> logger.Warning("Unable to automatically sign in as {userId}: {error}", userId, error)
+                result |> reply.Reply
+                return! imUserDict |> loop
+            | ChangePassword(userId, password, rvn, reply) ->
+                let result = result {
+                    let! imUser = imUserDict |> findUserId userId
+                    let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
+                    let user = { imUser.User with Rvn = rvn |> incrementRvn }
+                    let salt = salt()
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = None }
+                    let! _ = imUserDict |> updateUser imUser
+                    return user }
+                match result with
+                | Ok user -> logger.Debug("Password changed for {user}", user)
+                | Error error -> logger.Warning("Unable to change password for {userId}: {error}", userId, error)
                 result |> reply.Reply
                 return! imUserDict |> loop
             | GetUsers reply ->
@@ -104,31 +118,17 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 result |> reply.Reply
                 return! imUserDict |> loop
             | CreateUser(userId, userName, password, userType, reply) ->
-                let result = (userId, userName, password, userType) |> addUser imUserDict logger
-                result |> reply.Reply
-                return! imUserDict |> loop
-            | ChangePassword(userId, password, rvn, reply) ->
-                let result = result {
-                    let! imUser = userId |> findUserId imUserDict
-                    let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
-                    let user = { imUser.User with Rvn = rvn |> incrementRvn }
-                    let salt = salt()
-                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = None }
-                    let! _ = imUser |> updateUser imUserDict
-                    return user }
-                match result with
-                | Ok user -> logger.Debug("Password changed for {user}", user)
-                | Error error -> logger.Warning("Unable to change password for {userId}: {error}", userId, error)
+                let result = imUserDict |> addUser (userId, userName, password, userType, logger)
                 result |> reply.Reply
                 return! imUserDict |> loop
             | ResetPassword(userId, password, rvn, reply) ->
                 let result = result {
-                    let! imUser = userId |> findUserId imUserDict
+                    let! imUser = imUserDict |> findUserId userId
                     let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = rvn |> incrementRvn }
                     let salt = salt()
                     let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = MustChangePasswordReason.PasswordReset |> Some }
-                    let! _ = imUser |> updateUser imUserDict
+                    let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
                 | Ok user -> logger.Debug("Password reset for {user}", user)
@@ -137,11 +137,11 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 return! imUserDict |> loop
             | ChangeUserType(userId, userType, rvn, reply) ->
                 let result = result {
-                    let! imUser = userId |> findUserId imUserDict
+                    let! imUser = imUserDict |> findUserId userId
                     let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = rvn |> incrementRvn ; UserType = userType }
                     let imUser = { imUser with User = user }
-                    let! _ = imUser |> updateUser imUserDict
+                    let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
                 | Ok user -> logger.Debug("User type changed for {user}", user)
@@ -154,8 +154,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
     interface IUserRepo with
         member __.SignIn(userName, password) = (fun reply -> (userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
         member __.AutoSignIn(userId) = (fun reply -> (userId, reply) |> AutoSignIn) |> agent.PostAndAsyncReply
+        member __.ChangePassword(userId, password, rvn) = (fun reply -> (userId, password, rvn, reply) |> ChangePassword) |> agent.PostAndAsyncReply
         member __.GetUsers() = (fun reply -> reply |> GetUsers) |> agent.PostAndAsyncReply
         member __.CreateUser(userId, userName, password, userType) = (fun reply -> (userId, userName, password, userType, reply) |> CreateUser) |> agent.PostAndAsyncReply
-        member __.ChangePassword(userId, password, rvn) = (fun reply -> (userId, password, rvn, reply) |> ChangePassword) |> agent.PostAndAsyncReply
         member __.ResetPassword(userId, password, rvn) = (fun reply -> (userId, password, rvn, reply) |> ResetPassword) |> agent.PostAndAsyncReply
         member __.ChangeUserType(userId, userType, rvn) = (fun reply -> (userId, userType, rvn, reply) |> ChangeUserType) |> agent.PostAndAsyncReply
