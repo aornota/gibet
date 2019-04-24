@@ -72,9 +72,10 @@ let private automaticallySigningInState(appState, connectionState, lastUser) = {
     AppState = appState
     ConnectionState = connectionState
     LastUser = lastUser }
-let private unauthState(appState, connectionState, signInError) = {
+let private unauthState(appState, connectionState, forcedSignOutReason, signInError) = {
     AppState = appState
     ConnectionState = connectionState
+    ForcedSignOutReason = forcedSignOutReason
     SigningIn = false
     SignInError = signInError }
 let private authState(appState, connectionState, authUser, mustChangePasswordReason) = {
@@ -119,13 +120,42 @@ let transition input state : State * Cmd<Input> =
             let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map SignInInput
             (registeringConnectionState.AppState, connectionState, (userName, jwt)) |> automaticallySigningInState |> AutomaticallySigningIn, cmd
         | None ->
-            (registeringConnectionState.AppState, connectionState, None) |> unauthState |> Unauth, Cmd.none
-
+            (registeringConnectionState.AppState, connectionState, None, None) |> unauthState |> Unauth, Cmd.none
     | RemoteUiInput(UserActivity userId), Auth authState, _ -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        // TODO-NMB: Update Users data...
-        state, Cmd.none
+        let usersData = authState.UsersData |> updateActivity userId
+        { authState with UsersData = usersData } |> Auth, Cmd.none
+    | RemoteUiInput(UserSignedIn userId), Auth authState, _ ->
+        let usersData = authState.UsersData |> updateSignedIn (userId, true)
+        let toastCmd =
+            match userId |> findUser usersData with
+            | Some (user, _, _) ->
+                let (UserName userName) = user.UserName
+                sprintf "<strong>%s</strong> has signed in" userName |> infoToastCmd
+            | None -> Cmd.none
+        { authState with UsersData = usersData } |> Auth, toastCmd
+    | RemoteUiInput(UserSignedOut userId), Auth authState, _ ->
+        let usersData = authState.UsersData |> updateSignedIn (userId, false)
+        let toastCmd =
+            match userId |> findUser usersData with
+            | Some (user, _, _) ->
+                let (UserName userName) = user.UserName
+                sprintf "<strong>%s</strong> has signed out" userName |> infoToastCmd
+            | None -> Cmd.none
+        { authState with UsersData = usersData } |> Auth, toastCmd
+    | RemoteUiInput(ForceUserSignOut forcedSignOutReason), Auth authState, _ -> // TODO-NMB: How best to handle Some forcedSignOutReason (in addition to toast), e.g. notification? display SignInModal?...
+        let state = (authState.AppState, authState.ConnectionState, forcedSignOutReason, None) |> unauthState |> Unauth
+        let toastCmd, extra =
+            match forcedSignOutReason with
+            | Some UserTypeChanged -> warningToastCmd, " because your permissions have been changed"
+            | Some PasswordReset -> warningToastCmd, " because your password has been reset"
+            | None -> infoToastCmd, String.Empty
+        let cmds = Cmd.batch [
+            sprintf "You have been signed out%s" extra |> toastCmd
+            state |> preferencesOrDefault |> writePreferencesCmd ]
+        state, cmds
 
     // TODO-NMB: More RemoteUiInput...
+
     | Disconnected, InitializingConnection _, _ ->
         state, Cmd.none
     | Disconnected, _, (_, Some connectionState) ->
@@ -206,13 +236,13 @@ let transition input state : State * Cmd<Input> =
             (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) |> getUsersCmd ]
         { authState with UsersData = Pending } |> Auth, cmds
     | SignInInput(AutoSignInResult(Error error)), AutomaticallySigningIn automaticallySigningInState, _ ->
-        let state = (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, error |> Some) |> unauthState |> Unauth
+        let state = (automaticallySigningInState.AppState, automaticallySigningInState.ConnectionState, None, error |> Some) |> unauthState |> Unauth
         let (UserName userName), _ = automaticallySigningInState.LastUser
         let cmds = Cmd.batch [
             sprintf "Unable to automatically sign in as <strong>%s</strong>" userName |> warningToastCmd
             state |> preferencesOrDefault |> writePreferencesCmd ]
         state, cmds
-    | SignInInput(AutoSignInExn exn), Unauth _, _ ->
+    | SignInInput(AutoSignInExn exn), AutomaticallySigningIn _, _ ->
         state, exn.Message |> Error |> AutoSignInResult |> SignInInput |> Cmd.ofMsg
     | SignInInput(SignInResult(Ok(authUser, mustChangePasswordReason))), Unauth unauthState, _ ->
         let authState = (unauthState.AppState, unauthState.ConnectionState, authUser, mustChangePasswordReason) |> authState
@@ -233,7 +263,7 @@ let transition input state : State * Cmd<Input> =
         { authState with SigningOut = true } |> Auth, cmd
     // #region SignOutInput
     | SignOutInput(SignOutResult(Ok _)), Auth authState, _ ->
-        let state = (authState.AppState, authState.ConnectionState, None) |> unauthState |> Unauth
+        let state = (authState.AppState, authState.ConnectionState, None, None) |> unauthState |> Unauth
         let cmds = Cmd.batch [
             "You have signed out" |> successToastCmd
             state |> preferencesOrDefault |> writePreferencesCmd ]

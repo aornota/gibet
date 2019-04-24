@@ -12,18 +12,20 @@ type RemoteUiInput =
     | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)
     | Registered of ConnectionId * serverStarted : DateTimeOffset
     | UserActivity of UserId
-    // TODO-NMB...UserSignedIn of UserId
-    // TODO-NMB...UserSignedOut of UserId
-    // TODO-NMB...ForceUserSignOut of UserId * ForceSignOutReason option (e.g. PasswordReset | UserTypeChanged)
-    // TODO-NMB: More server->ui inputs (e.g. UserSignedIn | UserSignedOut | &c.)...
+    | UserSignedIn of UserId
+    | UserSignedOut of UserId
+    | ForceUserSignOut of ForcedSignOutReason option
+    // TODO-NMB: More?...
 
 type RemoteServerInput =
+    // Sent from UI:
     | Register of AffinityId * ConnectionId option
     | Activity
+    // Sent from Server:
     | SignedIn of UserId
-    | SignedOut of UserId
+    | SignedOut
+    | ForceSignOut of ForcedSignOutReason option
     | HasUsers
-    // TODO-NMB...ForceSignOut of ForceSignOutReason option?
-    // TODO-NMB: More ui->server [and api->server] inputs (e.g. UserSignedIn | &c.)...
+    // TODO-NMB: More?...
 
 let [<Literal>] BRIDGE_ENDPOINT = "/bridge"

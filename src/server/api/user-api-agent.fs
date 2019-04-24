@@ -36,21 +36,6 @@ type private Input =
 
 type private UserDict = Dictionary<UserId, User>
 
-let private signedIn hubStates userId = // TODO-NMB: Move to hub.fs [and make public]?...
-    hubStates
-    |> List.exists (fun hubState ->
-        match hubState with
-        | NotRegistered -> false
-        | Connected connectionState ->
-            match connectionState.User with
-            | Some(otherUserId, _) -> otherUserId = userId
-            | None -> false)
-
-let private self connectionId hubState = // TODO-NMB: Move to hub.fs [and make public]?...
-    match hubState with
-    | NotRegistered -> false
-    | Connected connectionState -> connectionState.ConnectionId = connectionId
-
 type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, RemoteUiInput>, logger:ILogger) =
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop(userDict:UserDict, rvn:Rvn) = async {
@@ -70,7 +55,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                         if user.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
                         else () |> Ok
                     let! jwt = (user.UserId, user.UserType) |> toJwt
-                    user.UserId |> SignedIn |> hub.SendServerIf (self connectionId)
+                    user.UserId |> SignedIn |> hub.SendServerIf (connectionId |> sameConnection)
                     return { User = user ; Jwt = jwt }, mustChangePasswordReason }
                 result |> reply.Reply
                 return! (userDict, rvn) |> loop
@@ -91,7 +76,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                                     else
                                         match (user.UserId, user.UserType) |> toJwt with
                                         | Ok jwt ->
-                                            user.UserId |> SignedIn |> hub.SendServerIf (self connectionId)
+                                            user.UserId |> SignedIn |> hub.SendServerIf (connectionId |> sameConnection)
                                             ({ User = user ; Jwt = jwt }, mustChangePasswordReason) |> Ok
                                         | Error error -> error |> Error
                                 else INVALID_CREDENTIALS |> Error
@@ -105,10 +90,9 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                 let result = result {
                     let! _ = if debugFakeError () then sprintf "Fake SignOut error: %A" jwt |> Error else () |> Ok
                     let! (userId, _) = jwt |> fromJwt // all authenticated Users allowed to SignOut (so no need to check UserType)
-                    userId |> SignedOut |> hub.SendServerIf (self connectionId)
+                    SignedOut |> hub.SendServerIf (connectionId |> sameConnection)
                     return () }
                 result |> reply.Reply
-                // TODO-NMB: Interaction with hub, e.g. UserSignedOut (send to *this* connection [to update HubState], then transition sends RemoteUiInput/s)...
                 return! (userDict, rvn) |> loop
             | ChangePassword(connectionId, jwt, password, rvn, reply) -> // TODO-NMB...
                 return! (userDict, rvn) |> loop
@@ -117,7 +101,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                     let! _ = if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error else () |> Ok
                     let! _ = jwt |> fromJwt // all authenticated Users allowed to GetUsers (so no need to check UserType)
                     let users = userDict.Values |> List.ofSeq |> List.map (fun user -> user, user.UserId |> signedIn (hub.GetModels()))
-                    HasUsers |> hub.SendServerIf (self connectionId)
+                    HasUsers |> hub.SendServerIf (connectionId |> sameConnection)
                     return users, rvn }
                 match result with
                 | Ok (users, rvn) ->  logger.Debug("Got {count} User/s: {rvn}", users.Length, rvn)

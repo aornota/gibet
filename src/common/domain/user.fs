@@ -14,6 +14,8 @@ type UserType = | BenevolentDictatorForLife | Administrator | Pleb | PersonaNonG
 
 type MustChangePasswordReason = | FirstSignIn | PasswordReset
 
+type ForcedSignOutReason = | UserTypeChanged | PasswordReset
+
 type User = { // TODO-NMB?...AvatarUrl : string option // e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png
     UserId : UserId
     Rvn : Rvn

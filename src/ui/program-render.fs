@@ -69,7 +69,7 @@ let private content tempSignIn tempSignOut tempGetUsers = // TEMP-NMB...
 #if TICK
     let extra = sprintf " %s" (DateTimeOffset.UtcNow.LocalDateTime.ToString("HH:mm:ss"))
 #else
-    let extra = ""
+    let extra = String.Empty
 #endif
     div [] [
         Navbar.navbar [ Navbar.Color IsLight ] [ Navbar.Item.div [] [ Heading.h3 [] [ str GIBET ] ] ]
@@ -108,7 +108,7 @@ let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
             let extra =
                 match authState.MustChangePasswordReason with
                 | Some mustChangePasswordReason -> sprintf " -> must change password: _%A_" mustChangePasswordReason
-                | None -> ""
+                | None -> String.Empty
             let authUser = authState.AuthUser
             let (UserName userName) = authUser.User.UserName
             sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra |> Some

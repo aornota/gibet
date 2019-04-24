@@ -127,7 +127,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = rvn |> validateRvn imUser.User.Rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = rvn |> incrementRvn }
                     let salt = salt()
-                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = PasswordReset |> Some }
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = (password, salt) |> hash ; MustChangePasswordReason = MustChangePasswordReason.PasswordReset |> Some }
                     let! _ = imUser |> updateUser imUserDict
                     return user }
                 match result with

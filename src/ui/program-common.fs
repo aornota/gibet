@@ -111,6 +111,7 @@ type AutomaticallySigningInState = {
 type UnauthState = {
     AppState : AppState
     ConnectionState : ConnectionState
+    ForcedSignOutReason : ForcedSignOutReason option
     SigningIn : bool
     SignInError : string option }
 
@@ -133,7 +134,32 @@ type State =
 
 let [<Literal>] GIBET = "gibet (α)"
 
-let users (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) = // TEMP-NMB?...
+let users (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) =
     match usersData |> receivedData with
     | Some(users, _) -> users
     | None -> []
+let findUser (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) userId =
+    match usersData |> receivedData with
+    | Some(users, _) -> users |> List.tryFind (fun (user, _, _) -> user.UserId = userId)
+    | None -> None
+
+let updateActivity userId (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) =
+    match usersData with
+    | Received(users, rvn) ->
+        let users =
+            users
+            |> List.map (fun (user, signedIn, lastActivity) ->
+                if user.UserId = userId then user, signedIn, DateTimeOffset.UtcNow |> Some
+                else user, signedIn, lastActivity)
+        (users, rvn) |> Received
+    | _ -> usersData
+let updateSignedIn (userId, signedIn) (usersData:RemoteData<(User * bool * DateTimeOffset option) list, string>) =
+    match usersData with
+    | Received(users, rvn) ->
+        let users =
+            users
+            |> List.map (fun (user, otherSignedIn, lastActivity) ->
+                if user.UserId = userId then user, signedIn, lastActivity
+                else user, otherSignedIn, lastActivity)
+        (users, rvn) |> Received
+    | _ -> usersData

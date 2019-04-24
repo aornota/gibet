@@ -58,7 +58,7 @@ let runTool cmd args workingDir =
     |> ignore
 
 let runDotNet cmd workingDir =
-    let result = DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
+    let result = DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd String.Empty
     if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s." cmd workingDir
 
 let openBrowser url =
