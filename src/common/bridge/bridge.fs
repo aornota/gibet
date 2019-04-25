@@ -6,8 +6,7 @@ open Aornota.Gibet.Common.Revision
 
 open System
 
-type ConnectionId = | ConnectionId of Guid with
-    static member Create() = Guid.NewGuid() |> ConnectionId
+type ConnectionId = | ConnectionId of Guid with static member Create() = ConnectionId(Guid.NewGuid())
 
 type RemoteUiInput =
     | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)

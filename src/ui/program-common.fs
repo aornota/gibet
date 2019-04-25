@@ -144,46 +144,51 @@ let findUser userId (usersData:RemoteData<UserData list, string>) =
     match usersData |> receivedData with
     | Some(users, _) -> users |> List.tryFind (fun (user, _, _) -> user.UserId = userId)
     | None -> None
+let exists userId (usersData:RemoteData<UserData list, string>) = match usersData |> findUser userId with | Some _ -> true | None -> false
 
-// TODO-NMB: What if usersData not Received? What if usersRvn not consistent with current revision? What if user[Id] already exists / not found?...
 let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, _) ->
-        if users |> List.exists (fun (otherUser, _, _) -> otherUser.UserId = user.UserId) then
+        match usersData |> exists user.UserId, shouldExist with
+        | true, true ->
             let users =
                 users
                 |> List.map (fun (otherUser, signedIn, lastActivity) ->
                     if otherUser.UserId = user.UserId then user, signedIn, lastActivity
                     else otherUser, signedIn, lastActivity)
-            Received(users, usersRvn)
-        else
+            Received(users, usersRvn), None
+        | true, false -> usersData, Some (sprintf "addOrUpdateUser: %A already exists" user.UserId)
+        | false, true -> usersData, Some (sprintf "addOrUpdateUser: %A not found" user.UserId)
+        | false, false ->
             let users = (user, false, None) :: users
-            Received(users, usersRvn)
-    | _ -> usersData
-
+            Received(users, usersRvn), None
+    | _ -> usersData, Some "addOrUpdateUser: not Received"
 let addUser user usersRvn (usersData:RemoteData<UserData list, string>) =
     usersData |> addOrUpdateUser user usersRvn false
 let updateUser user usersRvn (usersData:RemoteData<UserData list, string>) =
     usersData |> addOrUpdateUser user usersRvn true
 
-// TODO-NMB: What if usersData not Received? What if userId not found?...
 let updateActivity userId (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
-        let users =
-            users
-            |> List.map (fun (user, signedIn, lastActivity) ->
-                if user.UserId = userId then user, signedIn, DateTimeOffset.UtcNow |> Some
-                else user, signedIn, lastActivity)
-        Received(users, rvn)
-    | _ -> usersData
+        if usersData |> exists userId then
+            let users =
+                users
+                |> List.map (fun (user, signedIn, lastActivity) ->
+                    if user.UserId = userId then user, signedIn, Some DateTimeOffset.UtcNow
+                    else user, signedIn, lastActivity)
+            Received(users, rvn), None
+        else usersData, Some (sprintf "updateActivity: %A not found" userId)
+    | _ -> usersData, Some "updateActivity: not Received"
 let updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
-        let users =
-            users
-            |> List.map (fun (user, otherSignedIn, lastActivity) ->
-                if user.UserId = userId then user, signedIn, lastActivity
-                else user, otherSignedIn, lastActivity)
-        Received(users, rvn)
-    | _ -> usersData
+        if usersData |> exists userId then
+            let users =
+                users
+                |> List.map (fun (user, otherSignedIn, lastActivity) ->
+                    if user.UserId = userId then user, signedIn, lastActivity
+                    else user, otherSignedIn, lastActivity)
+            Received(users, rvn), None
+        else usersData, Some (sprintf "updateSignedIn: %A not found" userId)
+    | _ -> usersData, Some "updateSignIn: not Received"

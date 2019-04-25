@@ -4,8 +4,7 @@ open Aornota.Gibet.Common.Revision
 
 open System
 
-type UserId = | UserId of Guid with
-    static member Create() = Guid.NewGuid() |> UserId
+type UserId = | UserId of Guid with static member Create() = UserId(Guid.NewGuid())
 
 type UserName = | UserName of string
 type Password = | Password of string
@@ -29,19 +28,19 @@ type AuthUser = {
     Jwt : Jwt }
 
 let validateUserName (UserName userName) (userNames:UserName list) =
-    if String.IsNullOrWhiteSpace userName then "User name must not be blank" |> Some
-    else if userName.Trim().Length < 3 then "User name must be at least 3 characters" |> Some
+    if String.IsNullOrWhiteSpace userName then Some "User name must not be blank"
+    else if userName.Trim().Length < 3 then Some "User name must be at least 3 characters"
     // TODO-NMB: Limit to specific characters?...
-    else if userNames |> List.map (fun (UserName userName) -> userName.ToLower().Trim()) |> List.contains (userName.ToLower().Trim()) then "User name is not available" |> Some
+    else if userNames |> List.map (fun (UserName userName) -> userName.ToLower().Trim()) |> List.contains (userName.ToLower().Trim()) then Some "User name is not available"
     else None
 let validatePassword (Password password) =
-    if String.IsNullOrWhiteSpace password then "Password must not be blank" |> Some
-    else if password.Trim().Length < 6 then "Password must be at least 6 characters" |> Some
+    if String.IsNullOrWhiteSpace password then Some "Password must not be blank"
+    else if password.Trim().Length < 6 then Some "Password must be at least 6 characters"
     // TODO-NMB: Other restrictions?...
     else None
 let validateConfirmationPassword newPassword confirmationPassword =
-    if newPassword <> confirmationPassword then "Confirmation password must match new password" |> Some
-    else confirmationPassword |> validatePassword
+    if newPassword <> confirmationPassword then Some "Confirmation password must match new password"
+    else validatePassword confirmationPassword
 
 let canCreateUsers userType =
     match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false

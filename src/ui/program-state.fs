@@ -33,11 +33,11 @@ let private readPreferencesCmd =
     let readPreferences() = async {
         (* TEMP-NMB...
         do! ifDebugSleepAsync 20 400 *)
-        return APP_PREFERENCES_KEY |> Key |> readJson |> Option.map (fun (Json json) -> Decode.Auto.fromString<Preferences> json) }
+        return readJson(Key APP_PREFERENCES_KEY) |> Option.map (fun (Json json) -> Decode.Auto.fromString<Preferences> json) }
     Cmd.OfAsync.either readPreferences () ReadPreferencesResult ReadPreferencesExn |> Cmd.map PreferencesInput
 let private writePreferencesCmd preferences =
     let writePreferences preferences = async {
-        Encode.Auto.toString<Preferences>(4, preferences) |> Json |> writeJson (APP_PREFERENCES_KEY |> Key) }
+        writeJson (Key APP_PREFERENCES_KEY) (Json(Encode.Auto.toString<Preferences>(4, preferences))) }
     Cmd.OfAsync.either writePreferences preferences WritePreferencesOk WritePreferencesExn |> Cmd.map PreferencesInput
 
 let private preferencesOrDefault state =
@@ -51,7 +51,7 @@ let private preferencesOrDefault state =
     let affinityId, theme =
         match appState with
         | Some appState -> appState.AffinityId, appState.Theme
-        | None -> AffinityId.Create(), Light
+        | None -> AffinityId.Create(), defaultTheme
     {
         AffinityId = affinityId
         Theme = theme
@@ -121,26 +121,37 @@ let private handleRemoteUiInput input state =
         | None ->
             Unauth(unauthState registeringConnectionState.AppState connectionState None None), Cmd.none
     | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        let usersData = authState.UsersData |> updateActivity userId
-        Auth { authState with UsersData = usersData }, Cmd.none
+        let usersData, error = authState.UsersData |> updateActivity userId
+        let state = Auth { authState with UsersData = usersData }
+        match error with
+        | Some error -> state |> shouldNeverHappen error
+        | None -> state, Cmd.none
     | UserSignedIn userId, Auth authState ->
-        let usersData = authState.UsersData |> updateSignedIn userId true
-        let toastCmd =
-            match usersData |> findUser userId with
-            | Some(user, _, _) ->
-                let (UserName userName) = user.UserName
-                sprintf "<strong>%s</strong> has signed in" userName |> infoToastCmd
-            | None -> Cmd.none
-        Auth { authState with UsersData = usersData }, toastCmd
+        let usersData, error = authState.UsersData |> updateSignedIn userId true
+        let state = Auth { authState with UsersData = usersData }
+        match error with
+        | Some error -> state |> shouldNeverHappen error
+        | None ->
+            let toastCmd =
+                match usersData |> findUser userId with
+                | Some(user, _, _) ->
+                    let (UserName userName) = user.UserName
+                    sprintf "<strong>%s</strong> has signed in" userName |> infoToastCmd
+                | None -> Cmd.none
+            state, toastCmd
     | UserSignedOut userId, Auth authState ->
-        let usersData = authState.UsersData |> updateSignedIn userId false
-        let toastCmd =
-            match usersData |> findUser userId with
-            | Some(user, _, _) ->
-                let (UserName userName) = user.UserName
-                sprintf "<strong>%s</strong> has signed out" userName |> infoToastCmd
-            | None -> Cmd.none
-        Auth { authState with UsersData = usersData }, toastCmd
+        let usersData, error = authState.UsersData |> updateSignedIn userId false
+        let state = Auth { authState with UsersData = usersData }
+        match error with
+        | Some error -> state |> shouldNeverHappen error
+        | None ->
+            let toastCmd =
+                match usersData |> findUser userId with
+                | Some(user, _, _) ->
+                    let (UserName userName) = user.UserName
+                    sprintf "<strong>%s</strong> has signed out" userName |> infoToastCmd
+                | None -> Cmd.none
+            state, toastCmd
     | ForceUserSignOut forcedSignOutReason, Auth authState -> // TODO-NMB: How best to handle Some forcedSignOutReason [in addition to toast], e.g. notification? display SignInModal?...
         let state = Unauth(unauthState authState.AppState authState.ConnectionState forcedSignOutReason None)
         let toastCmd, extra =
@@ -152,12 +163,18 @@ let private handleRemoteUiInput input state =
             sprintf "You have been signed out%s" extra |> toastCmd
             writePreferencesCmd (preferencesOrDefault state) ]
         state, cmds
-    | UserUpdated(user, usersRvn), Auth authState -> // TODO-NMB: How best to handle usersRvn mismatch (&c.)?...
-        let usersData = authState.UsersData |> updateUser user usersRvn
-        Auth { authState with UsersData = usersData }, Cmd.none
-    | UserAdded(user, usersRvn), Auth authState -> // TODO-NMB: How best to handle usersRvn mismatch (&c.)?...
-        let usersData = authState.UsersData |> addUser user usersRvn
-        Auth { authState with UsersData = usersData }, Cmd.none
+    | UserUpdated(user, usersRvn), Auth authState ->
+        let usersData, error = authState.UsersData |> updateUser user usersRvn
+        let state = Auth { authState with UsersData = usersData }
+        match error with
+        | Some error -> state |> shouldNeverHappen error
+        | None -> state, Cmd.none
+    | UserAdded(user, usersRvn), Auth authState ->
+        let usersData, error = authState.UsersData |> addUser user usersRvn
+        let state = Auth { authState with UsersData = usersData }
+        match error with
+        | Some error -> state |> shouldNeverHappen error
+        | None -> state, Cmd.none
     // TODO-NMB: More RemoteUiInput?...
     | UnexpectedServerInput error, _ -> state |> shouldNeverHappen error
     | _ -> state |> shouldNeverHappen (sprintf "Unexpected RemoteUiInput when %A -> %A" state input)
@@ -250,7 +267,7 @@ let private handleSignInInput input state =
             writePreferencesCmd (preferencesOrDefault (Auth authState))
             getUsersCmd authState.ConnectionState.ConnectionId authState.AuthUser.Jwt ]
         Auth { authState with UsersData = Pending }, cmds
-    | SignInResult(Error error), Unauth unauthState -> Unauth { unauthState with SigningIn = false ; SignInError = error |> Some }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
+    | SignInResult(Error error), Unauth unauthState -> Unauth { unauthState with SigningIn = false ; SignInError = Some error }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
     | SignInExn exn, Unauth _ -> state, SignInInput(SignInResult(Error exn.Message)) |> Cmd.ofMsg
     | _ -> state |> shouldNeverHappen (sprintf "Unexpected SignInInput when %A -> %A" state input)
 
@@ -284,10 +301,10 @@ let transition input state : State * Cmd<Input> =
     let appState, connectionState =
         match state with
         | InitializingConnection _ | ReadingPreferences _ -> None, None
-        | RegisteringConnection registeringConnectionState -> registeringConnectionState.AppState |> Some, None
-        | AutomaticallySigningIn automaticallySigningInState -> automaticallySigningInState.AppState |> Some, automaticallySigningInState.ConnectionState |> Some
-        | Unauth unauthState -> unauthState.AppState |> Some, unauthState.ConnectionState |> Some
-        | Auth authState -> authState.AppState |> Some, authState.ConnectionState |> Some
+        | RegisteringConnection registeringConnectionState -> Some registeringConnectionState.AppState, None
+        | AutomaticallySigningIn automaticallySigningInState -> Some automaticallySigningInState.AppState, Some automaticallySigningInState.ConnectionState
+        | Unauth unauthState -> Some unauthState.AppState, Some unauthState.ConnectionState
+        | Auth authState -> Some authState.AppState, Some authState.ConnectionState
     match input, state, (appState, connectionState) with
     | RegisterConnection(appState, lastUser, connectionId), _, _ ->
         Bridge.Send (RemoteServerInput.Register(appState.AffinityId, connectionId))
