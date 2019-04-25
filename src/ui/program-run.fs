@@ -22,18 +22,18 @@ createObj [ "sanitize" ==> true ] |> unbox |> Globals.marked.setOptions |> ignor
 let [<Literal>] private SECONDS_PER_TICK = 1<second/tick> // "ignored" if less than 1<second>
 
 let private onTick (_:State) =
-    let secondsPerTick = if SECONDS_PER_TICK >= 1<second/tick> then SECONDS_PER_TICK else 1<second/tick>
-    let millisecondsPerTick = ((secondsPerTick |> float) * 1.<second/tick>) * MILLISECONDS_PER_SECOND
+    let minSecondsPerTick = if SECONDS_PER_TICK >= 1<second/tick> then SECONDS_PER_TICK else 1<second/tick>
+    let millisecondsPerTick = float minSecondsPerTick * MILLISECONDS_PER_SECOND
     fun dispatch ->
-        Browser.Dom.window.setInterval((fun _ -> OnTick |> dispatch), millisecondsPerTick |> int) |> ignore
+        Browser.Dom.window.setInterval((fun _ -> dispatch OnTick), int millisecondsPerTick) |> ignore
     |> Cmd.ofSub
 let private onMouseMove (_:State) =
     fun dispatch ->
-        Browser.Dom.window.addEventListener("mousemove", (fun _ -> OnMouseMove |> dispatch))
+        Browser.Dom.window.addEventListener("mousemove", (fun _ -> dispatch OnMouseMove))
     |> Cmd.ofSub
 
 // #region subscriptions
-let private subscriptions state =
+let private subscriptions (state:State) : Cmd<Input> =
     Cmd.batch [
 #if TICK
         state |> onTick

@@ -1,7 +1,7 @@
 module Aornota.Gibet.DevConsole.Logger
 
 open Serilog
-//open Serilog.Formatting.Json
+// TEMP-NMB...open Serilog.Formatting.Json
 
 let [<Literal>] private LOG_FILE_NAME = "logs/dev-console_{Date}.log"
 
@@ -13,7 +13,7 @@ let createLogger() =
 #else
         .MinimumLevel.Information()
         .WriteTo.LiterateConsole()
-        //.WriteTo.RollingFile(JsonFormatter(), LOG_FILE_NAME)
+        // TEMP-NMB....WriteTo.RollingFile(JsonFormatter(), LOG_FILE_NAME)
         .WriteTo.RollingFile(LOG_FILE_NAME)
 #endif
         .CreateLogger()

@@ -28,7 +28,7 @@ type AuthUser = {
     User : User
     Jwt : Jwt }
 
-let validateUserName (userNames:UserName list) (UserName userName) =
+let validateUserName (UserName userName) (userNames:UserName list) =
     if String.IsNullOrWhiteSpace userName then "User name must not be blank" |> Some
     else if userName.Trim().Length < 3 then "User name must be at least 3 characters" |> Some
     // TODO-NMB: Limit to specific characters?...
@@ -60,13 +60,13 @@ let canChangePassword forUserId (userId:UserId, userType) =
         match userType with
         | BenevolentDictatorForLife | Administrator | Pleb -> true
         | PersonaNonGrata -> false
-let canResetPassword (forUserId, forUserType) (userId:UserId, userType) =
+let canResetPassword forUserId forUserType (userId:UserId, userType) =
     if forUserId = userId then false
     else userType |> canCreateUser forUserType
-let canChangeUserType (forUserId, forUserType) (userId:UserId, userType) =
+let canChangeUserType forUserId forUserType (userId:UserId, userType) =
     if forUserId = userId then false
     else userType |> canCreateUser forUserType
-let canChangeUserTypeTo (forUserId, forUserType, newUserType) (userId:UserId, userType) =
-    if (userId, userType) |> canChangeUserType (forUserId, forUserType) |> not then false
+let canChangeUserTypeTo forUserId forUserType newUserType (userId:UserId, userType) =
+    if (userId, userType) |> canChangeUserType forUserId forUserType |> not then false
     else if forUserType = newUserType then false
     else userType |> canCreateUser newUserType

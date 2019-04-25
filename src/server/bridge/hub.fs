@@ -16,7 +16,7 @@ type ConnectionState = {
 
 type HubState =
     | NotRegistered
-    | Unauth of ConnectionState // TODO-NMB: Unauthenticated "subscriptions"?...
+    | Unauth of ConnectionState // TODO-NMB: Unauthenticated "subscriptions" (i.e. hasXyz : bool)?...
     | Auth of ConnectionState * UserId * hasUsers : bool
 
 let signedIn userId hubStates =
@@ -25,7 +25,7 @@ let signedIn userId hubStates =
         match hubState with
         | NotRegistered | Unauth _ -> false
         | Auth(_, otherUserId, _) -> otherUserId = userId)
-let signedInDifferentConnection (userId, connectionId) hubStates =
+let signedInDifferentConnection userId connectionId hubStates =
     hubStates
     |> List.exists (fun hubState ->
         match hubState with
@@ -41,7 +41,7 @@ let sameUser userId hubState =
     | NotRegistered -> false
     | Unauth _ -> false
     | Auth(_, otherUserId, _) -> otherUserId = userId
-let sameUserSameAffinityDifferentConnection (userId, affinityId, connectionId) hubState =
+let sameUserSameAffinityDifferentConnection userId affinityId connectionId hubState =
     match hubState with
     | NotRegistered -> false
     | Unauth _ -> false
@@ -52,7 +52,7 @@ let differentUserHasUsers userId hubState =
     | Unauth _ -> false
     | Auth(_, otherUserId, true) -> otherUserId <> userId
     | Auth _ -> false
-let hasUsers () hubState =
+let hasUsers hubState =
     match hubState with
     | NotRegistered -> false
     | Unauth _ -> false

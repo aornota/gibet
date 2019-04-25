@@ -1,12 +1,13 @@
 module Aornota.Gibet.Server.Api.UserApiAgent
 
 open Aornota.Gibet.Common
-open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Server.Jwt
 open Aornota.Gibet.Server.Repo.IUserRepo
 
@@ -47,22 +48,22 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
             | SignIn(connectionId, userName, password, reply) ->
                 let! repoResult = (userName, password) |> userRepo.SignIn
                 let result = result {
-                    let! _ = if debugFakeError () then sprintf "Fake SignIn error: %A" userName |> Error else () |> Ok
+                    let! _ = if debugFakeError() then sprintf "Fake SignIn error -> %A" userName |> Error else () |> Ok
                     let! (userId, mustChangePasswordReason) = repoResult
                     let! user =
                         if userId |> userDict.ContainsKey then userDict.[userId] |> Ok
-                        else INVALID_CREDENTIALS |> Error
+                        else ifDebug (sprintf "UserApiAgent.SignIn -> userDict does not contain %A" userId) UNEXPECTED_ERROR |> Error
                     let! _ =
-                        if user.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
+                        if user.UserType = PersonaNonGrata then ifDebug (sprintf "UserApiAgent.SignIn -> %A is %A" userName PersonaNonGrata) INVALID_CREDENTIALS |> Error
                         else () |> Ok
                     let! jwt = (user.UserId, user.UserType) |> toJwt
-                    user.UserId |> SignedIn |> hub.SendServerIf (connectionId |> sameConnection)
+                    user.UserId |> SignedIn |> hub.SendServerIf (sameConnection connectionId)
                     return { User = user ; Jwt = jwt }, mustChangePasswordReason }
                 result |> reply.Reply
                 return! (userDict, agentRvn) |> loop
             | AutoSignIn(connectionId, jwt, reply) ->
                 let result = result {
-                    let! _ = if debugFakeError () then sprintf "Fake AutoSignIn error: %A" jwt |> Error else () |> Ok
+                    let! _ = if debugFakeError() then sprintf "Fake AutoSignIn error -> %A" jwt |> Error else () |> Ok
                     return! jwt |> fromJwt }
                 let! result = async { // TODO-NMB: Make this less horrible?!...
                     match result with
@@ -73,23 +74,25 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                             | Ok(userId, mustChangePasswordReason) ->
                                 if userId |> userDict.ContainsKey then
                                     let user = userDict.[userId]
-                                    if userType <> user.UserType || user.UserType = PersonaNonGrata then INVALID_CREDENTIALS |> Error
+                                    if userType <> user.UserType then
+                                        ifDebug (sprintf "UserApiAgent.AutoSignIn -> Jwt %A differs from %A" userType user.UserType) INVALID_CREDENTIALS |> Error
+                                    else if userType = PersonaNonGrata then ifDebug (sprintf "UserApiAgent.AutoSignIn -> %A is %A" user.UserName PersonaNonGrata) INVALID_CREDENTIALS |> Error
                                     else
                                         match (user.UserId, user.UserType) |> toJwt with
                                         | Ok jwt ->
-                                            user.UserId |> SignedIn |> hub.SendServerIf (connectionId |> sameConnection)
+                                            user.UserId |> SignedIn |> hub.SendServerIf (sameConnection connectionId)
                                             ({ User = user ; Jwt = jwt }, mustChangePasswordReason) |> Ok
                                         | Error error -> error |> Error
-                                else INVALID_CREDENTIALS |> Error
+                                else ifDebug (sprintf "UserApiAgent.AutoSignIn -> userDict does not contain %A" userId) UNEXPECTED_ERROR |> Error
                             | Error error -> error |> Error
                     | Error error -> return error |> Error }
                 result |> reply.Reply
                 return! (userDict, agentRvn) |> loop
             | SignOut(connectionId, jwt, reply) ->
                 let result = result {
-                    let! _ = if debugFakeError () then sprintf "Fake SignOut error: %A" jwt |> Error else () |> Ok
+                    let! _ = if debugFakeError() then sprintf "Fake SignOut error -> %A" jwt |> Error else () |> Ok
                     let! (userId, _) = jwt |> fromJwt // all authenticated Users allowed to SignOut (so no need to check UserType)
-                    SignedOut |> hub.SendServerIf (connectionId |> sameConnection)
+                    SignedOut |> hub.SendServerIf (sameConnection connectionId)
                     return () }
                 result |> reply.Reply
                 return! (userDict, agentRvn) |> loop
@@ -102,25 +105,25 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                     - if successful:
                         - update userDict...
                         - increment agentRvn...
-                        - (user, agentRvn) |> UserUpdated |> hub.SendClientIf (() |> hasUsers)...
+                        - (user, agentRvn) |> UserUpdated |> hub.SendClientIf hasUsers...
                         - log result?... *)
                 return! (userDict, agentRvn) |> loop
             | GetUsers(connectionId, jwt, reply) ->
                 let result = result {
-                    let! _ = if debugFakeError () then sprintf "Fake GetUsers error: %A" jwt |> Error else () |> Ok
+                    let! _ = if debugFakeError() then sprintf "Fake GetUsers error -> %A" jwt |> Error else () |> Ok
                     let! _ = jwt |> fromJwt // all authenticated Users allowed to GetUsers (so no need to check UserType)
                     let users = userDict.Values |> List.ofSeq |> List.map (fun user -> user, hub.GetModels() |> signedIn user.UserId)
-                    HasUsers |> hub.SendServerIf (connectionId |> sameConnection)
+                    HasUsers |> hub.SendServerIf (sameConnection connectionId)
                     return users, agentRvn }
                 match result with
-                | Ok (users, rvn) ->  logger.Debug("Got {count} User/s: {rvn}", users.Length, rvn)
-                | Error error -> logger.Warning("Unable to get Users: {error}", error)
+                | Ok (users, rvn) ->  logger.Debug("Got {count} User/s ({rvn})", users.Length, rvn)
+                | Error error -> logger.Warning("Unable to get Users -> {error}", error)
                 result |> reply.Reply
                 return! (userDict, agentRvn) |> loop
             | CreateUser(connectionId, jwt, userName, password, userType, reply) ->
                 (* TODO-NMB:
                     - debugFakeError...
-                    - validate jwt...
+                    - validate jwt: NOT_ALLOWED (ifDebug &c.)...
                     - validate canCreateUser...
                     - validate userName...
                     - validate password...
@@ -128,45 +131,45 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
                     - if succesful:
                         - update userDict...
                         - increment agentRvn...
-                        - (user, agentRvn) |> UserAdded |> hub.SendClientIf (() |> hasUsers)...
+                        - (user, agentRvn) |> UserAdded |> hub.SendClientIf hasUsers...
                         - log result?... *)
                 return! (userDict, agentRvn) |> loop
             | ResetPassword(connectionId, jwt, userId, password, rvn, reply) ->
                 (* TODO-NMB:
                     - debugFakeError...
-                    - validate jwt...
+                    - validate jwt: NOT_ALLOWED (ifDebug &c.)...
                     - validate canResetPassword...
                     - validate password...
                     - userRepo.ResetPassword...
                     - if succesful:
                         - update userDict...
                         - increment agentRvn...
-                        - PasswordReset |> Some |> ForceSignOut |> hub.SendServerIf (userId |> sameUser)...
-                        - (user, agentRvn) |> UserUpdated |> hub.SendClientIf (userId |> differentUserHasUsers)...
+                        - PasswordReset |> Some |> ForceSignOut |> hub.SendServerIf (sameUser userId)...
+                        - (user, agentRvn) |> UserUpdated |> hub.SendClientIf (differentUserHasUsers userId)...
                         - log result?... *)
                 return! (userDict, agentRvn)|> loop
             | ChangeUserType(connectionId, jwt, userId, userType, rvn, reply) ->
                 (* TODO-NMB:
                     - debugFakeError...
-                    - validate jwt...
+                    - validate jwt: NOT_ALLOWED (ifDebug &c.)...
                     - validate canChangeUserType...
                     - userRepo.ChangeUserType...
                     - if succesful:
                         - update userDict...
                         - increment agentRvn...
-                        - UserTypeChanged |> Some |> ForceSignOut |> hub.SendServerIf (userId |> sameUser)...
-                        - (user, agentRvn) |> UserUpdated |> hub.SendClientIf (userId |> differentUserHasUsers)...
+                        - UserTypeChanged |> Some |> ForceSignOut |> hub.SendServerIf (sameUser userId)...
+                        - (user, agentRvn) |> UserUpdated |> hub.SendClientIf (differentUserHasUsers userId)...
                         - log result?... *)
                 return! (userDict, agentRvn) |> loop }
-        logger.Information("Starting UserApi agent...")
+        logger.Information("Starting UserApiAgent...")
         let userDict = UserDict()
         match userRepo.GetUsers() |> Async.RunSynchronously with
         | Ok users ->
             if users.Length > 0 then users |> List.iter (fun user -> (user.UserId, user) |> userDict.Add)
             else logger.Warning("No Users in IUserRepo")
-        | Error error -> logger.Warning("Unable to get Users: {error}", error)
+        | Error error -> logger.Warning("Unable to get Users -> {error}", error)
         (userDict, initialRvn) |> loop)
-    do agent.Error.Add (fun exn -> logger.Error("Unexpected error: {message}", exn.Message))
+    do agent.Error.Add (fun exn -> logger.Error("Unexpected UserApiAgent error -> {message}", exn.Message))
     member __.SignIn(connection, userName, password) = (fun reply -> (connection, userName, password, reply) |> SignIn) |> agent.PostAndAsyncReply
     member __.AutoSignIn(connection, jwt) = (fun reply -> (connection, jwt, reply) |> AutoSignIn) |> agent.PostAndAsyncReply
     member __.SignOut(connection, jwt) = (fun reply -> (connection, jwt, reply) |> SignOut) |> agent.PostAndAsyncReply

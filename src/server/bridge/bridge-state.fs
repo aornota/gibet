@@ -11,61 +11,59 @@ open Serilog
 
 let private serverStarted = DateTimeOffset.UtcNow
 
-let private logUnexpectedInput(state:HubState, input) =
-    Log.Logger.Warning("Unexpected input when {state} -> {input}", state, input)
+// #region handleUnexpectedInput
+let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubState) =
+    clientDispatch (UnexpectedServerInput (sprintf "Unexpected ServerInput when %A -> %A" state input))
+#if DEBUG
+    Log.Logger.Warning("Unexpected ServerInput when {state} -> {input}", state, input)
+#else
+    Log.Logger.Error("Unexpected ServerInput when {state} -> {input}", state, input)
+#endif
+    state
+// #endregion
 
 let private handleRemoteServerInput clientDispatch input state =
     match input, state with
     | Register(affinityId, connectionId), NotRegistered ->
         let connectionState = {
             ConnectionId = connectionId |> Option.defaultValue (ConnectionId.Create())
-            AffinityId = affinityId  }
-        (connectionState.ConnectionId, serverStarted) |> Registered |> clientDispatch
-        connectionState |> Unauth
+            AffinityId = affinityId }
+        clientDispatch (Registered(connectionState.ConnectionId, serverStarted))
+        Unauth connectionState
     | Activity, Auth(connectionState, userId, hasUsers) -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        userId |> UserActivity |> hub.SendClientIf (userId |> differentUserHasUsers)
-        (connectionState, userId, hasUsers) |> Auth
+        hub.SendClientIf (differentUserHasUsers userId) (UserActivity userId)
+        Auth(connectionState, userId, hasUsers)
     | SignedIn userId, Unauth connectionState ->
-        userId |> UserSignedIn |> hub.SendClientIf (userId |> differentUserHasUsers)
-        (connectionState, userId, false) |> Auth
+        hub.SendClientIf (differentUserHasUsers userId) (UserSignedIn userId)
+        Auth(connectionState, userId, false)
     | SignedOut, Auth(connectionState, userId, _) ->
-        None |> ForceSignOut |> hub.SendServerIf ((userId, connectionState.AffinityId, connectionState.ConnectionId) |> sameUserSameAffinityDifferentConnection)
-        connectionState |> Unauth
+        hub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut None)
+        Unauth connectionState
     | ForceSignOut forcedSignOutReason, Auth(connectionState, userId, _) ->
-        forcedSignOutReason |> ForceUserSignOut |> clientDispatch
-        if hub.GetModels() |> signedInDifferentConnection (userId, connectionState.ConnectionId) |> not then
-            userId |> UserSignedOut |> hub.SendClientIf (userId |> differentUserHasUsers)
-        connectionState |> Unauth
-    | HasUsers, Auth(connectionState, userId, false) ->
-        (connectionState, userId, true) |> Auth
+        clientDispatch (ForceUserSignOut forcedSignOutReason)
+        if not (hub.GetModels() |> signedInDifferentConnection userId connectionState.ConnectionId) then
+            hub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
+        Unauth connectionState
+    | HasUsers, Auth(connectionState, userId, false) -> Auth(connectionState, userId, true)
     // TODO-NMB: More RemoteServerInput?...
-    | _ ->
-        (state, input) |> logUnexpectedInput
-        state
+    | _ -> state |> handleUnexpectedInput clientDispatch (RemoteServerInput input)
 
 let private handleDisconnected clientDispatch state =
     match state with
     | Auth(connectionState, userId, _) ->
-        if hub.GetModels() |> signedInDifferentConnection (userId, connectionState.ConnectionId) |> not then
-            userId |> UserSignedOut |> hub.SendClientIf (userId |> differentUserHasUsers)
+        if not (hub.GetModels() |> signedInDifferentConnection userId connectionState.ConnectionId) then
+            hub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
         NotRegistered
-    | Unauth _ ->
-        NotRegistered
-    | _ ->
-        (state, Disconnected) |> logUnexpectedInput
-        state
+    | Unauth _ -> NotRegistered
+    | _ -> state |> handleUnexpectedInput clientDispatch Disconnected
 
-let initialize (clientDispatch:Dispatch<RemoteUiInput>) () : HubState * Cmd<ServerInput> =
-    Initialized |> clientDispatch
+let initialize clientDispatch () : HubState * Cmd<ServerInput> =
+    clientDispatch Initialized
     NotRegistered, Cmd.none
 
 let transition clientDispatch input state : HubState * Cmd<ServerInput> =
     let state =
         match input, state with
-        | RemoteServerInput input, _ -> handleRemoteServerInput clientDispatch input state
-        | Disconnected, _ -> handleDisconnected clientDispatch state
-        (* TEMP-NMB...
-        | _ ->
-            (state, input) |> logUnexpectedInput
-            state *)
+        | RemoteServerInput input, _ -> state |> handleRemoteServerInput clientDispatch input
+        | Disconnected, _ -> state |> handleDisconnected clientDispatch
     state, Cmd.none

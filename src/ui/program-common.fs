@@ -122,7 +122,7 @@ type AuthState = {
     ConnectionState : ConnectionState
     AuthUser : AuthUser
     MustChangePasswordReason : MustChangePasswordReason option
-    ActivityDebouncer : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    ActivityDebouncerState : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     SigningOut : bool
     UsersData : RemoteData<UserData list, string> }
 
@@ -146,7 +146,7 @@ let findUser userId (usersData:RemoteData<UserData list, string>) =
     | None -> None
 
 // TODO-NMB: What if usersData not Received? What if usersRvn not consistent with current revision? What if user[Id] already exists / not found?...
-let private addOrUpdateUser (user, usersRvn, shouldExist) (usersData:RemoteData<UserData list, string>) =
+let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, _) ->
         if users |> List.exists (fun (otherUser, _, _) -> otherUser.UserId = user.UserId) then
@@ -155,16 +155,16 @@ let private addOrUpdateUser (user, usersRvn, shouldExist) (usersData:RemoteData<
                 |> List.map (fun (otherUser, signedIn, lastActivity) ->
                     if otherUser.UserId = user.UserId then user, signedIn, lastActivity
                     else otherUser, signedIn, lastActivity)
-            (users, usersRvn) |> Received
+            Received(users, usersRvn)
         else
             let users = (user, false, None) :: users
-            (users, usersRvn) |> Received
+            Received(users, usersRvn)
     | _ -> usersData
 
-let addUser (user, usersRvn) (usersData:RemoteData<UserData list, string>) =
-    usersData |> addOrUpdateUser (user, usersRvn, false)
-let updateUser (user, usersRvn) (usersData:RemoteData<UserData list, string>) =
-    usersData |> addOrUpdateUser (user, usersRvn, true)
+let addUser user usersRvn (usersData:RemoteData<UserData list, string>) =
+    usersData |> addOrUpdateUser user usersRvn false
+let updateUser user usersRvn (usersData:RemoteData<UserData list, string>) =
+    usersData |> addOrUpdateUser user usersRvn true
 
 // TODO-NMB: What if usersData not Received? What if userId not found?...
 let updateActivity userId (usersData:RemoteData<UserData list, string>) =
@@ -175,9 +175,9 @@ let updateActivity userId (usersData:RemoteData<UserData list, string>) =
             |> List.map (fun (user, signedIn, lastActivity) ->
                 if user.UserId = userId then user, signedIn, DateTimeOffset.UtcNow |> Some
                 else user, signedIn, lastActivity)
-        (users, rvn) |> Received
+        Received(users, rvn)
     | _ -> usersData
-let updateSignedIn (userId, signedIn) (usersData:RemoteData<UserData list, string>) =
+let updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
         let users =
@@ -185,5 +185,5 @@ let updateSignedIn (userId, signedIn) (usersData:RemoteData<UserData list, strin
             |> List.map (fun (user, otherSignedIn, lastActivity) ->
                 if user.UserId = userId then user, signedIn, lastActivity
                 else user, otherSignedIn, lastActivity)
-        (users, rvn) |> Received
+        Received(users, rvn)
     | _ -> usersData

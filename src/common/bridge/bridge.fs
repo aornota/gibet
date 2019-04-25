@@ -19,6 +19,7 @@ type RemoteUiInput =
     | UserUpdated of User * usersRvn : Rvn
     | UserAdded of User * usersRvn : Rvn
     // TODO-NMB: More?...
+    | UnexpectedServerInput of string
 
 type RemoteServerInput =
     // Sent from UI:
