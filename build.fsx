@@ -26,8 +26,8 @@ type ArmOutput = { WebAppName : ParameterValue<string> ; WebAppPassword : Parame
 
 type TimeoutWebClient() =
     inherit WebClient()
-    override this.GetWebRequest uri =
-        let request = base.GetWebRequest uri
+    override this.GetWebRequest(uri) =
+        let request = base.GetWebRequest(uri)
         request.Timeout <- 30 * 60 * 1000
         request
 
@@ -64,11 +64,11 @@ let runDotNet cmd workingDir =
 let openBrowser url =
     Command.ShellCommand url
     |> CreateProcess.fromCommand
-    |> CreateProcess.ensureExitCodeWithMessage "Unable to open browser"
+    |> CreateProcess.ensureExitCodeWithMessage "Unable to open browser."
     |> Proc.run
     |> ignore
 
-Target.create "clean" (fun _ -> [ deployDir ; uiDeployDir ] |> Shell.cleanDirs)
+Target.create "clean" (fun _ -> Shell.cleanDirs [ deployDir ; uiDeployDir ])
 
 Target.create "restore-ui" (fun _ ->
     printfn "Yarn version:"
@@ -81,9 +81,8 @@ Target.create "run" (fun _ ->
     let client = async { runTool yarnTool "webpack-dev-server" __SOURCE_DIRECTORY__ }
     let browser = async {
         do! Async.Sleep 5000
-        openBrowser "http://localhost:8080"
-    }
-    [ server ; client ; browser ] |> Async.Parallel |> Async.RunSynchronously |> ignore)
+        openBrowser "http://localhost:8080" }
+    Async.Parallel [ server ; client ; browser ] |> Async.RunSynchronously |> ignore)
 
 Target.create "build-server" (fun _ -> runDotNet "build -c Release" serverDir)
 Target.create "build-ui" (fun _ -> runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__)
@@ -100,13 +99,13 @@ Target.create "arm-template" (fun _ ->
         let subscriptionId = Guid("9ad207a4-28b9-48a4-b6ba-710c35034343") // azure-djnarration
         let clientId = Guid("14af985d-5718-4398-be45-7563042c7db7") // gibet [Azure AD application]
         Trace.tracefn "Deploying template '%s' to resource group '%s' in subscription '%O'..." armTemplate environment subscriptionId
-        subscriptionId |> authenticateDevice Trace.trace { ClientId = clientId ; TenantId = None } |> Async.RunSynchronously
+        authenticateDevice Trace.trace { ClientId = clientId ; TenantId = None } subscriptionId |> Async.RunSynchronously
     let deployment =
         let location = Region.UKSouth.Name
         let pricingTier = "F1"
         { DeploymentName = environment
           ResourceGroup = New(environment, Region.Create location)
-          ArmTemplate = armTemplate |> IO.File.ReadAllText
+          ArmTemplate = IO.File.ReadAllText(armTemplate)
           Parameters =
               Simple
                   [ "environment", ArmString environment
@@ -117,19 +116,19 @@ Target.create "arm-template" (fun _ ->
     |> deployWithProgress authCtx
     |> Seq.iter (function
         | DeploymentInProgress(state, operations) -> Trace.tracefn "State is %s; completed %d operations" state operations
-        | DeploymentError(statusCode, message) -> Trace.traceError <| sprintf "Deployment error: %s -> '%s'" statusCode message
+        | DeploymentError(statusCode, message) -> Trace.traceError (sprintf "Deployment error: %s -> '%s'" statusCode message)
         | DeploymentCompleted d -> deploymentOutputs <- d))
 
 Target.create "deploy-azure" (fun _ ->
     let zipFile = "deploy.zip"
-    zipFile |> IO.File.Delete
+    IO.File.Delete(zipFile)
     Zip.zip deployDir zipFile !!(deployDir + @"\**\**")
     let appName = deploymentOutputs.Value.WebAppName.value
     let appPassword = deploymentOutputs.Value.WebAppPassword.value
     let destinationUri = sprintf "https://%s.scm.azurewebsites.net/api/zipdeploy" appName
     let client = new TimeoutWebClient(Credentials = NetworkCredential("$" + appName, appPassword))
     Trace.tracefn "Uploading %s to %s..." zipFile destinationUri
-    client.UploadData(destinationUri, zipFile |> IO.File.ReadAllBytes) |> ignore)
+    client.UploadData(destinationUri, IO.File.ReadAllBytes(zipFile)) |> ignore)
 
 Target.create "run-dev-console" (fun _ -> runDotNet "run" devConsoleDir)
 

@@ -5,10 +5,15 @@ open Elmish.Toastr
 
 let [<Literal>] private DEFAULT_TOAST_TIMEOUT = 3000
 
-let private toastCmd toCmd toastText : Cmd<_> =
-    Toastr.message toastText |> Toastr.position TopRight |> Toastr.timeout DEFAULT_TOAST_TIMEOUT |> Toastr.hideEasing Easing.Swing |> Toastr.showCloseButton |> toCmd
+let private toastCmd toCmd text : Cmd<_> =
+    Toastr.message text
+    |> Toastr.position TopRight
+    |> Toastr.timeout DEFAULT_TOAST_TIMEOUT
+    |> Toastr.hideEasing Easing.Swing
+    |> Toastr.showCloseButton
+    |> toCmd
 
-let infoToastCmd toastText = toastText |> toastCmd Toastr.info
-let successToastCmd toastText = toastText |> toastCmd Toastr.success
-let warningToastCmd toastText = toastText |> toastCmd Toastr.warning
-let errorToastCmd toastText = toastText |> toastCmd Toastr.error
+let infoToastCmd text = toastCmd Toastr.info text
+let successToastCmd text = toastCmd Toastr.success text
+let warningToastCmd text = toastCmd Toastr.warning text
+let errorToastCmd text = toastCmd Toastr.error

@@ -15,23 +15,22 @@ let [<Literal>] private JWE_ALGORITHM = JweAlgorithm.A256KW
 let [<Literal>] private JWE_ENCRYPTION = JweEncryption.A256CBC_HS512
 
 let private jwtKey =
-    let file = JWT_KEY_FILE |> FileInfo
-    if file.Exists |> not then
-        if file.Directory.Exists |> not then file.Directory.Create()
-        let bytes : byte [] = 32 |> Array.zeroCreate
-        RandomNumberGenerator.Create().GetBytes bytes
+    let file = FileInfo(JWT_KEY_FILE)
+    if not file.Exists then
+        if not file.Directory.Exists then file.Directory.Create()
+        let bytes : byte [] = Array.zeroCreate 32
+        RandomNumberGenerator.Create().GetBytes(bytes)
         File.WriteAllBytes(file.FullName, bytes)
-    file.FullName |> File.ReadAllBytes
+    File.ReadAllBytes(file.FullName)
 
-let private encode(Json json) =
-    JWT.Encode(json, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION) |> Jwt
-let private decode(Jwt jwt) =
-    JWT.Decode(jwt, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION) |> Json
+let private encode(Json json) = Jwt(JWT.Encode(json, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION))
+let private decode(Jwt jwt) = Json(JWT.Decode(jwt, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION))
 
-let toJwt(userId:UserId, userType:UserType) =
-    try Encode.Auto.toString<UserId * UserType>(4, (userId, userType)) |> Json |> encode |> Ok
-    with | exn -> exn.Message |> Error
+let toJwt (userId:UserId) (userType:UserType) =
+    try let jwt = encode(Json(Encode.Auto.toString<UserId * UserType>(4, (userId, userType))))
+        Ok jwt
+    with | exn -> Error exn.Message
 let fromJwt(jwt) =
-    try let (Json json) = jwt |> decode
-        json |> Decode.Auto.fromString<UserId * UserType>
-    with | exn -> exn.Message |> Error
+    try let (Json json) = decode jwt
+        Decode.Auto.fromString<UserId * UserType> json
+    with | exn -> Error exn.Message

@@ -1,11 +1,9 @@
 module Aornota.Gibet.Common.Revision
 
-type Rvn = | Rvn of rvn : int
+type Rvn = | Rvn of int
 
-let initialRvn = 1 |> Rvn
+let initialRvn = Rvn 1
 
-let incrementRvn (Rvn rvn) = rvn + 1 |> Rvn
+let incrementRvn (Rvn rvn) = Rvn(rvn + 1)
 
-let validateRvn (actual:Rvn) (expected:Rvn) =
-    if actual <> expected then sprintf "Actual %A differs from expected %A" actual expected |> Some
-    else None
+let validateRvn (actual:Rvn) (expected:Rvn) = if actual <> expected then Some(sprintf "Actual %A differs from expected %A" actual expected) else None

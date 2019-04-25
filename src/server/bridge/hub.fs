@@ -14,9 +14,9 @@ type ConnectionState = {
     ConnectionId : ConnectionId
     AffinityId : AffinityId }
 
-type HubState =
+type HubState = // TODO-NMB: Subscription/s (i.e. hasXyz : bool) for Unauth?...
     | NotRegistered
-    | Unauth of ConnectionState // TODO-NMB: Unauthenticated "subscriptions" (i.e. hasXyz : bool)?...
+    | Unauth of ConnectionState
     | Auth of ConnectionState * UserId * hasUsers : bool
 
 let signedIn userId hubStates =

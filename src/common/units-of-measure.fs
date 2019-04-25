@@ -2,8 +2,6 @@ module Aornota.Gibet.Common.UnitsOfMeasure
 
 type [<Measure>] tick
 
-type [<Measure>] point
-
 type [<Measure>] week
 type [<Measure>] day
 type [<Measure>] hour

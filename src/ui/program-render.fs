@@ -18,16 +18,15 @@ open Fulma.Extensions.Wikiki
 let private button text onClick enabled loading = // TEMP-NMB...
     Button.button [
         yield Button.IsFullWidth
-        yield IsLink |> Button.Color
-        if enabled then yield onClick |> Button.OnClick
-        yield loading |> Button.IsLoading
-        yield Button.Props [ enabled |> not |> Disabled ]
-    ] [ text |> str ]
-
+        yield Button.Color IsLink
+        if enabled then yield Button.OnClick onClick
+        yield Button.IsLoading loading
+        yield Button.Props [ Disabled(not enabled) ]
+    ] [ str text ]
 let private pageLoader semantic = // TEMP-NMB...
     PageLoader.pageLoader [
-        semantic |> PageLoader.Color
-        true |> PageLoader.IsActive ] []
+        PageLoader.Color semantic
+        PageLoader.IsActive true ] []
 
 let private safeComponents = // TEMP-NMB...
     let components =
@@ -51,7 +50,7 @@ let private signIn enabled pending status dispatch = // TEMP-NMB...
         yield button "TempSignIn" (fun _ -> dispatch TempSignIn) enabled pending
         match status with
         | Some status ->
-            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ status |> Markdown |> contentFromMarkdown ]
+            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ contentFromMarkdown (Markdown status) ]
         | None -> () ]
 let private signOut enabled pending dispatch = // TEMP-NMB...
     Column.column [] [
@@ -61,7 +60,7 @@ let private getUsers enabled pending status dispatch = // TEMP-NMB...
         yield button "TempGetUsers" (fun _ -> dispatch TempGetUsers) enabled pending
         match status with
         | Some status ->
-            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ status |> Markdown |> contentFromMarkdown ]
+            yield Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ contentFromMarkdown (Markdown status) ]
         | None -> () ]
 
 // #region content
@@ -74,7 +73,7 @@ let private content tempSignIn tempSignOut tempGetUsers = // TEMP-NMB...
     div [] [
         Navbar.navbar [ Navbar.Color IsLight ] [ Navbar.Item.div [] [ Heading.h3 [] [ str GIBET ] ] ]
         Container.container [] [
-            Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h4 [] [ sprintf "Work-in-progress...%s" extra |> str ] ]
+            Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ Heading.h4 [] [ str (sprintf "Work-in-progress...%s" extra) ] ]
             Columns.columns [] [
                 tempSignIn
                 tempSignOut
@@ -82,28 +81,23 @@ let private content tempSignIn tempSignOut tempGetUsers = // TEMP-NMB...
         Footer.footer [] [ Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, TextAlignment.Centered) ] ] [ safeComponents ] ] ]
 // #endregion
 
-let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
+let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018 &c.)...
     match state with
-    | InitializingConnection None | ReadingPreferences _ ->
-        IsLink |> pageLoader
-    | InitializingConnection (Some _) -> // TODO-NMB...
-        IsDanger |> pageLoader
-    | RegisteringConnection registeringConnectionState -> // TODO-NMB...
-        let semantic = match registeringConnectionState.AppState.Theme with | Light -> IsLight | Dark -> IsDark
-        semantic |> pageLoader
-    | AutomaticallySigningIn _ -> // TODO-NMB...
-        IsPrimary |> pageLoader
-    | Unauth unauthState -> // TODO-NMB...
+    | InitializingConnection None | ReadingPreferences _ -> pageLoader IsLink
+    | InitializingConnection (Some _) -> pageLoader IsDanger // TODO-NMB: Use something other than pageLoader...
+    | RegisteringConnection registeringConnectionState -> pageLoader (match registeringConnectionState.AppState.Theme with | Light -> IsLight | Dark -> IsDark) // TODO-NMB: Use something other than pageLoader...
+    | AutomaticallySigningIn _ -> pageLoader IsPrimary // TODO-NMB: Use something other than pageLoader...
+    | Unauth unauthState -> // TEMP-NMB...
         let signInStatus =
             match unauthState.SigningIn, unauthState.SignInError with
             | true, _ -> None
-            | false, Some signInError -> sprintf "**Error** -> _%s_" signInError |> Some
+            | false, Some signInError -> Some(sprintf "**Error** -> _%s_" signInError)
             | false, None -> None
         let signIn = signIn true unauthState.SigningIn signInStatus dispatch
         let signOut = signOut false false dispatch
         let getUsers = getUsers false false None dispatch
         content signIn signOut getUsers
-    | Auth authState -> // TODO-NMB...
+    | Auth authState -> // TEMP-NMB...
         let signInStatus =
             let extra =
                 match authState.MustChangePasswordReason with
@@ -111,20 +105,20 @@ let render state dispatch = // TODO-NMB: Rework (cf. sweepstake-2018)...
                 | None -> String.Empty
             let authUser = authState.AuthUser
             let (UserName userName) = authUser.User.UserName
-            sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra |> Some
+            sprintf "Signed in as **%A** (%A)%s" userName authUser.User.UserType extra
         let signingOut = authState.SigningOut
         let getUsersPending, getUsersStatus =
             let usersData = authState.UsersData
             let pending = usersData |> pending
-            let failure = usersData |> failure
+            let error = usersData |> error
             let allowedUsers = usersData |> users |> List.filter (fun (user, _, _) -> user.UserType <> PersonaNonGrata)
             let signedInUserCount = usersData |> users |> List.filter (fun (_, signedIn, _) -> signedIn) |> List.length
-            match pending, failure, allowedUsers with
+            match pending, error, allowedUsers with
             | true, _, _ -> pending, None
-            | false, Some failure, _ -> pending, sprintf "**Error** -> _%s_" failure |> Some
-            | false, None, h :: t -> pending, sprintf "**%i** User/s (excluding _personae non grata_) -> %i signed in" (h :: t).Length signedInUserCount |> Some
+            | false, Some error, _ -> pending, Some(sprintf "**Error** -> _%s_" error)
+            | false, None, h :: t -> pending, Some(sprintf "**%i** User/s (excluding _personae non grata_) -> %i signed in" (h :: t).Length signedInUserCount)
             | false, None, [] -> pending, None
-        let signIn = signIn false false signInStatus dispatch
-        let signOut = signOut (getUsersPending |> not) signingOut dispatch
-        let getUsers = getUsers (signingOut |> not) getUsersPending getUsersStatus dispatch
+        let signIn = signIn false false (Some signInStatus) dispatch
+        let signOut = signOut (not getUsersPending) signingOut dispatch
+        let getUsers = getUsers (not signingOut) getUsersPending getUsersStatus dispatch
         content signIn signOut getUsers

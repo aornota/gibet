@@ -11,20 +11,20 @@ open Serilog
 
 let create (logger:ILogger) (userRepo:IUserRepo) = asyncResult {
     logger.Information("Creating User test data...")
-    let initialPassword = "password" |> Password
-    let nephId, neph, nephPassword = Guid "00000000-0001-0000-0000-000000000000" |> UserId, "neph" |> UserName, "neph" |> Password
-    let rosieId, rosie = Guid "00000000-0000-0001-0000-000000000000" |> UserId, "rosie" |> UserName
-    let hughId, hugh, hughPassword = Guid "00000000-0000-0002-0000-000000000000" |> UserId, "hugh" |> UserName, "hugh" |> Password
-    let willId, will = Guid "00000000-0000-0000-0001-000000000000" |> UserId, "will" |> UserName
-    let satan = "satan" |> UserName
-    let! nephUser = userRepo.CreateUser(nephId |> Some, neph, initialPassword, BenevolentDictatorForLife)
-    let! _ = userRepo.CreateUser(rosieId |> Some, rosie, initialPassword, Administrator)
-    let! hughUser = userRepo.CreateUser(hughId |> Some, hugh, initialPassword, Pleb)
-    let! _ = userRepo.CreateUser(willId |> Some, will, initialPassword, Pleb)
+    let initialPassword = Password "password"
+    let nephId, neph, nephPassword = UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "neph"
+    let rosieId, rosie = UserId(Guid("00000000-0000-0001-0000-000000000000")), UserName "rosie"
+    let hughId, hugh, hughPassword = UserId(Guid("00000000-0000-0002-0000-000000000000")), UserName "hugh", Password "hugh"
+    let willId, will = UserId(Guid("00000000-0000-0000-0001-000000000000")), UserName "will"
+    let satan = UserName "satan"
+    let! nephUser = userRepo.CreateUser(Some nephId, neph, initialPassword, BenevolentDictatorForLife)
+    let! _ = userRepo.CreateUser(Some rosieId, rosie, initialPassword, Administrator)
+    let! hughUser = userRepo.CreateUser(Some hughId, hugh, initialPassword, Pleb)
+    let! _ = userRepo.CreateUser(Some willId, will, initialPassword, Pleb)
     let! _ = userRepo.CreateUser(None, satan, initialPassword, PersonaNonGrata)
     let! _ = userRepo.SignIn(neph, initialPassword)
-    // "Invalid credentials" error...let! _ = userRepo.SignIn(rosie, "drowssap" |> Password)
-    // "Invalid credentials" error...let! _ = userRepo.SignIn("hguh" |> UserName, initialPassword)
+    // "Invalid credentials" error...let! _ = userRepo.SignIn(rosie, Password "drowssap")
+    // "Invalid credentials" error...let! _ = userRepo.SignIn(UserName "hguh", initialPassword)
     // "Invalid credentials" error...let! _ = userRepo.SignIn(satan, initialPassword)
     let! _ = userRepo.ChangePassword(nephUser.UserId, nephPassword, nephUser.Rvn)
     let! _ = userRepo.SignIn(neph, nephPassword)

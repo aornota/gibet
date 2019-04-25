@@ -28,7 +28,6 @@ open Fable.Remoting.Giraffe
 open Fable.Remoting.Server
 
 open Serilog
-open Aornota.Gibet.Common
 
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
 
@@ -37,8 +36,8 @@ Log.Logger <- createLogger()
 Log.Logger.Information("Starting server...")
 
 let private publicPath =
-    let publicPath = ("..", "ui/public") |> Path.Combine |> Path.GetFullPath // e.g. when served via webpack-dev-server
-    if Directory.Exists publicPath then publicPath else "public" |> Path.GetFullPath // e.g. when published/deployed
+    let publicPath = Path.GetFullPath(Path.Combine("..", "ui/public")) // e.g. when served via webpack-dev-server
+    if Directory.Exists publicPath then publicPath else Path.GetFullPath("public") // e.g. when published/deployed
 
 let private bridge : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Bridge.mkServer BRIDGE_ENDPOINT initialize transition
@@ -63,9 +62,9 @@ let private webAppWithLogging =
         userApi
     ] |> SerilogAdapter.Enable
 
-let private userRepo = Log.Logger |> InMemoryUserRepoAgent.InMemoryUserRepoAgent :> IUserRepo
+let private userRepo = InMemoryUserRepoAgent.InMemoryUserRepoAgent Log.Logger :> IUserRepo
 //#if DEBUG
-userRepo |> UserTestData.create Log.Logger |> Async.RunSynchronously |> ignore
+UserTestData.create Log.Logger userRepo |> Async.RunSynchronously |> ignore
 //#endif
 
 let private configureLogging(loggingBuilder:ILoggingBuilder) =
@@ -79,9 +78,9 @@ let private configure(applicationBuilder:IApplicationBuilder) =
         .UseGiraffe(webAppWithLogging)
 
 let private configureServices(services:IServiceCollection) =
-    Log.Logger |> services.AddSingleton |> ignore
-    hub |> services.AddSingleton |> ignore
-    userRepo |> services.AddSingleton |> ignore
+    services.AddSingleton(Log.Logger) |> ignore
+    services.AddSingleton(hub) |> ignore
+    services.AddSingleton(userRepo) |> ignore
     services.AddSingleton<UserApiAgent, UserApiAgent>() |> ignore
     services.AddGiraffe() |> ignore
 
