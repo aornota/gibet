@@ -127,8 +127,8 @@ type AuthState = {
     UsersData : RemoteData<UserData list, string> }
 
 type State =
-    | InitializingConnection of ConnectionId option
-    | ReadingPreferences of ConnectionId option
+    | InitializingConnection of reconnectingState : State option
+    | ReadingPreferences of reconnectingState : State option
     | RegisteringConnection of RegisteringConnectionState
     | AutomaticallySigningIn of AutomaticallySigningInState
     | Unauth of UnauthState

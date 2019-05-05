@@ -42,8 +42,8 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop(userDict:UserDict, agentRvn:Rvn) = async {
             let! input = inbox.Receive ()
-            (* TEMP-NMB...
-            do! ifDebugSleepAsync 100 500 *)
+            (* TEMP-NMB... *)
+            do! ifDebugSleepAsync 100 500
             match input with
             | SignIn(connectionId, userName, password, reply) ->
                 let! repoResult = userRepo.SignIn(userName, password)

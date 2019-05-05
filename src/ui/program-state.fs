@@ -3,6 +3,7 @@ module Aornota.Gibet.Ui.Program.State
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.UI.Common.LocalStorage
@@ -63,6 +64,14 @@ let private writePreferencesOrDefault state =
 
 let private getUsersCmd connection jwt =
     Cmd.OfAsync.either userApi.getUsers (connection, jwt) GetUsersResult GetUsersExn |> Cmd.map GetUsersInput
+
+let private connectionId state =
+    match state with
+    | InitializingConnection _ | ReadingPreferences _ -> None
+    | RegisteringConnection registeringConnectionState -> registeringConnectionState.ConnectionId
+    | AutomaticallySigningIn automaticallySigningInState -> Some automaticallySigningInState.ConnectionState.ConnectionId
+    | Unauth unauthState -> Some unauthState.ConnectionState.ConnectionId
+    | Auth authState -> Some authState.ConnectionState.ConnectionId
 
 let private registeringConnectionState appState lastUser connectionId = {
     AppState = appState
@@ -179,21 +188,24 @@ let private handleRemoteUiInput input state =
     | UnexpectedServerInput error, _ -> state |> shouldNeverHappen error
     | _ -> state |> shouldNeverHappen (sprintf "Unexpected RemoteUiInput when %A -> %A" state input)
 
-let private handleDisconnected connectionState state =
-    match state, connectionState with
-    | InitializingConnection _, _ -> state, Cmd.none
-    | _, Some connectionState -> InitializingConnection (Some connectionState.ConnectionId), Cmd.none
-    | _ -> InitializingConnection None, Cmd.none
+let private handleDisconnected state =
+    match state with
+    | InitializingConnection _ -> state, Cmd.none
+    | _ -> InitializingConnection (Some state), Cmd.none
 
 let private handlePreferencesInput input state =
     match input, state with
-    | ReadPreferencesResult(Some(Ok preferences)), ReadingPreferences connectionId ->
+    | ReadPreferencesResult(Some(Ok preferences)), ReadingPreferences reconnectingState ->
         let appState = {
             Ticks = 0<tick>
             AffinityId = preferences.AffinityId
             Theme = preferences.Theme
             NavbarBurgerIsActive = false }
         setBodyClass appState.Theme
+        let connectionId =
+            match reconnectingState with
+            | Some reconnectingState -> connectionId reconnectingState
+            | None -> None
         let cmd = RegisterConnection(appState, preferences.LastUser, connectionId) |> Cmd.ofMsg
         state, cmd
     | ReadPreferencesResult None, ReadingPreferences _ ->
@@ -310,7 +322,7 @@ let transition input state : State * Cmd<Input> =
         Bridge.Send (RemoteServerInput.Register(appState.AffinityId, connectionId))
         RegisteringConnection(registeringConnectionState appState lastUser connectionId), Cmd.none
     | RemoteUiInput input, _, _ -> state |> handleRemoteUiInput input
-    | Disconnected, _, _ -> state |> handleDisconnected connectionState
+    | Disconnected, _, _ -> state |> handleDisconnected
     | PreferencesInput input, _, _ -> state |> handlePreferencesInput input
     | OnTick, _, _ -> state |> handleOnTick appState
     | OnMouseMove, _, _ -> state |> handleOnMouseMove

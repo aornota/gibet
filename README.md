@@ -7,7 +7,7 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 - [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.202 (x64)
 - [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.12.6
 - [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.200.4
-- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.12.3
+- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.15.2
 - [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.0
 
 #### Also recommended
@@ -38,6 +38,5 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 ## To do
 
 - [ ] extend functionality, e.g. User repository (via ASP.NET Core dependency injection) | simple chat client? | &c.
-- [ ] more dependencies (via Fulma.Extensions.Wikiki?): bulma-tooltip? | bulma-checkradio? | &c.
 - [ ] automated testing?
 - [ ] additional documentation, e.g. [gh-pages branch](https://aornota.github.io/gibet/)?
