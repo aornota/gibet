@@ -43,7 +43,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:ServerHub<HubState, ServerInput, Remot
         let rec loop(userDict:UserDict, agentRvn:Rvn) = async {
             let! input = inbox.Receive ()
             (* TEMP-NMB... *)
-            do! ifDebugSleepAsync 100 500
+            do! ifDebugSleepAsync 250 1000
             match input with
             | SignIn(connectionId, userName, password, reply) ->
                 let! repoResult = userRepo.SignIn(userName, password)

@@ -1,7 +1,7 @@
-module Aornota.Gibet.UI.Common.TimestampHelper
+module Aornota.Gibet.Ui.Common.TimestampHelper
 
 open Aornota.Gibet.Common.UnitsOfMeasure
-open Aornota.Gibet.UI.Common.ShouldNeverHappen
+open Aornota.Gibet.Ui.Common.ShouldNeverHappen
 
 open System
 

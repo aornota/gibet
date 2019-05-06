@@ -1,4 +1,4 @@
-module Aornota.Gibet.UI.Common.Theme
+module Aornota.Gibet.Ui.Common.Theme
 
 open Fulma
 

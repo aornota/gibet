@@ -5,8 +5,9 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
-open Aornota.Gibet.UI.Common.RemoteData
-open Aornota.Gibet.UI.Common.Theme
+open Aornota.Gibet.Ui.Common.RemoteData
+open Aornota.Gibet.Ui.Common.Theme
+open Aornota.Gibet.Ui.Shared
 
 open System
 
@@ -25,11 +26,30 @@ type PreferencesInput =
     | WritePreferencesOk of unit
     | WritePreferencesExn of exn
 
-type SignInInput =
+type AutoSignInInput =
     | AutoSignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | AutoSignInExn of exn
+
+type SignInModalInput =
+    | UserNameChanged of string
+    | PasswordChanged of string
+    | SignIn
+    | CancelSignIn
+type SignInInput =
     | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | SignInExn of exn
+
+type UnauthInput =
+    | ShowSignInModal
+    | SignInModalInput of SignInModalInput
+    | SignInInput of SignInInput
+
+type ChangePasswordModalInput =
+    | NewPasswordChanged of string
+    | ConfirmPasswordChanged of string
+    | ChangePassword
+    | CancelChangePassword
+// TODO-NMB...type ChangePasswordInput =
 
 type SignOutInput =
     | SignOutResult of Result<unit, string>
@@ -39,30 +59,18 @@ type GetUsersInput =
     | GetUsersResult of Result<(User * bool) list * Rvn, string>
     | GetUsersExn of exn
 
-(* type SignInModalInput =
-    | UserNameChanged of string
-    | PasswordChanged of string
-    | SignIn
-    | CancelSignIn *)
-
-(* type UnauthInput =
-    | ShowSignInModal
-    | SignInModalInput of SignInModalInput *)
-
-(* type ChangePasswordModalInput =
-    | NewPasswordChanged of string
-    | ConfirmPasswordChanged of string
-    | ChangePassword
-    | CancelChangePassword *)
-
-(* type AuthInput =
+type AuthInput =
     | ShowChangePasswordModal
     | ChangePasswordModalInput of ChangePasswordModalInput
-    | SignOut *)
+    // TODO-NMB...| ChangePasswordInput of ChangePasswordInput
+    | SignOut
+    | SignOutInput of SignOutInput
+    | GetUsersInput of GetUsersInput
+    | TempShowUserAdminPage // TEMP-NMB: Rethink unauth/auth "page" handling...
 
-(* type AppInput =
+type AppInput =
     | UnauthInput of UnauthInput
-    | AuthInput of AuthInput *)
+    | AuthInput of AuthInput
 
 type AppState = { // TODO-NMB?...StaticModal : StaticModal option
     Ticks : int<tick> // note: will only be updated when TICK is defined (see webpack.config.js)
@@ -85,13 +93,8 @@ type Input =
     (* TODO-NMB?...
     | ShowStaticModal of staticModal : StaticModal
     | HideStaticModal *)
-    // TODO-NMB...| AppInput of AppInput
-    | TempSignIn // TEMP-NMB...
-    | SignInInput of SignInInput
-    | TempSignOut // TEMP-NMB...
-    | SignOutInput of SignOutInput
-    | TempGetUsers // TEMP-NMB...
-    | GetUsersInput of GetUsersInput
+    | AutoSignInInput of AutoSignInInput
+    | AppInput of AppInput
 // #endregion
 
 type RegisteringConnectionState = {
@@ -108,14 +111,24 @@ type AutomaticallySigningInState = {
     ConnectionState : ConnectionState
     LastUser : LastUser }
 
+type SignInModalState = {
+    UserNameKey : Guid
+    UserName : string
+    UserNameChanged : bool
+    PasswordKey : Guid
+    Password : string
+    PasswordChanged : bool
+    FocusPassword : bool
+    AutoSignInError : (string * UserName) option
+    ForcedSignOutReason : ForcedSignOutReason option
+    ModalStatus : ModalStatus option }
+
 type UnauthState = {
     AppState : AppState
     ConnectionState : ConnectionState
-    ForcedSignOutReason : ForcedSignOutReason option
-    SigningIn : bool
-    SignInError : string option }
+    SignInModalState : SignInModalState option }
 
-type UserData = User * bool * DateTimeOffset option
+// TODO-NMB...type ChangePasswordModalState = {
 
 type AuthState = {
     AppState : AppState
@@ -123,6 +136,7 @@ type AuthState = {
     AuthUser : AuthUser
     MustChangePasswordReason : MustChangePasswordReason option
     ActivityDebouncerState : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    // TODO-NMB...ChangePasswordModalState : ChangePasswordModalState option
     SigningOut : bool
     UsersData : RemoteData<UserData list, string> }
 
@@ -134,17 +148,7 @@ type State =
     | Unauth of UnauthState
     | Auth of AuthState
 
-let [<Literal>] GIBET = "gibet (α)"
-
-let users (usersData:RemoteData<UserData list, string>) =
-    match usersData |> receivedData with
-    | Some(users, _) -> users
-    | None -> []
-let findUser userId (usersData:RemoteData<UserData list, string>) =
-    match usersData |> receivedData with
-    | Some(users, _) -> users |> List.tryFind (fun (user, _, _) -> user.UserId = userId)
-    | None -> None
-let exists userId (usersData:RemoteData<UserData list, string>) = match usersData |> findUser userId with | Some _ -> true | None -> false
+let [<Literal>] GIBET = "gibet (β)" // α | β | γ | δ | ε
 
 let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
     match usersData with

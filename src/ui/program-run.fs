@@ -2,7 +2,7 @@ module Aornota.Gibet.Ui.Program.Run
 
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.UnitsOfMeasure
-open Aornota.Gibet.UI.Common.Marked
+open Aornota.Gibet.Ui.Common.Marked
 open Aornota.Gibet.Ui.Program.Common
 open Aornota.Gibet.Ui.Program.Render
 open Aornota.Gibet.Ui.Program.State

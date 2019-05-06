@@ -1,4 +1,4 @@
-module Aornota.Gibet.UI.Common.LocalStorage
+module Aornota.Gibet.Ui.Common.LocalStorage
 
 open Aornota.Gibet.Common.Json
 

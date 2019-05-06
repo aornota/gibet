@@ -6,7 +6,7 @@
     --light: #b7b7b7 ; --lighter: #c9c9c9 ; --even-lighter: #dbdbdb ; --lightest: #ededed ;
     --black: black ; --white: white ;
     --link-light: #006060 ; --link-light-hover: #00a0a0 ; --link-dark: #bfbfff ; --link-dark-hover: #8f8fff ;
-    --link-internal-light: #600060 ; --link-internal-ligh-hover: #a000a0 ; --link-internal-dark: #ffbfbf ; --link-internal-dark-hover: #ff8f8f ;
+    --link-internal-light: #600060 ; --link-internal-light-hover: #a000a0 ; --link-internal-dark: #ffbfbf ; --link-internal-dark-hover: #ff8f8f ;
     --neutral: #808080 ; --neutral-darker: #777777 ; --neutral-lighter: #898989 }
 /* #endregion */
 
@@ -116,6 +116,10 @@ hr.dark { background-color: var(--dark) }
 .navbar-item { padding-left: 0.5rem ; padding-right: 0.5rem }
 .navbar-item.light.is-active a.internal { color: var(--link-internal-light-hover) }
 .navbar-item.dark.is-active a.internal { color: var(--link-internal-dark-hover) }
+.navbar-link.light { background-color: var(--light) }
+.navbar-link.dark { background-color: var(--dark) }
+.navbar-link.light:hover { color: var(--darker) }
+.navbar-link.dark:hover { color: var(--lighter) }
 .navbar-menu.light { background-color: var(--light) }
 .navbar-menu.dark { background-color: var(--dark) }
 /* #endregion */

@@ -1,6 +1,6 @@
-module Aornota.Gibet.UI.Common.Tooltip
+module Aornota.Gibet.Ui.Common.Tooltip
 
-open Aornota.Gibet.UI.Common.Theme
+open Aornota.Gibet.Ui.Common.Theme
 
 open System
 

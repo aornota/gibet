@@ -12,7 +12,6 @@ type Password = | Password of string
 type UserType = | BenevolentDictatorForLife | Administrator | Pleb | PersonaNonGrata
 
 type MustChangePasswordReason = | FirstSignIn | PasswordReset
-
 type ForcedSignOutReason = | UserTypeChanged | PasswordReset
 
 type User = { // TODO-NMB?...AvatarUrl : string option // e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png
@@ -27,25 +26,29 @@ type AuthUser = {
     User : User
     Jwt : Jwt }
 
-let validateUserName (UserName userName) (userNames:UserName list) =
+let validateUserName forSignIn (UserName userName) (userNames:UserName list) = // TODO-NMB: Limit to specific characters?...
     if String.IsNullOrWhiteSpace userName then Some "User name must not be blank"
-    else if userName.Trim().Length < 3 then Some "User name must be at least 3 characters"
-    // TODO-NMB: Limit to specific characters?...
-    else if userNames |> List.map (fun (UserName userName) -> userName.ToLower().Trim()) |> List.contains (userName.ToLower().Trim()) then Some "User name is not available"
+    else if not forSignIn && userName.Trim().Length < 3 then Some "User name must be at least 3 characters"
+    else if not forSignIn && userNames |> List.map (fun (UserName userName) -> userName.ToLower().Trim()) |> List.contains (userName.ToLower().Trim()) then Some "User name is not available"
     else None
-let validatePassword (Password password) =
+let validatePassword forSignIn (Password password) = // TODO-NMB: Other restrictions?...
     if String.IsNullOrWhiteSpace password then Some "Password must not be blank"
-    else if password.Trim().Length < 6 then Some "Password must be at least 6 characters"
-    // TODO-NMB: Other restrictions?...
+    else if not forSignIn && password.Trim().Length < 6 then Some "Password must be at least 6 characters"
     else None
 let validateConfirmationPassword newPassword confirmationPassword =
     if newPassword <> confirmationPassword then Some "Confirmation password must match new password"
-    else validatePassword confirmationPassword
+    else validatePassword false newPassword
 
-let canCreateUsers userType =
+let forcedSignOutBecause forcedSignOutReason =
+    match forcedSignOutReason with
+    | UserTypeChanged -> "your permissions have been changed"
+    | PasswordReset -> "your password has been reset"
+
+let canAdministerUsers userType =
     match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false
+let canCreateUsers userType = canAdministerUsers userType
 let canCreateUser forUserType userType =
-    if userType |> canCreateUsers |> not then false
+    if not (canCreateUsers userType) then false
     else
         match userType, forUserType with
         | BenevolentDictatorForLife, _ -> true
@@ -59,13 +62,13 @@ let canChangePassword forUserId (userId:UserId, userType) =
         match userType with
         | BenevolentDictatorForLife | Administrator | Pleb -> true
         | PersonaNonGrata -> false
-let canResetPassword forUserId forUserType (userId:UserId, userType) =
+let canResetPassword (forUserId, forUserType) (userId:UserId, userType) =
     if forUserId = userId then false
-    else userType |> canCreateUser forUserType
-let canChangeUserType forUserId forUserType (userId:UserId, userType) =
+    else canCreateUser forUserType userType
+let canChangeUserType (forUserId, forUserType) (userId:UserId, userType) =
     if forUserId = userId then false
-    else userType |> canCreateUser forUserType
-let canChangeUserTypeTo forUserId forUserType newUserType (userId:UserId, userType) =
-    if (userId, userType) |> canChangeUserType forUserId forUserType |> not then false
+    else canCreateUser forUserType userType
+let canChangeUserTypeTo (forUserId, forUserType) newUserType (userId:UserId, userType) =
+    if not (canChangeUserType (forUserId, forUserType) (userId, userType)) then false
     else if forUserType = newUserType then false
-    else userType |> canCreateUser newUserType
+    else canCreateUser newUserType userType

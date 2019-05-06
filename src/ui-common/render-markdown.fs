@@ -1,7 +1,7 @@
-module Aornota.Gibet.UI.Common.Render.Markdown
+module Aornota.Gibet.Ui.Common.Render.Markdown
 
 open Aornota.Gibet.Common.Markdown
-open Aornota.Gibet.UI.Common.Marked
+open Aornota.Gibet.Ui.Common.Marked
 
 open Fable.React
 open Fable.React.Props

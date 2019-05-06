@@ -1,11 +1,14 @@
-module Aornota.Gibet.UI.Common.Render.Theme
+module Aornota.Gibet.Ui.Common.Render.Theme
 
-open Aornota.Gibet.UI.Common.Render
-open Aornota.Gibet.UI.Common.Theme
-open Aornota.Gibet.UI.Common.Tooltip
+open Aornota.Gibet.Ui.Common.Render
+open Aornota.Gibet.Ui.Common.Theme
+open Aornota.Gibet.Ui.Common.Tooltip
+
+open System
 
 open Browser.Types
 
+open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
 
@@ -24,6 +27,8 @@ type ButtonInteraction =
     | NotEnabled
 
 let [<Literal>] private SPACE = " "
+
+let private delete onClick = Delete.delete [ Delete.OnClick onClick ] []
 
 let buttonT theme size colour interaction outlined inverted tooltip children =
     let tooltip = tooltip |> Option.map (fun tooltip -> { tooltip with TooltipColour = tooltip.TooltipColour |> transformColour theme })
@@ -80,14 +85,37 @@ let linkTInternal theme onClick children = linkT theme (Internal onClick) childr
 let linkTNewWindow theme url children = linkT theme (NewWindow url) children
 let linkTDownloadFile theme (url, fileName) children = linkT theme (DownloadFile(url, fileName)) children
 
-let navbar theme colour children =
+let navbarT theme colour children =
     Navbar.navbar [
         Navbar.IsFixedTop
         Navbar.Color (colour |> transformColour theme)
         Navbar.CustomClass (themeClass theme)
     ] [ containerFluid children ]
+let navbarMenuT theme isActive children =
+    Navbar.menu [
+        Navbar.Menu.CustomClass (themeClass theme)
+        Navbar.Menu.IsActive isActive
+    ] children
+let navbarDropDownT theme element children =
+    let themeClass = themeClass theme
+    Navbar.Item.div [
+        Navbar.Item.HasDropdown
+        Navbar.Item.IsHoverable
+    ] [
+        Navbar.Link.div [ Navbar.Link.CustomClass themeClass ] [ element ]
+        Navbar.Dropdown.div [ Navbar.Dropdown.CustomClass themeClass ] children ]
+let navbarDropDownItemT theme isActive children =
+    Navbar.Item.div [
+        Navbar.Item.CustomClass (themeClass theme)
+        Navbar.Item.IsActive isActive
+    ] children
 
-let pageLoader theme colour =
+let notificationT theme colour onDismiss children =
+    Notification.notification [ Notification.Color (colour |> transformColour theme) ] [
+        match onDismiss with | Some onDismiss -> yield delete onDismiss | None -> ()
+        yield! children ]
+
+let pageLoaderT theme colour =
     PageLoader.pageLoader [
         PageLoader.Color (colour |> transformColour theme)
         PageLoader.IsActive true ] []
@@ -105,3 +133,21 @@ let paraTMedium theme children = paraT theme TextSize.Is4 IsBlack TextWeight.Nor
 let paraTLarge theme children = paraT theme TextSize.Is3 IsBlack TextWeight.Normal children
 let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Normal children
 let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
+
+let textBoxT theme (key:Guid) text iconClass isPassword error info autoFocus disabled (onChange:string -> unit) onEnter =
+    Control.div [ Control.HasIconLeft ] [
+        yield Input.text [
+            match error with | Some _ -> yield Input.Color IsDanger | None -> ()
+            yield Input.CustomClass (themeClass theme)
+            yield Input.Size IsSmall
+            yield Input.DefaultValue text
+            if isPassword then yield Input.Type Input.Password
+            yield Input.Props [
+                Key(key.ToString())
+                Disabled disabled
+                AutoFocus autoFocus
+                OnChange(fun ev -> !!ev.target?value |> onChange)
+                onEnterPressed onEnter ] ]
+        match iconClass with | Some iconClass -> yield iconSmallerLeft iconClass | None -> ()
+        match error with | Some error -> yield Help.help [ Help.Color IsDanger ] [ str error ] | None -> ()
+        match info with | _ :: _ -> yield Help.help [ Help.Color IsInfo ] info | [] -> () ]

@@ -1,4 +1,4 @@
-module Aornota.Gibet.UI.Common.RemoteData
+module Aornota.Gibet.Ui.Common.RemoteData
 
 open Aornota.Gibet.Common.Revision
 

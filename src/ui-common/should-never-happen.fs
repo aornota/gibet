@@ -1,4 +1,4 @@
-module Aornota.Gibet.UI.Common.ShouldNeverHappen
+module Aornota.Gibet.Ui.Common.ShouldNeverHappen
 
 let [<Literal>] SHOULD_NEVER_HAPPEN = "SHOULD NEVER HAPPEN"
 

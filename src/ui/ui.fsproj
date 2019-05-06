@@ -33,7 +33,7 @@
         <Compile Include="..\ui-common\should-never-happen.fs" />
         <Compile Include="..\ui-common\timestamp-helper.fs" />
         <Compile Include="..\ui-common\toast.fs" />
-        <!--TODO-NMB?...<Compile Include="ui-shared.fs" />-->
+        <Compile Include="ui-shared.fs" />
         <!--TODO-NMB?...<Compile Include="pages\..." />-->
         <Compile Include="program-server-api.fs" />
         <Compile Include="program-common.fs" />
