@@ -5,6 +5,7 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
+open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.RemoteData
@@ -83,7 +84,7 @@ let private automaticallySigningInState appState connectionState lastUser = {
     ConnectionState = connectionState
     LastUser = lastUser }
 
-let private signInModalState userName autoSignInError forcedSignOutReason modalStatus =
+let private signInModalState userName autoSignInError forcedSignOutReason =
     let userName, focusPassword = match userName with | Some(UserName userName) -> userName, true | None -> String.Empty, false
     {
         UserNameKey = Guid.NewGuid()
@@ -95,13 +96,13 @@ let private signInModalState userName autoSignInError forcedSignOutReason modalS
         FocusPassword = focusPassword
         AutoSignInError = autoSignInError
         ForcedSignOutReason = forcedSignOutReason
-        ModalStatus = modalStatus
+        ModalStatus = None
     }
 let private unauthState appState connectionState autoSignInError forcedSignOutReason =
     let signInModalState =
         match autoSignInError, forcedSignOutReason with
-        | Some(error, userName), _ -> Some(signInModalState (Some userName) (Some(error, userName)) None None)
-        | None, Some(forcedSignOutReason, userName) -> Some(signInModalState (Some userName) None (Some forcedSignOutReason) None)
+        | Some(error, userName), _ -> Some(signInModalState (Some userName) (Some(error, userName)) None)
+        | None, Some(forcedSignOutReason, userName) -> Some(signInModalState (Some userName) None (Some forcedSignOutReason))
         | None, None -> None
     {
         AppState = appState
@@ -109,14 +110,29 @@ let private unauthState appState connectionState autoSignInError forcedSignOutRe
         SignInModalState = signInModalState
     }
 
-let private authState appState connectionState authUser mustChangePasswordReason = {
-    AppState = appState
-    ConnectionState = connectionState
-    AuthUser = authUser
+let private changePasswordModalState mustChangePasswordReason = {
+    NewPasswordKey = Guid.NewGuid()
+    NewPassword = String.Empty
+    NewPasswordChanged = false
+    ConfirmPasswordKey = Guid.NewGuid()
+    ConfirmPassword = String.Empty
+    ConfirmPasswordChanged = false
     MustChangePasswordReason = mustChangePasswordReason
-    ActivityDebouncerState = Debouncer.create()
-    SigningOut = false
-    UsersData = NotRequested }
+    ModalStatus = None }
+let private authState appState connectionState authUser mustChangePasswordReason =
+    let changePasswordModalState =
+        match mustChangePasswordReason with
+        | Some mustChangePasswordReason -> Some(changePasswordModalState (Some mustChangePasswordReason))
+        | None -> None
+    {
+        AppState = appState
+        ConnectionState = connectionState
+        AuthUser = authUser
+        ActivityDebouncerState = Debouncer.create()
+        ChangePasswordModalState = changePasswordModalState
+        SigningOut = false
+        UsersData = NotRequested
+    }
 
 let private updateAppState appState state =
     match state with
@@ -201,13 +217,13 @@ let private handleRemoteUiInput remoteUiInput state =
         let state = Auth { authState with UsersData = usersData }
         match error with
         | Some error -> state |> shouldNeverHappen error
-        | None -> state, Cmd.none
+        | None -> state, ifDebug (sprintf "%A updated (UsersData now %A)" user.UserId usersRvn |> infoToastCmd) Cmd.none
     | UserAdded(user, usersRvn), Auth authState ->
         let usersData, error = authState.UsersData |> addUser user usersRvn
         let state = Auth { authState with UsersData = usersData }
         match error with
         | Some error -> state |> shouldNeverHappen error
-        | None -> state, Cmd.none
+        | None -> state, ifDebug (sprintf "%A added (UsersData now %A)" user.UserId usersRvn |> infoToastCmd) Cmd.none
     // TODO-NMB: More RemoteUiInput?...
     | UnexpectedServerInput error, _ -> state |> shouldNeverHappen error
     | _ -> state |> shouldNeverHappen (sprintf "Unexpected RemoteUiInput when %A -> %A" state remoteUiInput)
@@ -310,7 +326,8 @@ let private handleSignInModalInput signInModalInput (unauthState:UnauthState) st
             Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none
         | SignIn, _ ->
             let userName, password = UserName(signInModalState.UserName.Trim()), Password(signInModalState.Password.Trim())
-            let cmd = Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map (SignInInput >> UnauthInput >> AppInput)
+            let cmd =
+                Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map (SignInInput >> UnauthInput >> AppInput)
             let signInModalState = { signInModalState with AutoSignInError = None ; ForcedSignOutReason = None ; ModalStatus = Some ModalPending }
             Unauth { unauthState with SignInModalState = Some signInModalState }, cmd
         | CancelSignIn, _ -> Unauth { unauthState with SignInModalState = None }, Cmd.none
@@ -336,6 +353,49 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
         | _ -> state |> shouldNeverHappen (sprintf "Unexpected SignInInput when SignInModalState.ModalStatus is not Pending (%A) -> %A" state signInInput)
     | None -> state |> shouldNeverHappen (sprintf "Unexpected SignInInput when SignInModalState is None (%A) -> %A" state signInInput)
 
+let private handleChangePasswordModalInput changePasswordModalInput (authState:AuthState) state =
+    match authState.ChangePasswordModalState with
+    | Some changePasswordModalState ->
+        match changePasswordModalInput, changePasswordModalState.ModalStatus with
+        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordModalInput when ChangePasswordModalState.ModalStatus is Pending (%A) -> %A" state changePasswordModalInput)
+        | NewPasswordChanged newPassword, _ ->
+            let changePasswordModalState = { changePasswordModalState with NewPassword = newPassword ; NewPasswordChanged = true }
+            Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none
+        | ConfirmPasswordChanged confirmPassword, _ ->
+            let changePasswordModalState = { changePasswordModalState with ConfirmPassword = confirmPassword ; ConfirmPasswordChanged = true }
+            Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none
+        | ChangePassword, _ ->
+            (* Note that we cannot rely on authState.AuthUser.User.Rvn since *not* updated when handling RemoteUiInput(UserUpdated _) - and even if it was updated, we still need to
+               follow this alternative get-user-from-UsersData approach to ascertaining the current Rvn for userApi.resetPassword | userApi.changeUserType | &c. *)
+            match authState.UsersData |> findUser authState.AuthUser.User.UserId with
+            | Some(user, _, _) ->
+                let password = Password(changePasswordModalState.NewPassword.Trim())
+                let cmd =
+                    Cmd.OfAsync.either userApi.changePassword (authState.AuthUser.Jwt, password, user.Rvn) ChangePasswordResult ChangePasswordExn
+                    |> Cmd.map (ChangePasswordInput >> AuthInput >> AppInput)
+                let changePasswordModalState = { changePasswordModalState with ModalStatus = Some ModalPending }
+                Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, cmd
+            | None ->
+                let changePasswordModalState = { changePasswordModalState with ModalStatus = Some (ModalFailed UNEXPECTED_ERROR) }
+                let state = Auth { authState with ChangePasswordModalState = Some changePasswordModalState }
+                state |> shouldNeverHappen (sprintf "Unexpected ChangePassword when %A not found in authState.UsersData -> %A" authState.AuthUser.User.UserId state)
+        | CancelChangePassword, _ -> Auth { authState with ChangePasswordModalState = None }, Cmd.none
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordModalInput when ChangePasswordModalState is None (%A) -> %A" state changePasswordModalInput)
+let private handleChangePasswordInput changePasswordInput (authState:AuthState) state =
+    match authState.ChangePasswordModalState with
+    | Some changePasswordModalState ->
+        match changePasswordModalState.ModalStatus with
+        | Some ModalPending ->
+            match changePasswordInput with
+            | ChangePasswordResult(Ok(UserName userName)) ->
+                Auth { authState with ChangePasswordModalState = None }, sprintf "Password changed for <strong>%s</strong>" userName |> successToastCmd
+            | ChangePasswordResult(Error error) ->
+                let changePasswordModalState = { changePasswordModalState with ModalStatus = Some(ModalFailed error) }
+                Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
+            | ChangePasswordExn exn -> state, AppInput(AuthInput(ChangePasswordInput(ChangePasswordResult(Error exn.Message)))) |> Cmd.ofMsg
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordInput when ChangePasswordModalState.ModalStatus is not Pending (%A) -> %A" state changePasswordInput)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordInput when ChangePasswordModalState is None (%A) -> %A" state changePasswordInput)
+
 let private handleSignOutInput signOutInput (authState:AuthState) state =
     match signOutInput with
     | SignOutResult(Ok _) ->
@@ -351,10 +411,10 @@ let private handleSignOutInput signOutInput (authState:AuthState) state =
 
 let private handleGetUsersInput getUsersInput (authState:AuthState) state =
     match getUsersInput with
-    | GetUsersResult(Ok(users, rvn)) ->
+    | GetUsersResult(Ok(users, usersRvn)) ->
         let users = users |> List.map (fun (user, signedIn) -> user, signedIn, None)
-        Auth { authState with UsersData = Received(users, rvn) }, Cmd.none
-    | GetUsersResult(Error error) -> Auth { authState with UsersData = Failed error }, Cmd.none
+        Auth { authState with UsersData = Received(users, usersRvn) }, ifDebug (sprintf "Got %i users (UsersData %A)" users.Length usersRvn |> infoToastCmd) Cmd.none
+    | GetUsersResult(Error error) -> Auth { authState with UsersData = Failed error }, ifDebug (sprintf "GetUsersResult error -> %s" error |> errorToastCmd) Cmd.none
     | GetUsersExn exn -> state, AppInput(AuthInput(GetUsersInput(GetUsersResult(Error exn.Message)))) |> Cmd.ofMsg
 
 let initialize() : State * Cmd<Input> =
@@ -390,12 +450,15 @@ let transition input state : State * Cmd<Input> =
     | AppInput(UnauthInput ShowSignInModal), Unauth unauthState, _ ->
         match unauthState.SignInModalState with
         | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A" signInModalState)
-        | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None None) }, Cmd.none
+        | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None) }, Cmd.none
     | AppInput(UnauthInput(SignInModalInput signInModalInput)), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
     | AppInput(UnauthInput(SignInInput signInInput)), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
-    | AppInput(AuthInput ShowChangePasswordModal), Auth authState, _ -> state, "Change password -> not yet implemented" |> warningToastCmd // TODO-NMB...
-    // TODO-NMB...| AppInput(AuthInput(ChangePasswordModalInput input)), Auth authState, _ ->
-    // TODO-NMB...| AppInput(AuthInput(ChangePasswordInput input)), Auth authState, _ ->
+    | AppInput(AuthInput ShowChangePasswordModal), Auth authState, _ ->
+        match authState.ChangePasswordModalState with
+        | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A" changePasswordModalState)
+        | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
+    | AppInput(AuthInput(ChangePasswordModalInput changePasswordModalInput)), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
+    | AppInput(AuthInput(ChangePasswordInput changePasswordInput)), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
     | AppInput(AuthInput SignOut), Auth authState, _ ->
         let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutInput >> AuthInput >> AppInput)
         Auth { authState with SigningOut = true }, cmd

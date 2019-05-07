@@ -11,8 +11,8 @@ type UserApi = { // TODO-NMB: More?...
     signIn : ConnectionId * UserName * Password -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     autoSignIn : ConnectionId * Jwt -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     signOut : ConnectionId * Jwt -> AsyncResult<unit, string>
-    changePassword : ConnectionId * Jwt * Password * Rvn -> AsyncResult<unit, string>
+    changePassword : Jwt * Password * Rvn -> AsyncResult<UserName, string>
     getUsers : ConnectionId * Jwt -> AsyncResult<(User * bool) list * Rvn, string>
-    createUser : ConnectionId * Jwt * UserName * Password * UserType -> AsyncResult<unit, string>
-    resetPassword : ConnectionId * Jwt * UserId * Password * Rvn -> AsyncResult<unit, string>
-    changeUserType : ConnectionId * Jwt * UserId * UserType * Rvn -> AsyncResult<unit, string> }
+    createUser : Jwt * UserName * Password * UserType -> AsyncResult<UserName, string>
+    resetPassword : Jwt * UserId * Password * Rvn -> AsyncResult<UserName, string>
+    changeUserType : Jwt * UserId * UserType * Rvn -> AsyncResult<UserName, string> }

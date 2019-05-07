@@ -49,7 +49,9 @@ type ChangePasswordModalInput =
     | ConfirmPasswordChanged of string
     | ChangePassword
     | CancelChangePassword
-// TODO-NMB...type ChangePasswordInput =
+type ChangePasswordInput =
+    | ChangePasswordResult of Result<UserName, string>
+    | ChangePasswordExn of exn
 
 type SignOutInput =
     | SignOutResult of Result<unit, string>
@@ -62,7 +64,7 @@ type GetUsersInput =
 type AuthInput =
     | ShowChangePasswordModal
     | ChangePasswordModalInput of ChangePasswordModalInput
-    // TODO-NMB...| ChangePasswordInput of ChangePasswordInput
+    | ChangePasswordInput of ChangePasswordInput
     | SignOut
     | SignOutInput of SignOutInput
     | GetUsersInput of GetUsersInput
@@ -78,7 +80,6 @@ type AppState = { // TODO-NMB?...StaticModal : StaticModal option
     Theme : Theme
     NavbarBurgerIsActive : bool }
 
-// #region Input
 type Input =
     | RegisterConnection of AppState * LastUser option * ConnectionId option
     | RemoteUiInput of RemoteUiInput
@@ -95,7 +96,6 @@ type Input =
     | HideStaticModal *)
     | AutoSignInInput of AutoSignInInput
     | AppInput of AppInput
-// #endregion
 
 type RegisteringConnectionState = {
     AppState : AppState
@@ -128,15 +128,22 @@ type UnauthState = {
     ConnectionState : ConnectionState
     SignInModalState : SignInModalState option }
 
-// TODO-NMB...type ChangePasswordModalState = {
+type ChangePasswordModalState = { // note: no need for UserId and/or UserName since implicitly for the signed in user
+    NewPasswordKey : Guid
+    NewPassword : string
+    NewPasswordChanged : bool
+    ConfirmPasswordKey : Guid
+    ConfirmPassword : string
+    ConfirmPasswordChanged : bool
+    MustChangePasswordReason : MustChangePasswordReason option
+    ModalStatus : ModalStatus option }
 
 type AuthState = {
     AppState : AppState
     ConnectionState : ConnectionState
     AuthUser : AuthUser
-    MustChangePasswordReason : MustChangePasswordReason option
     ActivityDebouncerState : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-    // TODO-NMB...ChangePasswordModalState : ChangePasswordModalState option
+    ChangePasswordModalState : ChangePasswordModalState option
     SigningOut : bool
     UsersData : RemoteData<UserData list, string> }
 

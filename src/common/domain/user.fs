@@ -34,15 +34,20 @@ let validateUserName forSignIn (UserName userName) (userNames:UserName list) = /
 let validatePassword forSignIn (Password password) = // TODO-NMB: Other restrictions?...
     if String.IsNullOrWhiteSpace password then Some "Password must not be blank"
     else if not forSignIn && password.Trim().Length < 6 then Some "Password must be at least 6 characters"
+    else if not forSignIn && (password.Trim()).ToLower() = "password" then Some (sprintf "'%s' is not a valid password!" (password.Trim()))
     else None
 let validateConfirmationPassword newPassword confirmationPassword =
     if newPassword <> confirmationPassword then Some "Confirmation password must match new password"
     else validatePassword false newPassword
 
+let mustChangePasswordBecause mustChangePasswordReason =
+    match mustChangePasswordReason with
+    | FirstSignIn -> "this is the first time you have signed in"
+    | MustChangePasswordReason.PasswordReset -> "it has been reset by a system administrator"
 let forcedSignOutBecause forcedSignOutReason =
     match forcedSignOutReason with
-    | UserTypeChanged -> "your permissions have been changed"
-    | PasswordReset -> "your password has been reset"
+    | UserTypeChanged -> "your permissions have been changed by a system administrator"
+    | PasswordReset -> "your password has been reset by a system administrator"
 
 let canAdministerUsers userType =
     match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false

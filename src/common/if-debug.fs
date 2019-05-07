@@ -3,7 +3,7 @@ module Aornota.Gibet.Common.IfDebug
 open System
 
 #if DEBUG
-let [<Literal>] private FAKE_ERROR_FREQUENCY = 0.0 // TODO-AS-REQUIRED: Revert to, e.g., 0.02...
+let [<Literal>] private FAKE_ERROR_FREQUENCY = 0.0
 #endif
 
 #if DEBUG

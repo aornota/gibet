@@ -16,4 +16,4 @@ let private toastCmd toCmd text : Cmd<_> =
 let infoToastCmd text = toastCmd Toastr.info text
 let successToastCmd text = toastCmd Toastr.success text
 let warningToastCmd text = toastCmd Toastr.warning text
-let errorToastCmd text = toastCmd Toastr.error
+let errorToastCmd text = toastCmd Toastr.error text

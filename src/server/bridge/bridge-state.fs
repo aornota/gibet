@@ -11,6 +11,9 @@ open Serilog
 
 let private serverStarted = DateTimeOffset.UtcNow
 
+let private sendIfNotSignedIn userId connectionId =
+    if not (hub.GetModels() |> signedInDifferentConnection userId connectionId) then hub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
+
 // #region handleUnexpectedInput
 let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubState) =
     clientDispatch (UnexpectedServerInput (sprintf "Unexpected ServerInput when %A -> %A" state input))
@@ -38,11 +41,11 @@ let private handleRemoteServerInput clientDispatch input state =
         Auth(connectionState, userId, false)
     | SignedOut, Auth(connectionState, userId, _) ->
         hub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut None)
+        sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
     | ForceSignOut forcedSignOutReason, Auth(connectionState, userId, _) ->
         clientDispatch (ForceUserSignOut forcedSignOutReason)
-        if not (hub.GetModels() |> signedInDifferentConnection userId connectionState.ConnectionId) then
-            hub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
+        sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
     | HasUsers, Auth(connectionState, userId, false) -> Auth(connectionState, userId, true)
     // TODO-NMB: More RemoteServerInput?...
@@ -51,8 +54,7 @@ let private handleRemoteServerInput clientDispatch input state =
 let private handleDisconnected clientDispatch state =
     match state with
     | Auth(connectionState, userId, _) ->
-        if not (hub.GetModels() |> signedInDifferentConnection userId connectionState.ConnectionId) then
-            hub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
+        sendIfNotSignedIn userId connectionState.ConnectionId
         NotRegistered
     | Unauth _ -> NotRegistered
     | _ -> state |> handleUnexpectedInput clientDispatch Disconnected

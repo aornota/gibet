@@ -102,6 +102,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
                     let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
+                    let! _ = if hash password imUser.Salt = imUser.Hash then Error "New password must not be the same as existing password" else Ok()
                     let user = { imUser.User with Rvn = incrementRvn rvn }
                     let salt = salt()
                     let imUser = { imUser with User = user ; Salt = salt ; Hash = hash password salt ; MustChangePasswordReason = None }
@@ -127,6 +128,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
                     let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
+                    let! _ = if hash password imUser.Salt = imUser.Hash then Error "New password must not be the same as existing password" else Ok()
                     let user = { imUser.User with Rvn = incrementRvn rvn }
                     let salt = salt()
                     let imUser = { imUser with User = user ; Salt = salt ; Hash = hash password salt ; MustChangePasswordReason = Some MustChangePasswordReason.PasswordReset }

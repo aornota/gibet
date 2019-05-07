@@ -1051,7 +1051,7 @@ NUGET
       Fable.Remoting.Json (>= 2.3)
       FSharp.Core (>= 4.3.4)
     FSharp.Core (4.6.2)
-    FsToolkit.ErrorHandling (1.0)
+    FsToolkit.ErrorHandling (1.1)
       FSharp.Core (>= 4.6.2)
     Giraffe (3.6)
       FSharp.Core (>= 4.5.2)

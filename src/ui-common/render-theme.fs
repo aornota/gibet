@@ -135,13 +135,13 @@ let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Nor
 let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
 
 let textBoxT theme (key:Guid) text iconClass isPassword error info autoFocus disabled (onChange:string -> unit) onEnter =
+    let input = if isPassword then Input.password else Input.text
     Control.div [ Control.HasIconLeft ] [
-        yield Input.text [
+        yield input [
             match error with | Some _ -> yield Input.Color IsDanger | None -> ()
             yield Input.CustomClass (themeClass theme)
             yield Input.Size IsSmall
             yield Input.DefaultValue text
-            if isPassword then yield Input.Type Input.Password
             yield Input.Props [
                 Key(key.ToString())
                 Disabled disabled

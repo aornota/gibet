@@ -14,6 +14,7 @@ open System
 
 open Elmish.React.Common
 
+open Fable.FontAwesome
 open Fable.React.Helpers
 
 open Fulma
@@ -144,19 +145,21 @@ let private renderReconnectingModal theme =
         paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Attempting to reconnect... " ; iconSmaller ICON__SPINNER_PULSE ] ] ]
 
 let private renderSignInModal (theme, signInModalState:SignInModalState) dispatch =
-    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.Bold [ str "Sign in" ] ] ]
+    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Sign in" ] ] ]
     let onDismiss, isSigningIn, signInInteraction, onEnter, userNameError, passwordError =
         let onDismiss, onEnter = (fun _ -> dispatch CancelSignIn), (fun _ -> dispatch SignIn)
         match signInModalState.ModalStatus with
         | Some ModalPending -> None, true, Loading, ignore, None, None
         | _ ->
-            let userName, password = signInModalState.UserName, signInModalState.Password
-            let userNameIsBlank, passwordIsBlank = String.IsNullOrWhiteSpace userName, String.IsNullOrWhiteSpace password
-            let userNameError = if signInModalState.UserNameChanged then validateUserName true (UserName userName) [] else None
-            let passwordError = if signInModalState.PasswordChanged then validatePassword true (Password password) else None
-            match userNameIsBlank, userNameError, passwordIsBlank, passwordError with
-            | false, None, false, None -> Some onDismiss, false, Clickable(onEnter), onEnter, userNameError, passwordError
-            | _ -> Some onDismiss, false, NotEnabled, onEnter, userNameError, passwordError
+            let userNameError = validateUserName true (UserName signInModalState.UserName) []
+            let passwordError = validatePassword true (Password signInModalState.Password)
+            let signInInteration, onEnter =
+                match userNameError, passwordError with
+                | None, None -> Clickable onEnter, onEnter
+                | _ -> NotEnabled, ignore
+            let userNameError = if signInModalState.UserNameChanged then userNameError else None
+            let passwordError = if signInModalState.PasswordChanged then passwordError else None
+            Some onDismiss, false, signInInteration, onEnter, userNameError, passwordError
     let body = [
         match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.ModalStatus with
         | Some(error, UserName userName), _, _ ->
@@ -166,7 +169,8 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
             yield br
         | None, Some forcedSignOutReason, _ ->
             yield notificationT theme IsWarning None [
-                contentCentred [ paraTSmaller theme [ str (sprintf "You have been signed out because %s" (forcedSignOutBecause forcedSignOutReason)) ] ] ]
+                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [
+                    str (sprintf "You have been signed out because %s" (forcedSignOutBecause forcedSignOutReason)) ] ] ]
             yield br
         | None, None, Some(ModalFailed error) ->
             yield notificationT theme IsDanger None [
@@ -178,7 +182,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
             paraTSmaller theme [ str "Please enter your user name and password" ]
             fieldGroupedCentred [
                 textBoxT theme signInModalState.UserNameKey signInModalState.UserName (Some ICON__USER) false userNameError [] (not signInModalState.FocusPassword) isSigningIn
-                    (UserNameChanged >> dispatch) ignore ]
+                    (UserNameChanged >> dispatch) onEnter ]
             fieldGroupedCentred [
                 textBoxT theme signInModalState.PasswordKey signInModalState.Password (Some ICON__PASSWORD) true passwordError [] signInModalState.FocusPassword isSigningIn
                     (PasswordChanged >> dispatch) onEnter ]
@@ -186,7 +190,50 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink signInInteraction false false None [ str "Sign in" ] ] ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
-// TODO-NMB...let private renderChangePasswordModal (theme, changePasswordState:ChangePasswordState) dispatch =
+let private renderChangePasswordModal (theme, UserName userName, changePasswordModalState:ChangePasswordModalState) dispatch =
+    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Change password for " ; bold userName ] ] ]
+    let onDismiss, isChangingPassword, changePasswordInteraction, onEnter, newPasswordError, confirmPasswordError =
+        let onDismiss, onEnter = (fun _ -> dispatch CancelChangePassword), (fun _ -> dispatch ChangePassword)
+        match changePasswordModalState.ModalStatus with
+        | Some ModalPending -> None, true, Loading, ignore, None, None
+        | _ ->
+            let newPassword = Password changePasswordModalState.NewPassword
+            let newPasswordError = validatePassword false newPassword
+            let confirmPasswordError = validateConfirmationPassword newPassword (Password changePasswordModalState.ConfirmPassword)
+            let changePasswordInteraction, onEnter =
+                match newPasswordError, newPasswordError with
+                | None, None -> Clickable onEnter, onEnter
+                | _ -> NotEnabled, ignore
+            let newPasswordError = if changePasswordModalState.NewPasswordChanged then newPasswordError else None
+            let confirmPasswordError = if changePasswordModalState.ConfirmPasswordChanged then confirmPasswordError else None
+            let onDismiss = match changePasswordModalState.MustChangePasswordReason with | Some _ -> None | None -> Some onDismiss
+            onDismiss, false, changePasswordInteraction, onEnter, newPasswordError, confirmPasswordError
+    let body = [
+        match changePasswordModalState.MustChangePasswordReason with
+        | Some mustChangePasswordReason ->
+            yield notificationT theme IsWarning None [
+                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [
+                    str (sprintf "You must change your password because %s" (mustChangePasswordBecause mustChangePasswordReason)) ] ] ]
+            yield br
+        | None -> ()
+        match changePasswordModalState.ModalStatus with
+        | Some(ModalFailed error) ->
+            yield notificationT theme IsDanger None [
+                contentCentred [ paraTSmaller theme [ str "Unable to change password for " ; bold userName ] ]
+                paraTSmallest theme [ str error ] ]
+            yield br
+        | _ -> ()
+        yield contentCentred [
+            paraTSmaller theme [ str "Please enter your new password (twice)" ]
+            fieldGroupedCentred [
+                textBoxT theme changePasswordModalState.NewPasswordKey changePasswordModalState.NewPassword (Some ICON__PASSWORD) true newPasswordError [] true isChangingPassword
+                    (NewPasswordChanged >> dispatch) onEnter ]
+            fieldGroupedCentred [
+                textBoxT theme changePasswordModalState.ConfirmPasswordKey changePasswordModalState.ConfirmPassword (Some ICON__PASSWORD) true confirmPasswordError [] false isChangingPassword
+                    (ConfirmPasswordChanged >> dispatch) onEnter ]
+            fieldGroupedCentred [
+                paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink changePasswordInteraction false false None [ str "Change password" ] ] ] ] ]
+    cardModalT theme (Some(title, onDismiss)) body
 
 let private renderSigningOutModal theme =
     cardModalT theme None [ contentCentred [ paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Signing out... " ; iconSmall ICON__SPINNER_PULSE ] ] ]
@@ -258,4 +305,9 @@ let render state dispatch =
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
-            else if authState.SigningOut then yield lazyView renderSigningOutModal theme ]
+            else if authState.SigningOut then yield lazyView renderSigningOutModal theme
+            else
+                match authState.ChangePasswordModalState with
+                | Some changePasswordModalState ->
+                    yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState) (ChangePasswordModalInput >> AuthInput >> AppInput >> dispatch)
+                | None -> () ]
