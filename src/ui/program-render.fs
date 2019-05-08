@@ -192,7 +192,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
             paraTSmaller theme [ str "Please enter your user name and password" ]
             fieldGroupedCentred [
                 textBoxT theme signInModalState.UserNameKey signInModalState.UserName (Some ICON__USER) false userNameError [] (not signInModalState.FocusPassword) isSigningIn
-                    (UserNameChanged >> dispatch) onEnter ]
+                    (UserNameChanged >> dispatch) ignore ]
             fieldGroupedCentred [
                 textBoxT theme signInModalState.PasswordKey signInModalState.Password (Some ICON__PASSWORD) true passwordError [] signInModalState.FocusPassword isSigningIn
                     (PasswordChanged >> dispatch) onEnter ]
@@ -237,7 +237,7 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
             paraTSmaller theme [ str "Please enter your new password (twice)" ]
             fieldGroupedCentred [
                 textBoxT theme changePasswordModalState.NewPasswordKey changePasswordModalState.NewPassword (Some ICON__PASSWORD) true newPasswordError [] true isChangingPassword
-                    (NewPasswordChanged >> dispatch) onEnter ]
+                    (NewPasswordChanged >> dispatch) ignore ]
             fieldGroupedCentred [
                 textBoxT theme changePasswordModalState.ConfirmPasswordKey changePasswordModalState.ConfirmPassword (Some ICON__PASSWORD) true confirmPasswordError [] false isChangingPassword
                     (ConfirmPasswordChanged >> dispatch) onEnter ]

@@ -1,5 +1,3 @@
--- TODO-NMB: Notes on dev-console (in lieu of unit tests &c.)...
-
 # ![gibet](https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png) | gibet (α)
 
 Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
@@ -35,10 +33,20 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 - Run / watch: _fake build --target run_ (or _fake build -t run_)
 - Build for production / release: _fake build --target build_ (or _fake build -t build_)
 - Deploy to Azure: _fake build --target deploy-azure_ (or _fake build -t deploy-azure_); see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
+- Run the dev-console project: _fake build --target run-dev-console_ (or _fake build -t run-dev-console_)
 - Help (lists key targets): _fake build --target help_ (or just _fake build_)
+
+### Unit tests
+
+There are no unit tests - yet...
+
+However, the repository interfaces and Api implementations have been designed both to work with ASP.NET Core dependency injection - and to facilitate unit testing.
+
+See [here](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs) for an example of "testing" IUserRepo (e.g. InMemoryUserRepoAgent) and UserApi
+(e.g. UserApiAgent) from a console project.
 
 ## To do
 
-- [ ] extend functionality, e.g. User repository (via ASP.NET Core dependency injection) | simple chat client? | &c.
-- [ ] automated testing?
-- [ ] additional documentation, e.g. [gh-pages branch](https://aornota.github.io/gibet/)?
+- [ ] extend functionality, e.g. User administation page | Chat page? | &c.
+- [ ] unit tests? AspNetCore.TestHost?
+- [ ] additional documentation, e.g. [(currently non-existent) gh-pages branch](https://aornota.github.io/gibet/)?

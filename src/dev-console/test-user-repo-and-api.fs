@@ -3,12 +3,12 @@ module Aornota.Gibet.DevConsole.TestUserRepoAndApi
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Server.Api.UserApiAgent
 open Aornota.Gibet.Server.Bridge.HubState
 open Aornota.Gibet.Server.Bridge.IHub
 open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Repo.InMemoryUserRepoAgent
 open Aornota.Gibet.Server.Repo.IUserRepo
-open Aornota.Gibet.Server.Api.UserApiAgent
 
 open System
 
@@ -16,7 +16,7 @@ open FsToolkit.ErrorHandling
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "DevConsole.Users"
+let [<Literal>] private LOG_SOURCE = "DevConsole.TestUserRepoAndApi"
 
 let private hub = { // note: fake implementation that literally does nothing!
     new IHub<HubState, RemoteServerInput, RemoteUiInput> with
