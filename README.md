@@ -1,6 +1,11 @@
-# ![gibet](https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png) | gibet (α)
+# ![gibet](https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png) | gibet (β)
 
-Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
+An opinionated (i.e. decidedly eccentric) "scaffold" for [F#](http://fsharp.org/) web development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
+[Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
+[Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
+Comes with just enough rope for developers to hang themselves with...
+
+And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
 
 ### Prerequisites
 
@@ -13,11 +18,11 @@ Yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love R
 #### Also recommended
 
 - [Microsoft Visual Studio Code](https://code.visualstudio.com/download/) with the following extensions:
-    - [Microsoft C#](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp/)
-    - [Ionide-fsharp](https://marketplace.visualstudio.com/items?itemName=ionide.ionide-fsharp/)
-    - [Microsoft Debugger for Chrome](https://marketplace.visualstudio.com/items?itemName=msjsdiag.debugger-for-chrome/)
-    - [EditorConfig for VS Code](https://marketplace.visualstudio.com/items?itemName=editorconfig.editorconfig/)
-    - [Rainbow Brackets](https://marketplace.visualstudio.com/items?itemName=2gua.rainbow-brackets/)
+    - [Microsoft C#](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp)
+    - [Ionide-fsharp](https://marketplace.visualstudio.com/items?itemName=ionide.ionide-fsharp)
+    - [Microsoft Debugger for Chrome](https://marketplace.visualstudio.com/items?itemName=msjsdiag.debugger-for-chrome)
+    - [EditorConfig for VS Code](https://marketplace.visualstudio.com/items?itemName=editorconfig.editorconfig)
+    - [Rainbow Brackets](https://marketplace.visualstudio.com/items?itemName=2gua.rainbow-brackets)
 - [Google Chrome](https://www.google.com/chrome/) with the following extensions:
     - [React Developer Tools](https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi/)
     - [Redux DevTools](https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd/)

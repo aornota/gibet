@@ -8,7 +8,8 @@ open Fable.React.Props
 open Fulma
 
 let [<Literal>] private KEYBOARD_CODE__ENTER = 13.
-let [<Literal>] private SPACE = " "
+
+let [<Literal>] SPACE = " "
 
 let private padStyle padV padH =
     let padding =

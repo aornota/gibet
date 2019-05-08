@@ -26,8 +26,6 @@ type ButtonInteraction =
     | Static
     | NotEnabled
 
-let [<Literal>] private SPACE = " "
-
 let private delete onClick = Delete.delete [ Delete.OnClick onClick ] []
 
 let buttonT theme size colour interaction outlined inverted tooltip children =

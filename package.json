@@ -1,7 +1,7 @@
 {
     "name": "gibet",
-    "version": "α",
-    "description": "Opinionated (i.e. decidedly eccentric) \"scaffold\" for F# web development: Fable | Elmish | Fulma | Fable.Remoting | Elmish.Bridge | Giraffe | ASP.NET Core| &c. Comes with just enough rope for developers to hang themselves with...",
+    "version": "β",
+    "description": "An opinionated (i.e. decidedly eccentric) \"scaffold\" for F# web development using Fable, Elmish, Fulma / Bulma, Fable.Remoting, Elmish.Bridge, Giraffe and ASP.NET Core. Comes with just enough rope for developers to hang themselves with... https://gibet.azurewebsites.net/",
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",
     "license": "https://github.com/aornota/gibet/blob/master/LICENSE",
