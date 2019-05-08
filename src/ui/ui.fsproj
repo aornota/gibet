@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <TreatWarningsAsErrors>false</TreatWarningsAsErrors><!--TEMP-NMB: Until Fable.Remoting.Client updated to prevent "This construct is deprecated" warnings (e.g. "Use Browser")...-->
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors> <!--TEMP-NMB: Until Fable.Remoting.Client updated to prevent "This construct is deprecated" warnings (e.g. "Use Browser")...-->
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="..\common\error-handling.fs" />

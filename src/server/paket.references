@@ -2,7 +2,6 @@ group server
 
     FSharp.Core
     Elmish.Bridge.Giraffe
-    Fable.JsonConverter
     Fable.Remoting.Giraffe
     FsToolkit.ErrorHandling
     Giraffe

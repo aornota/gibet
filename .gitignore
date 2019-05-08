@@ -6,6 +6,6 @@ paket-files/
 bin/
 obj/
 logs/
+secret/
 deploy.zip
-jwt.txt
 yarn-error.log

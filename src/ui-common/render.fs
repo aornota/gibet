@@ -2,7 +2,6 @@ module Aornota.Gibet.Ui.Common.Render
 
 open Browser.Types
 
-open Fable.FontAwesome
 open Fable.React
 open Fable.React.Props
 

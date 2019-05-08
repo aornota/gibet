@@ -23,7 +23,6 @@ group server
 
     nuget FSharp.Core
     nuget Elmish.Bridge.Giraffe prerelease
-    nuget Fable.JsonConverter
     nuget Fable.Remoting.Giraffe
     nuget FsToolkit.ErrorHandling
     nuget Giraffe
@@ -68,6 +67,11 @@ group dev-console
     storage: none
 
 	nuget FSharp.Core
+    nuget Fable.Remoting.Giraffe
+    nuget FsToolkit.ErrorHandling
+    nuget Giraffe.SerilogExtensions
+    nuget jose-jwt
 	nuget Serilog
 	nuget Serilog.Sinks.Literate
 	nuget Serilog.Sinks.RollingFile
+    nuget Thoth.Json.Net prerelease

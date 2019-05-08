@@ -13,7 +13,7 @@
 		, "src/**/bin/": true
         , "src/**/obj/": true
         , "src/**/logs/": true
-		, "src/server/secret/": true
+		, "src/**/secret/": true
 		, "src/ui/deploy/": true
 		, ".editorconfig": true
         , "arm-template.json": true

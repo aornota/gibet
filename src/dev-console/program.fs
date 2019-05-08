@@ -1,33 +1,40 @@
 ﻿module Aornota.Gibet.DevConsole.Program
 
 open Aornota.Gibet.DevConsole.Console
-open Aornota.Gibet.DevConsole.Logger
+open Aornota.Gibet.DevConsole.TestUserRepoAndApi
+open Aornota.Gibet.Server.Logger
 
 open System
 
 open Serilog
 
+let [<Literal>] private LOG_SOURCE = "DevConsole.Program"
+
+Log.Logger <- createLogger "logs/dev-console_{Date}.log"
+
 let private mainAsync argv = async {
-    // #region "Running Aornota.Gibet.DevConsole.main..."
-    writeNewLine "Running Aornota.Gibet.DevConsole.Program.mainAsync" ConsoleColor.Magenta
+    // #region "Running DevConsole.Program.mainAsync..."
+    writeNewLine "Running DevConsole.Program.mainAsync" ConsoleColor.Magenta
     write (sprintf " %A" argv) ConsoleColor.DarkMagenta
     write "...\n\n" ConsoleColor.Magenta
     // #endregion
 
-    use logger = createLogger()
-
     try
         // #region Logging examples
         (* let test = Some 3.14
-        logger.Debug("This is a debug message")
-        logger.Information("This is an information message: {test}", test)
-        logger.Warning("This is a warning message")
+        Log.Logger.Debug(sourced "This is a debug message" LOG_SOURCE)
+        Log.Logger.Information(sourced "This is an information message: {test}" LOG_SOURCE, test)
+        Log.Logger.Warning(sourced "This is a warning message" LOG_SOURCE)
         failwith "Fake error. Sad!" *)
         // #endregion
 
-        logger.Information("TODO-NMB...")
+        // #region testUserRepoAndApi
+        match! testUserRepoAndApi() with | Ok _ -> () | Error error -> failwith error
+        // #endregion
 
-    with | exn -> logger.Error("Unexpected error: {message}\n{stackTrace}", exn.Message, exn.StackTrace)
+        // TEMP-NMB...Log.Logger.Information(sourced "TODO-NMB..." LOG_SOURCE)
+
+    with | exn -> Log.Logger.Error(sourced "Unexpected error: {message}\n{stackTrace}" LOG_SOURCE, exn.Message, exn.StackTrace)
 
     // #region "Press any key to exit..."
     writeNewLine "Press any key to exit..." ConsoleColor.Magenta

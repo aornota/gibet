@@ -4,6 +4,8 @@ open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Server.Api.UserApiAgent
 open Aornota.Gibet.Server.Bridge.Hub
+open Aornota.Gibet.Server.Bridge.HubState
+open Aornota.Gibet.Server.Bridge.IHub
 open Aornota.Gibet.Server.Bridge.State
 open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Repo
@@ -29,10 +31,12 @@ open Fable.Remoting.Server
 
 open Serilog
 
+let [<Literal>] private LOG_SOURCE = "Host.Run"
+
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
 
-Log.Logger <- createLogger()
-Log.Logger.Information("Starting server...")
+Log.Logger <- createLogger "logs/server_{Date}.log"
+Log.Logger.Information(sourced "Starting server..." LOG_SOURCE)
 
 let private publicPath =
     let publicPath = Path.GetFullPath(Path.Combine("..", "ui/public")) // e.g. when served via webpack-dev-server
@@ -49,6 +53,14 @@ let private bridge : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sur
 #endif
     |> Bridge.run Giraffe.server
 // #endregion
+
+let private hub = {
+    new IHub<HubState, RemoteServerInput, RemoteUiInput> with
+        member __.GetModels() = hub.GetModels()
+        member __.BroadcastClient msg = hub.BroadcastClient msg
+        member __.BroadcastServer msg = hub.BroadcastServer msg
+        member __.SendClientIf predicate msg = hub.SendClientIf predicate msg
+        member __.SendServerIf predicate msg = hub.SendServerIf predicate msg }
 
 let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Remoting.createApi()

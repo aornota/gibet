@@ -2,12 +2,16 @@ module Aornota.Gibet.Server.Bridge.State
 
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Server.Bridge.Hub
+open Aornota.Gibet.Server.Bridge.HubState
+open Aornota.Gibet.Server.Logger
 
 open System
 
 open Elmish
 
 open Serilog
+
+let [<Literal>] private LOG_SOURCE = "Bridge.State"
 
 let private serverStarted = DateTimeOffset.UtcNow
 
@@ -18,9 +22,9 @@ let private sendIfNotSignedIn userId connectionId =
 let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubState) =
     clientDispatch (UnexpectedServerInput (sprintf "Unexpected ServerInput when %A -> %A" state input))
 #if DEBUG
-    Log.Logger.Warning("Unexpected ServerInput when {state} -> {input}", state, input)
+    Log.Logger.Warning(sourced "Unexpected ServerInput when {state} -> {input}" LOG_SOURCE, state, input)
 #else
-    Log.Logger.Error("Unexpected ServerInput when {state} -> {input}", state, input)
+    Log.Logger.Error(sourced "Unexpected ServerInput when {state} -> {input}" LOG_SOURCE, state, input)
 #endif
     state
 // #endregion

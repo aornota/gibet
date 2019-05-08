@@ -8,8 +8,6 @@ open System
 open System.Security.Cryptography
 open System.Text
 
-let [<Literal>] INVALID_CREDENTIALS = "Invalid credentials"
-
 type IUserRepo = // TODO-NMB: More?...
     abstract SignIn: UserName * Password -> AsyncResult<UserId * MustChangePasswordReason option, string>
     abstract AutoSignIn: UserId -> AsyncResult<UserId * MustChangePasswordReason option, string>
@@ -25,7 +23,7 @@ type Hash = | Hash of string
 let private rng = RandomNumberGenerator.Create()
 let private sha512 = SHA512.Create()
 
-let salt() =
+let salt () =
     let bytes : byte[] = Array.zeroCreate 32
     rng.GetBytes(bytes)
     Salt(Convert.ToBase64String(bytes))

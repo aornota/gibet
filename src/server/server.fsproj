@@ -20,17 +20,19 @@
         <Compile Include="..\common\bridge\bridge.fs" />
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\user-api.fs" />
-        <!--TODO-NMB?...<Compile Include="..\server-common\helpers.fs" />-->
+        <Compile Include="..\server-common\invalid-credentials.fs" />
         <Compile Include="jwt.fs" />
+        <Compile Include="logger.fs" />
         <Compile Include="repo\i-user-repo.fs" />
         <Compile Include="repo\in-memory-user-repo-agent.fs" />
         <!--TODO-NMB?...<Compile Include="repo\mssql-user-repo-agent.fs" />-->
         <!--TODO-NMB?...<Compile Include="repo\sqlite-user-repo-agent.fs" />-->
         <Compile Include="repo\user-test-data.fs" />
+        <Compile Include="bridge\i-hub.fs" />
+        <Compile Include="bridge\hub-state.fs" />
         <Compile Include="bridge\hub.fs" />
         <Compile Include="bridge\bridge-state.fs" />
         <Compile Include="api\user-api-agent.fs" />
-        <Compile Include="logger.fs" />
         <Compile Include="host-run.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />

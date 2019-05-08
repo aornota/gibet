@@ -5,6 +5,8 @@ open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnexpectedError
+open Aornota.Gibet.Server.Common.InvalidCredentials
+open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Repo.IUserRepo
 
 open System.Collections.Generic
@@ -36,11 +38,13 @@ type private InMemoryUser = {
 
 type private ImUserDict = Dictionary<UserId, InMemoryUser>
 
+let [<Literal>] private LOG_SOURCE = "InMemoryUserRepoAgent"
+
 let private addUser userId userName password userType (imUserDict:ImUserDict) =
     let userId = userId |> Option.defaultValue (UserId.Create())
     let result = result {
         let! _ =
-            if imUserDict.ContainsKey userId then Error(ifDebug (sprintf "InMemoryUserRepoAgent.addUser -> %A already exists" userId) UNEXPECTED_ERROR)
+            if imUserDict.ContainsKey userId then Error(ifDebug (sprintf "%s.addUser -> %A already exists" LOG_SOURCE userId) UNEXPECTED_ERROR)
             else Ok()
         let user = {
             UserId = userId
@@ -62,11 +66,11 @@ let private updateUser imUser (imUserDict:ImUserDict) =
     if imUserDict.ContainsKey userId then
         imUserDict.[userId] <- imUser
         Ok()
-    else Error(ifDebug (sprintf "InMemoryUserRepoAgent.updateUser -> Unable to update %A" userId) UNEXPECTED_ERROR)
+    else Error(ifDebug (sprintf "%s.updateUser -> Unable to update %A" LOG_SOURCE userId) UNEXPECTED_ERROR)
 
 let private findUserId userId (imUserDict:ImUserDict) =
     if imUserDict.ContainsKey userId then Ok imUserDict.[userId]
-    else Error(ifDebug (sprintf "InMemoryUserRepoAgent.findUserId -> Unable to find %A" userId) UNEXPECTED_ERROR)
+    else Error(ifDebug (sprintf "%s.findUserId -> Unable to find %A" LOG_SOURCE userId) UNEXPECTED_ERROR)
 
 let private findUserName userName error (imUserDict:ImUserDict) =
     match imUserDict.Values |> List.ofSeq |> List.filter (fun imUser -> imUser.User.UserName = userName) with
@@ -79,14 +83,14 @@ type InMemoryUserRepoAgent(logger:ILogger) =
             match! inbox.Receive() with
             | SignIn(userName, password, reply) ->
                 let result = result {
-                    let! imUser = imUserDict |> findUserName userName (ifDebug (sprintf "InMemoryUserRepoAgent.SignIn -> %A not found" userName) INVALID_CREDENTIALS)
+                    let! imUser = imUserDict |> findUserName userName (ifDebug (sprintf "%s.SignIn -> %A not found" LOG_SOURCE userName) INVALID_CREDENTIALS)
                     let! _ =
                         if imUser.Hash = hash password imUser.Salt then Ok()
-                        else Error(ifDebug (sprintf "InMemoryUserRepoAgent.SignIn -> Invalid password for %A" userName) INVALID_CREDENTIALS)
+                        else Error(ifDebug (sprintf "%s.SignIn -> Invalid password for %A" LOG_SOURCE userName) INVALID_CREDENTIALS)
                     return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
-                | Ok _ -> logger.Debug("Able to sign in as {userName}", userName)
-                | Error error -> logger.Warning("Unable to sign in as {userName} -> {error}", userName, error)
+                | Ok _ -> logger.Debug(sourced "Able to sign in as {userName}" LOG_SOURCE, userName)
+                | Error error -> logger.Warning(sourced "Unable to sign in as {userName} -> {error}" LOG_SOURCE, userName, error)
                 reply.Reply result
                 return! loop imUserDict
             | AutoSignIn(userId, reply) ->
@@ -94,8 +98,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! imUser = imUserDict |> findUserId userId
                     return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
-                | Ok _ -> logger.Debug("Able to automatically sign in as {userId}", userId)
-                | Error error -> logger.Warning("Unable to automatically sign in as {userId} -> {error}", userId, error)
+                | Ok _ -> logger.Debug(sourced "Able to automatically sign in as {userId}" LOG_SOURCE, userId)
+                | Error error -> logger.Warning(sourced "Unable to automatically sign in as {userId} -> {error}" LOG_SOURCE, userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | ChangePassword(userId, password, rvn, reply) ->
@@ -109,19 +113,22 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
-                | Ok user -> logger.Debug("Password changed for {user}", user)
-                | Error error -> logger.Warning("Unable to change password for {userId} -> {error}", userId, error)
+                | Ok user -> logger.Debug(sourced "Password changed for {user}" LOG_SOURCE, user)
+                | Error error -> logger.Warning(sourced "Unable to change password for {userId} -> {error}" LOG_SOURCE, userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | GetUsers reply ->
-                let result = Ok(imUserDict.Values |> List.ofSeq |> List.map (fun imUser -> imUser.User))
+                let result : Result<User list, string> = Ok(imUserDict.Values |> List.ofSeq |> List.map (fun imUser -> imUser.User))
+                match result with
+                | Ok users -> logger.Debug(sourced "Got {count} user/s" LOG_SOURCE, users.Length)
+                | Error error -> logger.Warning(sourced "Unable to get users -> {error}" LOG_SOURCE, error)
                 reply.Reply result
                 return! loop imUserDict
             | CreateUser(userId, userName, password, userType, reply) ->
                 let result = imUserDict |> addUser userId userName password userType
                 match result with
-                | Ok user -> logger.Debug("Added {user}", user)
-                | Error error -> logger.Warning("Unable to add {userName} -> {error}", userName, error)
+                | Ok user -> logger.Debug(sourced "Created {user}" LOG_SOURCE, user)
+                | Error error -> logger.Warning(sourced "Unable to create {userName} -> {error}" LOG_SOURCE, userName, error)
                 reply.Reply result
                 return! loop imUserDict
             | ResetPassword(userId, password, rvn, reply) ->
@@ -135,8 +142,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
-                | Ok user -> logger.Debug("Password reset for {user}", user)
-                | Error error -> logger.Warning("Unable to reset password for {userId} -> {error}", userId, error)
+                | Ok user -> logger.Debug(sourced "Password reset for {user}" LOG_SOURCE, user)
+                | Error error -> logger.Warning(sourced "Unable to reset password for {userId} -> {error}" LOG_SOURCE, userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | ChangeUserType(userId, userType, rvn, reply) ->
@@ -148,13 +155,13 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
-                | Ok user -> logger.Debug("User type changed for {user}", user)
-                | Error error -> logger.Warning("Unable to change user type for {userId} -> {error}", userId, error)
+                | Ok user -> logger.Debug(sourced "User type changed for {user}" LOG_SOURCE, user)
+                | Error error -> logger.Warning(sourced "Unable to change user type for {userId} -> {error}" LOG_SOURCE, userId, error)
                 reply.Reply result
                 return! loop imUserDict }
-        logger.Information("Starting InMemoryUserRepoAgent...")
+        logger.Information(sourced "Starting..." LOG_SOURCE)
         loop (ImUserDict()))
-    do agent.Error.Add (fun exn -> logger.Error("Unexpected InMemoryUserRepoAgent error -> {message}", exn.Message))
+    do agent.Error.Add (fun exn -> logger.Error(sourced "Unexpected error -> {error}" LOG_SOURCE, exn.Message))
     interface IUserRepo with
         member __.SignIn(userName, password) = agent.PostAndAsyncReply(fun reply -> SignIn(userName, password, reply))
         member __.AutoSignIn(userId) = agent.PostAndAsyncReply(fun reply -> AutoSignIn(userId, reply))

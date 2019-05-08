@@ -1,7 +1,10 @@
 module Aornota.Gibet.Server.Jwt
 
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
+open Aornota.Gibet.Common.UnexpectedError
+open Aornota.Gibet.Server.Common.InvalidCredentials
 
 open System.IO
 open System.Security.Cryptography
@@ -23,14 +26,14 @@ let private jwtKey =
         File.WriteAllBytes(file.FullName, bytes)
     File.ReadAllBytes(file.FullName)
 
-let private encode(Json json) = Jwt(JWT.Encode(json, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION))
-let private decode(Jwt jwt) = Json(JWT.Decode(jwt, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION))
+let private encode (Json json) = Jwt(JWT.Encode(json, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION))
+let private decode (Jwt jwt) = Json(JWT.Decode(jwt, jwtKey, JWE_ALGORITHM, JWE_ENCRYPTION))
 
-let toJwt (userId:UserId) (userType:UserType) =
+let toJwt userId userType =
     try let jwt = encode(Json(Encode.Auto.toString<UserId * UserType>(4, (userId, userType))))
         Ok jwt
-    with | exn -> Error exn.Message
-let fromJwt(jwt) =
+    with | exn -> Error (ifDebug exn.Message UNEXPECTED_ERROR)
+let fromJwt (jwt) =
     try let (Json json) = decode jwt
         Decode.Auto.fromString<UserId * UserType> json
-    with | exn -> Error exn.Message
+    with | exn -> Error (ifDebug exn.Message INVALID_CREDENTIALS)

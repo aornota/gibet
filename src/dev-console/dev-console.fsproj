@@ -6,8 +6,25 @@
        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
     <ItemGroup>
+        <Compile Include="..\common\error-handling.fs" />
+        <Compile Include="..\common\if-debug.fs" />
+        <Compile Include="..\common\json.fs" />
+        <Compile Include="..\common\revision.fs" />
+        <Compile Include="..\common\unexpected-error.fs" />
+        <Compile Include="..\common\domain\affinity.fs" />
+        <Compile Include="..\common\domain\user.fs" />
+        <Compile Include="..\common\bridge\bridge.fs" />
+        <Compile Include="..\common\api\user-api.fs" />
+        <Compile Include="..\server-common\invalid-credentials.fs" />
+        <Compile Include="..\server\jwt.fs" />
+        <Compile Include="..\server\logger.fs" />
+        <Compile Include="..\server\repo\i-user-repo.fs" />
+        <Compile Include="..\server\repo\in-memory-user-repo-agent.fs" />
+        <Compile Include="..\server\bridge\i-hub.fs" />
+        <Compile Include="..\server\bridge\hub-state.fs" />
+        <Compile Include="..\server\api\user-api-agent.fs" />
+        <Compile Include="test-user-repo-and-api.fs" />
         <Compile Include="console.fs" />
-        <Compile Include="logger.fs" />
         <Compile Include="program.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />

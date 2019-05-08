@@ -14,7 +14,6 @@ open System
 
 open Elmish.React.Common
 
-open Fable.FontAwesome
 open Fable.React.Helpers
 
 open Fulma
