@@ -325,7 +325,7 @@ let private renderChangeImageUrlModal (theme, UserName userName, changeImageUrlM
         | true, true, _ | true, false, false -> [ str "Please check the image preview above" ]
         | true, false, true -> [ str "The image will be removed for " ; bold userName ]
         | _ -> []
-    let image = if String.IsNullOrWhiteSpace imageUrl then iconSmall ICON__USER else image imageUrl Image.Is24x24
+    let image = if String.IsNullOrWhiteSpace imageUrl then iconSmall ICON__USER else image imageUrl Image.Is128x128
     let body = [
         match changeImageUrlModalState.ModalStatus with
         | Some(ModalFailed error) ->
@@ -335,7 +335,7 @@ let private renderChangeImageUrlModal (theme, UserName userName, changeImageUrlM
             yield br
         | _ -> ()
         yield contentCentred [
-            paraTSmaller theme [ str "Please enter the URL for your image (preferably 24x24 PNG)" ]
+            paraTSmaller theme [ str "Please enter the URL for your (preferably square) image" ]
             fieldGroupedCentred [ image ]
             fieldExpanded [
                 textBoxT theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl (Some ICON__IMAGE) false None info true isChangingImageUrl

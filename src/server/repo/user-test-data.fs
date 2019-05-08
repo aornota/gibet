@@ -16,7 +16,7 @@ let create (logger:ILogger) (userRepo:IUserRepo) = asyncResult {
     logger.Information(sourced "Creating user test data..." LOG_SOURCE)
     let initialPassword = Password "password" // note: invalid for IUserApi - but okay for IUserRepo
     let nephId, neph, nephPassword, nephImageUrl =
-        UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "neph", ImageUrl "https://aornota.github.io/djnarration/public/resources/djnarration-24x24.png"
+        UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "neph", ImageUrl "djnarration-128x128.png"
     let rosieId, rosie, rosiePassword, rosieImageUrl =
         UserId(Guid("00000000-0000-0001-0000-000000000000")), UserName "rosie", Password "rosie", ImageUrl "https://aornota.github.io/djnarration/public/resources/cmprssd-0100-128x128.png"
     let hughId, hugh = UserId(Guid("00000000-0000-0002-0000-000000000000")), UserName "hugh"

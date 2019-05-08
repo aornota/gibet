@@ -166,7 +166,7 @@ let private shouldNeverHappen (error:string) (state:State) : State * Cmd<Input> 
 let private handleRemoteUiInput remoteUiInput state =
     let toastImage imageUrl =
         match imageUrl with
-        | Some(ImageUrl imageUrl) -> sprintf "<img src=\"%s\" width=\"24\" height=\"24\" style=\"vertical-align:middle\"><img>&nbsp&nbsp" imageUrl
+        | Some(ImageUrl imageUrl) -> sprintf "<img src=\"%s\" width=\"48\" height=\"48\" style=\"vertical-align:middle\"><img>&nbsp&nbsp" imageUrl
         | None -> String.Empty
     match remoteUiInput, state with
     | Initialized, InitializingConnection connectionId -> ReadingPreferences connectionId, readPreferencesCmd
