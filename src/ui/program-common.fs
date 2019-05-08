@@ -171,7 +171,7 @@ type State =
     | Unauth of UnauthState
     | Auth of AuthState
 
-let [<Literal>] GIBET = "gibet (β)" // note: also update index.html, package.json, README.md and READ_ME (α | β | γ | δ | ε)
+let [<Literal>] GIBET = "gibet (γ)" // note: also update index.html, package.json, README.md and READ_ME (α | β | γ | δ | ε)
 
 let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
     match usersData with

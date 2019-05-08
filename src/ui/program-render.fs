@@ -35,7 +35,7 @@ type private HeaderData = {
 let [<Literal>] private IMAGE__GIBET = "gibet-24x24.png"
 
 // #region TEMP-NMB: READ_ME...
-let [<Literal>] private READ_ME = """# ![gibet](gibet-24x24.png) | gibet (β)
+let [<Literal>] private READ_ME = """# ![gibet](gibet-24x24.png) | gibet (γ)
 
 An opinionated (i.e. decidedly eccentric) "scaffold" for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
