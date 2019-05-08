@@ -14,6 +14,7 @@ open Jose
 open Thoth.Json.Net
 
 let [<Literal>] private JWT_KEY_FILE = "./secret/jwt.key"
+
 let [<Literal>] private JWE_ALGORITHM = JweAlgorithm.A256KW
 let [<Literal>] private JWE_ENCRYPTION = JweEncryption.A256CBC_HS512
 

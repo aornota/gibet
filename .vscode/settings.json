@@ -20,6 +20,7 @@
         , "deploy.zip": true
 		, "LICENSE": true
 		, "paket.lock": true
+		, "yarn-error.log": true
 		, "yarn.lock": true
 	}
 }

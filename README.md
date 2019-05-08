@@ -1,17 +1,19 @@
 # ![gibet](https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png) | gibet (γ)
 
-An opinionated (i.e. decidedly eccentric) "scaffold" for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
+An opinionated (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
 [Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
-Comes with just enough rope for developers to hang themselves with...
+
+The [example web-app](https://gibet.azurewebsites.net/) is running on Azure - albeit on a free service plan (F1), which limits the number of concurrent websocket connections to a
+paltry 5.
 
 And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
 
 ### Prerequisites
 
 - [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.202 (x64)
-- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.12.6
-- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.200.4
+- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_: I'm currently using 5.12.6
+- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_: I'm currently using 5.200.4
 - [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.15.2
 - [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.0
 
@@ -37,7 +39,9 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 - Run/watch for development (debug): _fake build --target run_ (or _fake build -t run_)
 - Build for production (release): _fake build --target build_ (or _fake build -t build_)
-- Deploy to Azure (release): _fake build --target deploy-azure_ (or _fake build -t deploy-azure_); see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
+- Publish for production (release): _fake build --target publish_ (or _fake build -t publish_)
+- Deploy to Azure (release): _fake build --target deploy-azure_ (or _fake build -t deploy-azure_);
+see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
 - Run the dev-console (debug): _fake build --target run-dev-console_ (or _fake build -t run-dev-console_)
 - Help (lists key targets): _fake build --target help_ (or just _fake build_)
 
@@ -45,10 +49,10 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 There are no unit tests yet ;(
 
-However, the repository and web API services have been designed both to work with ASP.NET Core dependency injection - and to facilitate unit testing.
+However, the repository and web API services have been designed to work with ASP.NET Core dependency injection, which should also facilitate unit testing.
 
-See [here](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs) for an example of "testing" IUserRepo (e.g. InMemoryUserRepoAgent) and UserApi
-(e.g. UserApiAgent) from a console project.
+See _[test-user-repo-and-api.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs)_ for an example of "testing" IUserRepo
+(e.g. InMemoryUserRepoAgent) and UserApi (e.g. UserApiAgent) from a console project.
 
 ## To do
 

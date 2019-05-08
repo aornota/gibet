@@ -1,13 +1,13 @@
 /* #region :root (variables) */
 /* Note: Some --{colour} variables correspond to $colour/s defined in gibet-bulma.sass (e.g. --dark corresponds to $dark); others do not. */
 :root {
-    --info: #2f96b4 ; --success: #51a351 ; --warning: #f89406 ; --danger: #bd362f ;
-    --dark: #484848 ; --darker: #363636 ; --even-darker: #242424 ; --darkest: #121212 ;
-    --light: #b7b7b7 ; --lighter: #c9c9c9 ; --even-lighter: #dbdbdb ; --lightest: #ededed ;
+    --info: #2080af ; --success: #208f40 ; --warning: #ef800f ; --danger: #ff2040 ;
+    --dark: #444444 ; --darker: #3c3c3c ; --even-darker: #343434 ; --darkest: #2c2c2c ;
+    --light: #c3c3c3 ; --lighter: #d1d1d1 ; --even-lighter: #dfdfdf ; --lightest: #ededed ;
     --black: black ; --white: white ;
-    --link-external-light: #006060 ; --link-external-light-hover: #00a0a0 ; --link-external-dark: #bfbfff ; --link-external-dark-hover: #8f8fff ;
-    --link-internal-light: #600060 ; --link-internal-light-hover: #a000a0 ; --link-internal-dark: #ffbfbf ; --link-internal-dark-hover: #ff8f8f ;
-    --link-markdown-light: #0060c0 ; --link-markdown-light-hover: #00a0f0 ; --link-markdown-dark: #ff8f5f ; --link-markdown-dark-hover: #ff5f2f ;
+    --link-external-light: #105010 ; --link-external-light-hover: #209040 ; --link-external-dark: #70efbf ; --link-external-dark-hover: #40bf8f ;
+    --link-internal-light: #6030ff ; --link-internal-light-hover: #c040ff ; --link-internal-dark: #ffbfdf ; --link-internal-dark-hover: #cf8faf ;
+    --link-markdown-light: #2000ff ; --link-markdown-light-hover: #4080ff ; --link-markdown-dark: #df8faf; --link-markdown-dark-hover: #af5f7f ;
     --neutral: #808080 ; --neutral-darker: #777777 ; --neutral-lighter: #898989 }
 /* #endregion */
 
@@ -50,7 +50,6 @@ hr.dark { background-color: var(--dark) }
 /* #endregion */
 
 /* #region .control .icon colours */
-/* Note: Icon colour/s only seem to take effect when control does not have focus. */
 .light .control.has-icons-left .icon, .light control.has-icons-right .icon { color: var(--lighter) }
 .dark .control.has-icons-left .icon, .dark control.has-icons-right .icon { color: var(--darker) }
 /* #endregion */

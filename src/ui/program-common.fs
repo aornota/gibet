@@ -136,7 +136,7 @@ type UnauthState = {
     ConnectionState : ConnectionState
     SignInModalState : SignInModalState option }
 
-type ChangePasswordModalState = { // note: no need for UserId and/or UserName since implicitly for the signed in user
+type ChangePasswordModalState = { // note: no need for UserId since implicitly for the AuthUser
     NewPasswordKey : Guid
     NewPassword : string
     NewPasswordChanged : bool
@@ -146,11 +146,10 @@ type ChangePasswordModalState = { // note: no need for UserId and/or UserName si
     MustChangePasswordReason : MustChangePasswordReason option
     ModalStatus : ModalStatus option }
 
-type ChangeImageUrlModalState = { // note: no need for UserId and/or UserName since implicitly for the signed in user
+type ChangeImageUrlModalState = { // note: no need for UserId since implicitly for the AuthUser
     ImageUrlKey : Guid
     ImageUrl : string
     ImageUrlChanged : bool
-    CurrentImageUrl : ImageUrl option
     ModalStatus : ModalStatus option }
 
 type AuthState = {

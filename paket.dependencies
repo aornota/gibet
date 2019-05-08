@@ -55,6 +55,7 @@ group ui
     nuget Fable.Remoting.Client ~> 4
 	nuget Fable.SimpleJson prerelease
     nuget Fulma prerelease
+    nuget Fulma.Extensions.Wikiki.Checkradio
 	nuget Fulma.Extensions.Wikiki.PageLoader prerelease
 	nuget Fulma.Extensions.Wikiki.Tooltip prerelease
 	nuget Thoth.Elmish.Debouncer prerelease

@@ -17,9 +17,9 @@ open Elmish.HMR // note: needs to be last open Elmish.Xyz (see https://elmish.gi
 
 open Fable.Core.JsInterop
 
-createObj [ "sanitize" ==> true ] |> unbox |> Globals.marked.setOptions |> ignore // note: "sanitize" ensures Html rendered as text
+let [<Literal>] private SECONDS_PER_TICK = 1<second/tick> // note: "ignored" if less than 1<second>
 
-let [<Literal>] private SECONDS_PER_TICK = 1<second/tick> // "ignored" if less than 1<second>
+Globals.marked.setOptions(unbox(createObj [ "sanitize" ==> true ])) |> ignore // note: "sanitize" ensures Html within Markdown rendered as text
 
 let private onTick (_:State) =
     let minSecondsPerTick = if SECONDS_PER_TICK >= 1<second/tick> then SECONDS_PER_TICK else 1<second/tick>

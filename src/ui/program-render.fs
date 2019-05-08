@@ -34,21 +34,23 @@ type private HeaderData = {
 
 let [<Literal>] private IMAGE__GIBET = "gibet-24x24.png"
 
-// #region TEMP-NMB: READ_ME...
+// #region TEMP-NMB: READ_ME (note that gibet-24x24.png link differs from README.md)...
 let [<Literal>] private READ_ME = """# ![gibet](gibet-24x24.png) | gibet (γ)
 
-An opinionated (i.e. decidedly eccentric) "scaffold" for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
+An opinionated (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
 [Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
-Comes with just enough rope for developers to hang themselves with...
+
+The [example web-app](https://gibet.azurewebsites.net/) is running on Azure - albeit on a free service plan (F1), which limits the number of concurrent websocket connections to a
+paltry 5.
 
 And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
 
 ### Prerequisites
 
 - [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.202 (x64)
-- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.12.6
-- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.200.4
+- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_: I'm currently using 5.12.6
+- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_: I'm currently using 5.200.4
 - [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.15.2
 - [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.0
 
@@ -74,7 +76,9 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 - Run/watch for development (debug): _fake build --target run_ (or _fake build -t run_)
 - Build for production (release): _fake build --target build_ (or _fake build -t build_)
-- Deploy to Azure (release): _fake build --target deploy-azure_ (or _fake build -t deploy-azure_); see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
+- Publish for production (release): _fake build --target publish_ (or _fake build -t publish_)
+- Deploy to Azure (release): _fake build --target deploy-azure_ (or _fake build -t deploy-azure_);
+see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
 - Run the dev-console (debug): _fake build --target run-dev-console_ (or _fake build -t run-dev-console_)
 - Help (lists key targets): _fake build --target help_ (or just _fake build_)
 
@@ -82,10 +86,10 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 There are no unit tests yet ;(
 
-However, the repository and web API services have been designed both to work with ASP.NET Core dependency injection - and to facilitate unit testing.
+However, the repository and web API services have been designed to work with ASP.NET Core dependency injection, which should also facilitate unit testing.
 
-See [here](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs) for an example of "testing" IUserRepo (e.g. InMemoryUserRepoAgent) and UserApi
-(e.g. UserApiAgent) from a console project.
+See _[test-user-repo-and-api.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs)_ for an example of "testing" IUserRepo
+(e.g. InMemoryUserRepoAgent) and UserApi (e.g. UserApiAgent) from a console project.
 
 ## To do
 
@@ -170,13 +174,13 @@ let private renderHeader headerData dispatch =
         navbarMenuT theme burgerIsActive [
             navbarStart [
                 ofOption authUserDropDown
-                // TODO-NMB...yield navbarItem [ tabs theme { tabsDefault with Tabs = pageTabs } ]
+                // TODO-NMB?...yield navbarItem [ tabs theme { tabsDefault with Tabs = pageTabs } ]
                 ofOption adminDropDown ]
             navbarEnd [
 #if TICK
                 navbarItem [ paraT theme TextSize.Is7 IsGreyDarker TextWeight.Normal [ str (DateTimeOffset.UtcNow.LocalDateTime.ToString("HH:mm:ss")) ] ]
 #endif
-                navbarItem [ buttonT theme (Some IsSmall) IsDark toggleThemeInteraction true false (Some toggleThemeTooltip) [ iconSmall ICON__THEME ] ] ] ] ]
+                navbarItem [ buttonT theme (Some IsSmall) IsDark toggleThemeInteraction false false (Some toggleThemeTooltip) [ iconSmall ICON__THEME ] ] ] ] ]
 // #endregion
 
 let private renderFooter theme =
@@ -273,7 +277,7 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
             let newPasswordError = validatePassword false newPassword
             let confirmPasswordError = validateConfirmationPassword newPassword (Password changePasswordModalState.ConfirmPassword)
             let changePasswordInteraction, onEnter =
-                match newPasswordError, newPasswordError with
+                match newPasswordError, confirmPasswordError with
                 | None, None -> Clickable onEnter, onEnter
                 | _ -> NotEnabled, ignore
             let newPasswordError = if changePasswordModalState.NewPasswordChanged then newPasswordError else None
@@ -307,9 +311,9 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
                 paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink changePasswordInteraction false false None [ str "Change password" ] ] ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
-let private renderChangeImageUrlModal (theme, UserName userName, changeImageUrlModalState:ChangeImageUrlModalState) dispatch =
-    let currentlyNone = match changeImageUrlModalState.CurrentImageUrl with | Some _ -> false | None -> true
-    let imageUrl = changeImageUrlModalState.ImageUrl
+let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState:ChangeImageUrlModalState) dispatch =
+    let UserName userName, currentImageUrl, imageUrl = authUser.User.UserName, authUser.User.ImageUrl, changeImageUrlModalState.ImageUrl
+    let currentlyNone = match currentImageUrl with | Some _ -> false | None -> true
     let chooseOrChange = if currentlyNone then "Choose" else "Change"
     let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str (sprintf "%s image for " chooseOrChange) ; bold userName ] ] ]
     let hasChanged, onDismiss, isChangingImageUrl, changeImageUrlInteraction, onEnter =
@@ -318,7 +322,7 @@ let private renderChangeImageUrlModal (theme, UserName userName, changeImageUrlM
         | Some ModalPending -> false, None, true, Loading, ignore
         | _ ->
             let imageUrl = if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
-            if imageUrl <> changeImageUrlModalState.CurrentImageUrl then true, Some onDismiss, false, Clickable onEnter, onEnter
+            if imageUrl <> currentImageUrl then true, Some onDismiss, false, Clickable onEnter, onEnter
             else false, Some onDismiss, false, NotEnabled, ignore
     let info =
         match hasChanged, currentlyNone, String.IsNullOrWhiteSpace imageUrl with
@@ -421,6 +425,6 @@ let render state dispatch =
                     yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState)
                         (ChangePasswordModalInput >> AuthInput >> AppInput >> dispatch)
                 | None, Some changeImageUrlModalState ->
-                    yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser.User.UserName, changeImageUrlModalState)
+                    yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser, changeImageUrlModalState)
                         (ChangeImageUrlModalInput >> AuthInput >> AppInput >> dispatch)
                 | None, None -> () ]

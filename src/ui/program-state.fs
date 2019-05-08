@@ -27,7 +27,8 @@ open Thoth.Elmish
 open Thoth.Json
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
-let [<Literal>] private ACTIVITY_DEBOUNCER_THRESHOLD = 15.<second> // "ignored" if less than 5.<second>
+
+let [<Literal>] private ACTIVITY_DEBOUNCER_THRESHOLD = 15.<second> // note: "ignored" if less than 5.<second>
 
 let private setBodyClass theme =
     Browser.document.body.className <- themeClass theme
@@ -123,7 +124,6 @@ let private changeImageUrlModalState imageUrl = {
     ImageUrlKey = Guid.NewGuid()
     ImageUrl = match imageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> String.Empty
     ImageUrlChanged = false
-    CurrentImageUrl = imageUrl
     ModalStatus = None }
 let private authState appState connectionState authUser mustChangePasswordReason =
     let changePasswordModalState =
@@ -518,5 +518,5 @@ let transition input state : State * Cmd<Input> =
         Auth { authState with SigningOut = true }, cmd
     | AppInput(AuthInput(SignOutInput signOutInput)), Auth authState, _ -> state |> handleSignOutInput signOutInput authState
     | AppInput(AuthInput(GetUsersInput getUsersInput)), Auth authState, _ -> state |> handleGetUsersInput getUsersInput authState
-    | AppInput(AuthInput TempShowUserAdminPage), Auth authState, _ -> state, "User administration -> not yet implemented" |> warningToastCmd // TEMP-NMB...
+    | AppInput(AuthInput TempShowUserAdminPage), Auth authState, _ -> state, "The <strong>User administration</strong> page has not yet been implemented" |> warningToastCmd // TEMP-NMB...
     | _ -> state |> shouldNeverHappen (sprintf "Unexpected Input when %A -> %A" state input)
