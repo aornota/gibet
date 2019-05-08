@@ -45,7 +45,7 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 There are no unit tests yet ;(
 
-However, the repository and web APIs have been designed both to work with ASP.NET Core dependency injection - and to facilitate unit testing.
+However, the repository and web API services have been designed both to work with ASP.NET Core dependency injection - and to facilitate unit testing.
 
 See [here](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs) for an example of "testing" IUserRepo (e.g. InMemoryUserRepoAgent) and UserApi
 (e.g. UserApiAgent) from a console project.
