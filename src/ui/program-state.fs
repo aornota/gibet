@@ -164,6 +164,10 @@ let private shouldNeverHappen (error:string) (state:State) : State * Cmd<Input> 
 // #endregion
 
 let private handleRemoteUiInput remoteUiInput state =
+    let toastImage imageUrl =
+        match imageUrl with
+        | Some(ImageUrl imageUrl) -> sprintf "<img src=\"%s\" width=\"24\" height=\"24\" style=\"vertical-align:middle\"><img>&nbsp&nbsp" imageUrl
+        | None -> String.Empty
     match remoteUiInput, state with
     | Initialized, InitializingConnection connectionId -> ReadingPreferences connectionId, readPreferencesCmd
     | Registered(connectionId, serverStarted), RegisteringConnection registeringConnectionState ->
@@ -190,7 +194,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 match usersData |> findUser userId with
                 | Some(user, _, _) ->
                     let (UserName userName) = user.UserName
-                    sprintf "<strong>%s</strong> has signed in" userName |> infoToastCmd
+                    sprintf "%s<strong>%s</strong> has signed in" (toastImage user.ImageUrl) userName |> infoToastCmd
                 | None -> Cmd.none
             state, toastCmd
     | UserSignedOut userId, Auth authState ->
@@ -203,7 +207,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 match usersData |> findUser userId with
                 | Some(user, _, _) ->
                     let (UserName userName) = user.UserName
-                    sprintf "<strong>%s</strong> has signed out" userName |> infoToastCmd
+                    sprintf "%s<strong>%s</strong> has signed out" (toastImage user.ImageUrl) userName |> infoToastCmd
                 | None -> Cmd.none
             state, toastCmd
     | ForceUserSignOut forcedSignOutReason, Auth authState ->

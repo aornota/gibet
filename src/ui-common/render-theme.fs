@@ -65,7 +65,7 @@ let footerT theme useAlternativeClass children =
 let private linkT theme linkType children =
     let customClasses = [
         yield themeClass theme
-        match linkType with | Internal _ -> yield "internal" | _ -> () ]
+        match linkType with | Internal _ | DownloadFile _ -> yield "internal" | NewWindow _ -> yield "external" ]
     let customClass = match customClasses with | _ :: _ -> Some(String.concat SPACE customClasses) | [] -> None
     a [
         match customClass with | Some customClass -> yield ClassName customClass :> IHTMLProp | None -> ()
