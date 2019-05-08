@@ -119,6 +119,12 @@ let private changePasswordModalState mustChangePasswordReason = {
     ConfirmPasswordChanged = false
     MustChangePasswordReason = mustChangePasswordReason
     ModalStatus = None }
+let private changeImageUrlModalState imageUrl = {
+    ImageUrlKey = Guid.NewGuid()
+    ImageUrl = match imageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> String.Empty
+    ImageUrlChanged = false
+    CurrentImageUrl = imageUrl
+    ModalStatus = None }
 let private authState appState connectionState authUser mustChangePasswordReason =
     let changePasswordModalState =
         match mustChangePasswordReason with
@@ -130,6 +136,7 @@ let private authState appState connectionState authUser mustChangePasswordReason
         AuthUser = authUser
         ActivityDebouncerState = Debouncer.create()
         ChangePasswordModalState = changePasswordModalState
+        ChangeImageUrlModalState = None
         SigningOut = false
         UsersData = NotRequested
     }
@@ -213,8 +220,10 @@ let private handleRemoteUiInput remoteUiInput state =
             writePreferencesCmd (preferencesOrDefault state) ]
         state, cmds
     | UserUpdated(user, usersRvn), Auth authState ->
+        let authUser = authState.AuthUser
+        let authUser = if user.UserId = authUser.User.UserId then { authUser with User = user } else authUser
         let usersData, error = authState.UsersData |> updateUser user usersRvn
-        let state = Auth { authState with UsersData = usersData }
+        let state = Auth { authState with AuthUser = authUser ; UsersData = usersData }
         match error with
         | Some error -> state |> shouldNeverHappen error
         | None -> state, ifDebug (sprintf "%A updated (UsersData now %A)" user.UserId usersRvn |> infoToastCmd) Cmd.none
@@ -365,8 +374,9 @@ let private handleChangePasswordModalInput changePasswordModalInput (authState:A
             let changePasswordModalState = { changePasswordModalState with ConfirmPassword = confirmPassword ; ConfirmPasswordChanged = true }
             Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none
         | ChangePassword, _ ->
-            (* Note that we cannot rely on authState.AuthUser.User.Rvn since *not* updated when handling RemoteUiInput(UserUpdated _) - and even if it was updated, we still need to
-               follow this alternative get-user-from-UsersData approach to ascertaining the current Rvn for userApi.resetPassword | userApi.changeUserType | &c. *)
+            (* Note that although we could use authState.AuthUser.User.Rvn (rather than take this get-user-from-UsersData approach) - because authState.AuthUser.User *will* be updated
+               when handling RemoteUiInput(UserUpdated _) - we will need to follow this alternative approach to ascertaining the current Rvn for uesrApi.resetPassword &c. *)
+            // TODO-NMB: Switch to using authState.AuthUser.User.Rvn (cf. handling of ChangeImageUrlModalInput ChangeImageUrl below)?...
             match authState.UsersData |> findUser authState.AuthUser.User.UserId with
             | Some(user, _, _) ->
                 let password = Password(changePasswordModalState.NewPassword.Trim())
@@ -391,10 +401,44 @@ let private handleChangePasswordInput changePasswordInput (authState:AuthState) 
                 Auth { authState with ChangePasswordModalState = None }, sprintf "Password changed for <strong>%s</strong>" userName |> successToastCmd
             | ChangePasswordResult(Error error) ->
                 let changePasswordModalState = { changePasswordModalState with ModalStatus = Some(ModalFailed error) }
-                Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
+                Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none // no need for toast (since error will be displayed on ChangePasswordModal)
             | ChangePasswordExn exn -> state, AppInput(AuthInput(ChangePasswordInput(ChangePasswordResult(Error exn.Message)))) |> Cmd.ofMsg
         | _ -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordInput when ChangePasswordModalState.ModalStatus is not Pending (%A) -> %A" state changePasswordInput)
     | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordInput when ChangePasswordModalState is None (%A) -> %A" state changePasswordInput)
+
+let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:AuthState) state =
+    match authState.ChangeImageUrlModalState with
+    | Some changeImageUrlModalState ->
+        match changeImageUrlModalInput, changeImageUrlModalState.ModalStatus with
+        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlModalInput when ChangeImageUrlModalState.ModalStatus is Pending (%A) -> %A" state changeImageUrlModalInput)
+        | ImageUrlChanged imageUrl, _ ->
+            let changeImageUrlModalState = { changeImageUrlModalState with ImageUrl = imageUrl ; ImageUrlChanged = true }
+            Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none
+        | ChangeImageUrl, _ ->
+            // Note that we *do* use authState.AuthUser.User.Rvn here (cf. handling of ChangePasswordModalInput ChangePassword above).
+            let imageUrl = changeImageUrlModalState.ImageUrl
+            let imageUrl = if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
+            let cmd =
+                Cmd.OfAsync.either userApi.changeImageUrl (authState.AuthUser.Jwt, imageUrl, authState.AuthUser.User.Rvn) ChangeImageUrlResult ChangeImageUrlExn
+                |> Cmd.map (ChangeImageUrlInput >> AuthInput >> AppInput)
+            let changeImageUrlModalState = { changeImageUrlModalState with ModalStatus = Some ModalPending }
+            Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, cmd
+        | CancelChangeImageUrl, _ -> Auth { authState with ChangeImageUrlModalState = None }, Cmd.none
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlModalInput when ChangeImageUrlModalState is None (%A) -> %A" state changeImageUrlModalInput)
+let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) state =
+    match authState.ChangeImageUrlModalState with
+    | Some changeImageUrlModalState ->
+        match changeImageUrlModalState.ModalStatus with
+        | Some ModalPending ->
+            match changeImageUrlInput with
+            | ChangeImageUrlResult(Ok(UserName userName)) ->
+                Auth { authState with ChangeImageUrlModalState = None }, sprintf "Image changed for <strong>%s</strong>" userName |> successToastCmd
+            | ChangeImageUrlResult(Error error) ->
+                let changeImageUrlModalState = { changeImageUrlModalState with ModalStatus = Some(ModalFailed error) }
+                Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none // no need for toast (since error will be displayed on ChangeImageUrlModal)
+            | ChangeImageUrlExn exn -> state, AppInput(AuthInput(ChangeImageUrlInput(ChangeImageUrlResult(Error exn.Message)))) |> Cmd.ofMsg
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlInput when changeImageUrlModalState.ModalStatus is not Pending (%A) -> %A" state changeImageUrlInput)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlInput when changeImageUrlModalState is None (%A) -> %A" state changeImageUrlInput)
 
 let private handleSignOutInput signOutInput (authState:AuthState) state =
     match signOutInput with
@@ -459,6 +503,12 @@ let transition input state : State * Cmd<Input> =
         | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
     | AppInput(AuthInput(ChangePasswordModalInput changePasswordModalInput)), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
     | AppInput(AuthInput(ChangePasswordInput changePasswordInput)), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
+    | AppInput(AuthInput ShowChangeImageUrlModal), Auth authState, _ ->
+        match authState.ChangeImageUrlModalState with
+        | Some changeImageUrlModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is %A" changeImageUrlModalState)
+        | None -> Auth { authState with ChangeImageUrlModalState = Some(changeImageUrlModalState authState.AuthUser.User.ImageUrl) }, Cmd.none
+    | AppInput(AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput)), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
+    | AppInput(AuthInput(ChangeImageUrlInput changeImageUrlInput)), Auth authState, _ -> state |> handleChangeImageUrlInput changeImageUrlInput authState
     | AppInput(AuthInput SignOut), Auth authState, _ ->
         let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutInput >> AuthInput >> AppInput)
         Auth { authState with SigningOut = true }, cmd

@@ -53,6 +53,14 @@ type ChangePasswordInput =
     | ChangePasswordResult of Result<UserName, string>
     | ChangePasswordExn of exn
 
+type ChangeImageUrlModalInput =
+    | ImageUrlChanged of string
+    | ChangeImageUrl
+    | CancelChangeImageUrl
+type ChangeImageUrlInput =
+    | ChangeImageUrlResult of Result<UserName, string>
+    | ChangeImageUrlExn of exn
+
 type SignOutInput =
     | SignOutResult of Result<unit, string>
     | SignOutExn of exn
@@ -65,6 +73,9 @@ type AuthInput =
     | ShowChangePasswordModal
     | ChangePasswordModalInput of ChangePasswordModalInput
     | ChangePasswordInput of ChangePasswordInput
+    | ShowChangeImageUrlModal
+    | ChangeImageUrlModalInput of ChangeImageUrlModalInput
+    | ChangeImageUrlInput of ChangeImageUrlInput
     | SignOut
     | SignOutInput of SignOutInput
     | GetUsersInput of GetUsersInput
@@ -74,7 +85,7 @@ type AppInput =
     | UnauthInput of UnauthInput
     | AuthInput of AuthInput
 
-type AppState = { // TODO-NMB?...StaticModal : StaticModal option
+type AppState = {
     Ticks : int<tick> // note: will only be updated when TICK is defined (see webpack.config.js)
     AffinityId : AffinityId
     Theme : Theme
@@ -91,9 +102,6 @@ type Input =
     | OnDebouncedActivity // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     | ToggleTheme
     | ToggleNavbarBurger
-    (* TODO-NMB?...
-    | ShowStaticModal of staticModal : StaticModal
-    | HideStaticModal *)
     | AutoSignInInput of AutoSignInInput
     | AppInput of AppInput
 
@@ -138,12 +146,20 @@ type ChangePasswordModalState = { // note: no need for UserId and/or UserName si
     MustChangePasswordReason : MustChangePasswordReason option
     ModalStatus : ModalStatus option }
 
+type ChangeImageUrlModalState = { // note: no need for UserId and/or UserName since implicitly for the signed in user
+    ImageUrlKey : Guid
+    ImageUrl : string
+    ImageUrlChanged : bool
+    CurrentImageUrl : ImageUrl option
+    ModalStatus : ModalStatus option }
+
 type AuthState = {
     AppState : AppState
     ConnectionState : ConnectionState
     AuthUser : AuthUser
     ActivityDebouncerState : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     ChangePasswordModalState : ChangePasswordModalState option
+    ChangeImageUrlModalState : ChangeImageUrlModalState option
     SigningOut : bool
     UsersData : RemoteData<UserData list, string> }
 

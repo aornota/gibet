@@ -7,12 +7,13 @@ open Aornota.Gibet.Common.Revision
 
 let [<Literal>] NOT_ALLOWED = "Not allowed"
 
-type UserApi = { // TODO-NMB: More?...
+type UserApi = {
     signIn : ConnectionId * UserName * Password -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     autoSignIn : ConnectionId * Jwt -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     signOut : ConnectionId * Jwt -> AsyncResult<unit, string>
     changePassword : Jwt * Password * Rvn -> AsyncResult<UserName, string>
+    changeImageUrl : Jwt * ImageUrl option * Rvn -> AsyncResult<UserName, string>
     getUsers : ConnectionId * Jwt -> AsyncResult<(User * bool) list * Rvn, string>
-    createUser : Jwt * UserName * Password * UserType -> AsyncResult<UserName, string>
+    createUser : Jwt * UserName * Password * UserType * ImageUrl option -> AsyncResult<UserName, string>
     resetPassword : Jwt * UserId * Password * Rvn -> AsyncResult<UserName, string>
     changeUserType : Jwt * UserId * UserType * Rvn -> AsyncResult<UserName, string> }

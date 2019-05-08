@@ -30,6 +30,8 @@ type private HeaderData = {
     AppState : AppState
     HeaderState : HeaderState }
 
+let [<Literal>] IMAGE__GIBET = "gibet-24x24.png"
+
 // #region renderHeader
 let private renderHeader headerData dispatch =
     let theme, burgerIsActive = headerData.AppState.Theme, headerData.AppState.NavbarBurgerIsActive
@@ -67,12 +69,21 @@ let private renderHeader headerData dispatch =
     let authUserDropDown =
         match headerData.HeaderState with
         | SignedIn(_, authUser) ->
-            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangePasswordModal |> AuthInput |> AppInput) ) [ str "Change password" ] ]
+            let image, currentlyNone =
+                match authUser.User.ImageUrl with
+                | Some(ImageUrl imageUrl) -> image imageUrl Image.Is24x24, false
+                | None -> iconSmaller ICON__USER, true
+            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangePasswordModal |> AuthInput |> AppInput)) [ str "Change password" ] ]
+            let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangeImageUrlModal |> AuthInput |> AppInput)) [
+                    str (sprintf "%s image" (if currentlyNone then "Choose" else "Change"))] ]
             let signOut = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (SignOut |> AuthInput |> AppInput) ) [ str "Sign out" ] ]
-            Some(navbarDropDownT theme (iconSmaller ICON__USER) [
+            Some(navbarDropDownT theme image [
                 let userId, userType = authUser.User.UserId, authUser.User.UserType
                 match canChangePassword userId (userId, userType) with
                 | true -> yield navbarDropDownItemT theme false [ changePassword ]
+                | false -> ()
+                match canChangeImageUrl userId (userId, userType) with
+                | true -> yield navbarDropDownItemT theme false [ changeImageUrl ]
                 | false -> ()
                 yield navbarDropDownItemT theme false [ signOut ] ])
         | _ -> None
@@ -89,7 +100,7 @@ let private renderHeader headerData dispatch =
     let toggleThemeTooltip = tooltip (if burgerIsActive then TooltipRight else TooltipLeft) IsInfo (sprintf "Switch to %s theme" (match theme with | Light -> "dark" | Dark -> "light"))
     navbarT theme IsLight [
         navbarBrand [
-            yield navbarItem [ image "gibet-24x24.png" Image.Is24x24 ]
+            yield navbarItem [ image IMAGE__GIBET Image.Is24x24 ]
             yield navbarItem [ paraT theme TextSize.Is7 IsBlack TextWeight.Bold [ str GIBET ] ]
             yield ofOption serverStatus
             yield! statusItems |> List.map (fun element -> navbarItem [ element ])
@@ -234,6 +245,43 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
                 paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink changePasswordInteraction false false None [ str "Change password" ] ] ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
+let private renderChangeImageUrlModal (theme, UserName userName, changeImageUrlModalState:ChangeImageUrlModalState) dispatch =
+    let currentlyNone = match changeImageUrlModalState.CurrentImageUrl with | Some _ -> false | None -> true
+    let imageUrl = changeImageUrlModalState.ImageUrl
+    let chooseOrChange = if currentlyNone then "Choose" else "Change"
+    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str (sprintf "%s image for " chooseOrChange) ; bold userName ] ] ]
+    let hasChanged, onDismiss, isChangingImageUrl, changeImageUrlInteraction, onEnter =
+        let onDismiss, onEnter = (fun _ -> dispatch CancelChangeImageUrl), (fun _ -> dispatch ChangeImageUrl)
+        match changeImageUrlModalState.ModalStatus with
+        | Some ModalPending -> false, None, true, Loading, ignore
+        | _ ->
+            let imageUrl = if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
+            if imageUrl <> changeImageUrlModalState.CurrentImageUrl then true, Some onDismiss, false, Clickable onEnter, onEnter
+            else false, Some onDismiss, false, NotEnabled, ignore
+    let info =
+        match hasChanged, currentlyNone, String.IsNullOrWhiteSpace imageUrl with
+        | true, true, _ | true, false, false -> [ str "Please check the image preview above" ]
+        | true, false, true -> [ str "The image will be removed for " ; bold userName ]
+        | _ -> []
+    let image = if String.IsNullOrWhiteSpace imageUrl then iconSmall ICON__USER else image imageUrl Image.Is24x24
+    let body = [
+        match changeImageUrlModalState.ModalStatus with
+        | Some(ModalFailed error) ->
+            yield notificationT theme IsDanger None [
+                contentCentred [ paraTSmaller theme [ str "Unable to change image for " ; bold userName ] ]
+                paraTSmallest theme [ str error ] ]
+            yield br
+        | _ -> ()
+        yield contentCentred [
+            paraTSmaller theme [ str "Please enter the URL for your image (preferably 24x24 PNG)" ]
+            fieldGroupedCentred [ image ]
+            fieldExpanded [
+                textBoxT theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl (Some ICON__IMAGE) false None info true isChangingImageUrl
+                    (ImageUrlChanged >> dispatch) onEnter ]
+            fieldGroupedCentred [
+                paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink changeImageUrlInteraction false false None [ str (sprintf "%s image" chooseOrChange) ] ] ] ] ]
+    cardModalT theme (Some(title, onDismiss)) body
+
 let private renderSigningOutModal theme =
     cardModalT theme None [ contentCentred [ paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Signing out... " ; iconSmall ICON__SPINNER_PULSE ] ] ]
 
@@ -282,7 +330,7 @@ let render state dispatch =
         div [] [
             yield lazyView2 renderHeader headerData dispatch
             yield divVerticalSpace 25
-            yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is4 IsBlack TextWeight.SemiBold [ str "Work-in-progress..." ] ] ] ] // TEMP-NMB...
+            yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is4 IsBlack TextWeight.Bold [ str "Work-in-progress..." ] ] ] ] // TEMP-NMB...
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
@@ -300,13 +348,17 @@ let render state dispatch =
         div [] [
             yield lazyView2 renderHeader headerData dispatch
             yield divVerticalSpace 25
-            yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is4 IsBlack TextWeight.SemiBold [ str "Work-in-progress..." ] ] ] ] // TEMP-NMB...
+            yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is4 IsBlack TextWeight.Bold [ str "Work-in-progress..." ] ] ] ] // TEMP-NMB...
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
             else if authState.SigningOut then yield lazyView renderSigningOutModal theme
             else
-                match authState.ChangePasswordModalState with
-                | Some changePasswordModalState ->
-                    yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState) (ChangePasswordModalInput >> AuthInput >> AppInput >> dispatch)
-                | None -> () ]
+                match authState.ChangePasswordModalState, authState.ChangeImageUrlModalState with
+                | Some changePasswordModalState, _ ->
+                    yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState)
+                        (ChangePasswordModalInput >> AuthInput >> AppInput >> dispatch)
+                | None, Some changeImageUrlModalState ->
+                    yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser.User.UserName, changeImageUrlModalState)
+                        (ChangeImageUrlModalInput >> AuthInput >> AppInput >> dispatch)
+                | None, None -> () ]

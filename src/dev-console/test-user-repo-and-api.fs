@@ -29,7 +29,8 @@ let private hub = { // note: fake implementation that literally does nothing!
 let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTestData.create
     // #region UserIds &c.
     let initialPassword = Password "password" // note: invalid for IUserApi - but okay for IUserRepo
-    let nephId, neph, nephPassword = UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "nephhpen"
+    let nephId, neph, nephPassword, nephImageUrl =
+        UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "nephhpen", ImageUrl "https://aornota.github.io/djnarration/public/resources/djnarration-24x24.png"
     let rosieId, rosie = UserId(Guid("00000000-0000-0001-0000-000000000000")), UserName "rosie"
     let hughId, hugh, hughPassword = UserId(Guid("00000000-0000-0002-0000-000000000000")), UserName "hugh", Password "hughhguh"
     let willId, will = UserId(Guid("00000000-0000-0000-0001-000000000000")), UserName "will"
@@ -38,10 +39,10 @@ let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTe
     // #region IMemoryUserRepoAgent
     Log.Logger.Information(sourced "Testing user repository..." LOG_SOURCE)
     let userRepo = InMemoryUserRepoAgent(Log.Logger) :> IUserRepo
-    let! nephUser = userRepo.CreateUser(Some nephId, neph, initialPassword, BenevolentDictatorForLife)
-    let! _ = userRepo.CreateUser(Some rosieId, rosie, initialPassword, Administrator)
-    let! hughUser = userRepo.CreateUser(Some hughId, hugh, initialPassword, Pleb)
-    let! _ = userRepo.CreateUser(Some willId, will, initialPassword, Pleb)
+    let! nephUser = userRepo.CreateUser(Some nephId, neph, initialPassword, BenevolentDictatorForLife, Some nephImageUrl)
+    let! _ = userRepo.CreateUser(Some rosieId, rosie, initialPassword, Administrator, None)
+    let! hughUser = userRepo.CreateUser(Some hughId, hugh, initialPassword, Pleb, None)
+    let! _ = userRepo.CreateUser(Some willId, will, initialPassword, Pleb, None)
     Log.Logger.Information(sourced "...user repository tested" LOG_SOURCE)
     // #endregion
     // #region UserApiAgent
@@ -49,13 +50,19 @@ let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTe
     let userApi, connectionId = UserApiAgent(userRepo, hub, Log.Logger), ConnectionId.Create()
     let! authUser, _ = userApi.SignIn(connectionId, neph, initialPassword)
     let! _ = userApi.GetUsers(connectionId, authUser.Jwt)
-    let! _ = userApi.ChangePassword(authUser.Jwt, nephPassword, nephUser.Rvn)
-    let! _ = userApi.ResetPassword(authUser.Jwt, hughId, hughPassword, hughUser.Rvn)
-    let hughUser = { hughUser with Rvn = incrementRvn hughUser.Rvn }
-    let! _ = userApi.ChangeUserType(authUser.Jwt, hughId, Administrator, hughUser.Rvn)
+    let nephRvn = nephUser.Rvn
+    let! _ = userApi.ChangePassword(authUser.Jwt, nephPassword, nephRvn)
+    let nephRvn = incrementRvn nephRvn
+    let! _ = userApi.ChangeImageUrl(authUser.Jwt, None, nephRvn)
+    let nephRvn = incrementRvn nephRvn
+    let hughRvn = hughUser.Rvn
+    let! _ = userApi.ResetPassword(authUser.Jwt, hughId, hughPassword, hughRvn)
+    let hughRvn = incrementRvn hughRvn
+    let! _ = userApi.ChangeUserType(authUser.Jwt, hughId, Administrator, hughRvn)
+    let hughRvn = incrementRvn hughRvn
     let! _ = userApi.SignOut(connectionId, authUser.Jwt)
     let! authUser, _ = userApi.AutoSignIn(connectionId, authUser.Jwt)
-    let! _ = userApi.CreateUser(authUser.Jwt, satan, satanPassword, PersonaNonGrata)
+    let! _ = userApi.CreateUser(authUser.Jwt, satan, satanPassword, PersonaNonGrata, None)
     Log.Logger.Information(sourced "...user Api tested" LOG_SOURCE)
     // #endregion
     return () }

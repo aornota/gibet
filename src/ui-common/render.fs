@@ -46,6 +46,7 @@ let contentLeft children = content TextAlignment.Left children
 let contentRight children = content TextAlignment.Right children
 
 let private field options children = Field.div [ yield! options ] children
+let fieldExpanded children = field [ Field.IsExpanded ] children
 let fieldGroupedCentred children = field [ Field.IsGroupedCentered ] children
 
 let private icon size options iconClass =

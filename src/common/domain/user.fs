@@ -8,17 +8,19 @@ type UserId = | UserId of Guid with static member Create() = UserId(Guid.NewGuid
 
 type UserName = | UserName of string
 type Password = | Password of string
+type ImageUrl = | ImageUrl of string
 
 type UserType = | BenevolentDictatorForLife | Administrator | Pleb | PersonaNonGrata
 
 type MustChangePasswordReason = | FirstSignIn | PasswordReset
 type ForcedSignOutReason = | UserTypeChanged | PasswordReset
 
-type User = { // TODO-NMB?...AvatarUrl : string option // e.g. https://github.com/aornota/djnarration/blob/master/src/resources/images/djnarration-24x24.png
+type User = {
     UserId : UserId
     Rvn : Rvn
     UserName : UserName
-    UserType : UserType }
+    UserType : UserType
+    ImageUrl : ImageUrl option }
 
 type Jwt = | Jwt of string
 
@@ -34,7 +36,7 @@ let validateUserName forSignIn (UserName userName) (userNames:UserName list) = /
 let validatePassword forSignIn (Password password) = // TODO-NMB: Other restrictions?...
     if String.IsNullOrWhiteSpace password then Some "Password must not be blank"
     else if not forSignIn && password.Trim().Length < 6 then Some "Password must be at least 6 characters"
-    else if not forSignIn && (password.Trim()).ToLower() = "password" then Some (sprintf "'%s' is not a valid password!" (password.Trim()))
+    else if not forSignIn && password.Trim().ToLower() = "password" then Some (sprintf "'%s' is not a valid password!" (password.Trim()))
     else None
 let validateConfirmationPassword newPassword confirmationPassword =
     if newPassword <> confirmationPassword then Some "Confirmation password must match new password"
@@ -77,3 +79,4 @@ let canChangeUserTypeTo (forUserId, forUserType) newUserType (userId:UserId, use
     if not (canChangeUserType (forUserId, forUserType) (userId, userType)) then false
     else if forUserType = newUserType then false
     else canCreateUser newUserType userType
+let canChangeImageUrl forUserId (userId:UserId, userType) = canChangePassword forUserId (userId, userType)

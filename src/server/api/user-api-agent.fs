@@ -32,8 +32,9 @@ type private Input =
     | AutoSignIn of ConnectionId * Jwt * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
     | SignOut of ConnectionId * Jwt * AsyncReplyChannelResult<unit, string>
     | ChangePassword of Jwt * Password * Rvn * AsyncReplyChannelResult<UserName, string>
+    | ChangeImageUrl of Jwt * ImageUrl option * Rvn * AsyncReplyChannelResult<UserName, string>
     | GetUsers of ConnectionId * Jwt * AsyncReplyChannelResult<(User * bool) list * Rvn, string>
-    | CreateUser of Jwt * UserName * Password * UserType * AsyncReplyChannelResult<UserName, string>
+    | CreateUser of Jwt * UserName * Password * UserType * ImageUrl option * AsyncReplyChannelResult<UserName, string>
     | ResetPassword of Jwt * UserId * Password * Rvn * AsyncReplyChannelResult<UserName, string>
     | ChangeUserType of Jwt * UserId * UserType * Rvn * AsyncReplyChannelResult<UserName, string>
 
@@ -58,6 +59,8 @@ let private updateUser user (userDict:UserDict) =
 let private findUserId userId (userDict:UserDict) =
     if userDict.ContainsKey userId then Ok userDict.[userId]
     else Error(ifDebug (sprintf "%s.findUserId -> Unable to find %A" LOG_SOURCE userId) UNEXPECTED_ERROR)
+
+let private validatePassword password = match validatePassword false password with | Some error -> Error error | None -> Ok()
 
 type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:ILogger) =
     let agent = MailboxProcessor<_>.Start(fun inbox ->
@@ -132,7 +135,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! _ =
                         if canChangePassword userId (userId, userType) then Ok()
                         else Error(ifDebug (sprintf "%s.ChangePassword -> canChangePassword for %A (%A) returned false" LOG_SOURCE userId userType) UNEXPECTED_ERROR)
-                    let! _ = match validatePassword false password with | Some error -> Error error | None -> Ok()
+                    let! _ = validatePassword password
                     return userId}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
@@ -159,6 +162,39 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                         agentRvn
                 reply.Reply (result |> Result.map fst)
                 return! loop (userDict, agentRvn)
+            | ChangeImageUrl(jwt, imageUrl, rvn, reply) ->
+                let result = result {
+                    let! _ = if debugFakeError() then Error(sprintf "Fake ChangeImageUrl error -> %A" jwt) else Ok()
+                    let! userId, userType = fromJwt jwt
+                    let! _ =
+                        if canChangeImageUrl userId (userId, userType) then Ok()
+                        else Error(ifDebug (sprintf "%s.ChangeImageUrl -> canChangeImageUrl for %A (%A) returned false" LOG_SOURCE userId userType) UNEXPECTED_ERROR)
+                    return userId}
+                let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
+                    match result with
+                    | Ok userId ->
+                        let! repoResult = userRepo.ChangeImageUrl(userId, imageUrl, rvn)
+                        return
+                            match repoResult with
+                            | Ok user ->
+                                match userDict |> updateUser user with
+                                | Ok _ ->
+                                    let agentRvn = incrementRvn agentRvn
+                                    hub.SendClientIf hasUsers (UserUpdated(user,agentRvn))
+                                    Ok(user.UserName, agentRvn)
+                                | Error error -> Error error
+                            | Error error -> Error error
+                    | Error error -> return Error error }
+                let agentRvn =
+                    match result with
+                    | Ok(userName, agentRvn) ->
+                        logger.Debug(sourced "Image URL changed for {userName} (UserApiAgent now {rvn})" LOG_SOURCE, userName, agentRvn)
+                        agentRvn
+                    | Error error ->
+                        logger.Warning(sourced "Unable to change image URL (UserApiAgent {rvn} unchanged) -> {error}" LOG_SOURCE, agentRvn, error)
+                        agentRvn
+                reply.Reply (result |> Result.map fst)
+                return! loop (userDict, agentRvn)
             | GetUsers(connectionId, jwt, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake GetUsers error -> %A" jwt) else Ok()
@@ -171,7 +207,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                 | Error error -> logger.Warning(sourced "Unable to get users -> {error}" LOG_SOURCE, error)
                 reply.Reply result
                 return! loop (userDict, agentRvn)
-            | CreateUser(jwt, userName, password, userType, reply) ->
+            | CreateUser(jwt, userName, password, userType, imageUrl, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake CreateUser error -> %A" jwt) else Ok()
                     let! _, jwtUserType = fromJwt jwt
@@ -180,12 +216,12 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                         else Error(ifDebug (sprintf "%s.CreateUser -> canCreateUser for %A returned false for %A" LOG_SOURCE userType jwtUserType) UNEXPECTED_ERROR)
                     let userNames = userDict.Values |> List.ofSeq |> List.map (fun user -> user.UserName)
                     let! _ = match validateUserName false userName userNames with | Some error -> Error error | None -> Ok()
-                    let! _ = match validatePassword false password with | Some error -> Error error | None -> Ok()
+                    let! _ = validatePassword password
                     return ()}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
                     | Ok _ ->
-                        let! repoResult = userRepo.CreateUser(None, userName, password, userType)
+                        let! repoResult = userRepo.CreateUser(None, userName, password, userType, imageUrl)
                         return
                             match repoResult with
                             | Ok user ->
@@ -215,7 +251,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! _ =
                         if canResetPassword (userId, user.UserType) (jwtUserId, jwtUserType) then Ok()
                         else Error(ifDebug (sprintf "%s.ResetPassword -> canResetPassword for %A (%A) returned false for %A (%A)" LOG_SOURCE userId user.UserType jwtUserId jwtUserType) UNEXPECTED_ERROR)
-                    let! _ = match validatePassword false password with | Some error -> Error error | None -> Ok()
+                    let! _ = validatePassword password
                     return ()}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
@@ -293,8 +329,9 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
     member __.AutoSignIn(connectionId, jwt) = agent.PostAndAsyncReply(fun reply -> AutoSignIn(connectionId, jwt, reply))
     member __.SignOut(connectionId, jwt) = agent.PostAndAsyncReply(fun reply -> SignOut(connectionId, jwt, reply))
     member __.ChangePassword(jwt, password, rvn) = agent.PostAndAsyncReply(fun reply -> ChangePassword(jwt, password, rvn, reply))
+    member __.ChangeImageUrl(jwt, imageUrl, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeImageUrl(jwt, imageUrl, rvn, reply))
     member __.GetUsers(connectionId, jwt) = agent.PostAndAsyncReply(fun reply -> GetUsers(connectionId, jwt, reply))
-    member __.CreateUser(jwt, userName, password, userType) = agent.PostAndAsyncReply(fun reply -> CreateUser(jwt, userName, password, userType, reply))
+    member __.CreateUser(jwt, userName, password, userType, imageUrl) = agent.PostAndAsyncReply(fun reply -> CreateUser(jwt, userName, password, userType, imageUrl, reply))
     member __.ResetPassword(jwt, userId, password, rvn) = agent.PostAndAsyncReply(fun reply -> ResetPassword(jwt, userId, password, rvn, reply))
     member __.ChangeUserType(jwt, userId, userType, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeUserType( jwt, userId, userType, rvn, reply))
 
@@ -305,6 +342,7 @@ let userApiReader = reader {
         autoSignIn = userApi.AutoSignIn
         signOut = userApi.SignOut
         changePassword = userApi.ChangePassword
+        changeImageUrl = userApi.ChangeImageUrl
         getUsers = userApi.GetUsers
         createUser = userApi.CreateUser
         resetPassword = userApi.ResetPassword

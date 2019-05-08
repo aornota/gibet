@@ -8,12 +8,13 @@ open System
 open System.Security.Cryptography
 open System.Text
 
-type IUserRepo = // TODO-NMB: More?...
+type IUserRepo =
     abstract SignIn: UserName * Password -> AsyncResult<UserId * MustChangePasswordReason option, string>
     abstract AutoSignIn: UserId -> AsyncResult<UserId * MustChangePasswordReason option, string>
     abstract ChangePassword: UserId * Password * Rvn -> AsyncResult<User, string>
+    abstract ChangeImageUrl: UserId * ImageUrl option * Rvn -> AsyncResult<User, string>
     abstract GetUsers: unit -> AsyncResult<User list, string>
-    abstract CreateUser: UserId option * UserName * Password * UserType -> AsyncResult<User, string>
+    abstract CreateUser: UserId option * UserName * Password * UserType * ImageUrl option -> AsyncResult<User, string>
     abstract ResetPassword: UserId * Password * Rvn -> AsyncResult<User, string>
     abstract ChangeUserType: UserId * UserType * Rvn -> AsyncResult<User, string>
 
