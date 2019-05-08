@@ -1,6 +1,6 @@
 # ![gibet](https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png) | gibet (β)
 
-An opinionated (i.e. decidedly eccentric) "scaffold" for [F#](http://fsharp.org/) web development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
+An opinionated (i.e. decidedly eccentric) "scaffold" for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
 [Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
 Comes with just enough rope for developers to hang themselves with...
