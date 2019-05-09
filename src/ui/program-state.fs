@@ -8,7 +8,10 @@ open Aornota.Gibet.Common.Json
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
+open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
+open Aornota.Gibet.Ui.Common.Render
+open Aornota.Gibet.Ui.Common.Render.Theme
 open Aornota.Gibet.Ui.Common.ShouldNeverHappen
 open Aornota.Gibet.Ui.Common.Toast
 open Aornota.Gibet.Ui.Common.Theme
@@ -25,10 +28,14 @@ open Fable.Import
 
 open Thoth.Elmish
 open Thoth.Json
+open Fulma
+open System.Diagnostics
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
 let [<Literal>] private ACTIVITY_DEBOUNCER_THRESHOLD = 15.<second> // note: "ignored" if less than 5.<second>
+
+let [<Literal>] private SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
 
 let private setBodyClass theme =
     Browser.document.body.className <- themeClass theme
@@ -68,6 +75,13 @@ let private writePreferencesOrDefault state =
 let private getUsersCmd connection jwt =
     Cmd.OfAsync.either userApi.getUsers (connection, jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersInput >> AuthInput >> AppInput)
 
+let private themeOrDefault state =
+    match state with
+    | InitializingConnection _ | ReadingPreferences _ -> defaultTheme
+    | RegisteringConnection registeringConnectionState -> registeringConnectionState.AppState.Theme
+    | AutomaticallySigningIn automaticallySigningInState -> automaticallySigningInState.AppState.Theme
+    | Unauth unauthState -> unauthState.AppState.Theme
+    | Auth authState -> authState.AppState.Theme
 let private connectionId state =
     match state with
     | InitializingConnection _ | ReadingPreferences _ -> None
@@ -76,11 +90,26 @@ let private connectionId state =
     | Unauth unauthState -> Some unauthState.ConnectionState.ConnectionId
     | Auth authState -> Some authState.ConnectionState.ConnectionId
 
-let private registeringConnectionState appState lastUser connectionId = {
+let private appState affinityId theme = {
+    Ticks = 0<tick>
+    AffinityId = affinityId
+    Theme = theme
+    NavbarBurgerIsActive = false }
+let private updateAppState appState state =
+    match state with
+    | InitializingConnection _ | ReadingPreferences _ -> state
+    | RegisteringConnection registeringConnectionState -> RegisteringConnection { registeringConnectionState with AppState = appState }
+    | AutomaticallySigningIn automaticallySigningInState -> AutomaticallySigningIn { automaticallySigningInState with AppState = appState }
+    | Unauth unauthState -> Unauth { unauthState with AppState = appState }
+    | Auth authState -> Auth { authState with AppState = appState }
+
+let private registeringConnectionState messages appState lastUser connectionId = {
+    Messages = messages
     AppState = appState
     LastUser = lastUser
     ConnectionId = connectionId }
-let private automaticallySigningInState appState connectionState lastUser = {
+let private automaticallySigningInState messages appState connectionState lastUser = {
+    Messages = messages
     AppState = appState
     ConnectionState = connectionState
     LastUser = lastUser }
@@ -99,13 +128,14 @@ let private signInModalState userName autoSignInError forcedSignOutReason =
         ForcedSignOutReason = forcedSignOutReason
         ModalStatus = None
     }
-let private unauthState appState connectionState autoSignInError forcedSignOutReason =
+let private unauthState messages appState connectionState autoSignInError forcedSignOutReason =
     let signInModalState =
         match autoSignInError, forcedSignOutReason with
         | Some(error, userName), _ -> Some(signInModalState (Some userName) (Some(error, userName)) None)
         | None, Some(forcedSignOutReason, userName) -> Some(signInModalState (Some userName) None (Some forcedSignOutReason))
         | None, None -> None
     {
+        Messages = messages
         AppState = appState
         ConnectionState = connectionState
         SignInModalState = signInModalState
@@ -125,12 +155,13 @@ let private changeImageUrlModalState imageUrl = {
     ImageUrl = match imageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> String.Empty
     ImageUrlChanged = false
     ModalStatus = None }
-let private authState appState connectionState authUser mustChangePasswordReason =
+let private authState messages appState connectionState authUser mustChangePasswordReason =
     let changePasswordModalState =
         match mustChangePasswordReason with
         | Some mustChangePasswordReason -> Some(changePasswordModalState (Some mustChangePasswordReason))
         | None -> None
     {
+        Messages = messages
         AppState = appState
         ConnectionState = connectionState
         AuthUser = authUser
@@ -141,25 +172,39 @@ let private authState appState connectionState authUser mustChangePasswordReason
         UsersData = NotRequested
     }
 
-let private updateAppState appState state =
+let private updateMessages message state =
     match state with
-    | InitializingConnection _ | ReadingPreferences _ -> state
-    | RegisteringConnection registeringConnectionState -> RegisteringConnection { registeringConnectionState with AppState = appState }
-    | AutomaticallySigningIn automaticallySigningInState -> AutomaticallySigningIn { automaticallySigningInState with AppState = appState }
-    | Unauth unauthState -> Unauth { unauthState with AppState = appState }
-    | Auth authState -> Auth { authState with AppState = appState }
+    | InitializingConnection(messages, reconnectingState) -> InitializingConnection(message :: messages, reconnectingState)
+    | ReadingPreferences(messages, reconnectingState) -> ReadingPreferences(message :: messages, reconnectingState)
+    | RegisteringConnection registeringConnectionState -> RegisteringConnection { registeringConnectionState with Messages = message :: registeringConnectionState.Messages }
+    | AutomaticallySigningIn automaticallySigningInState -> AutomaticallySigningIn { automaticallySigningInState with Messages = message :: automaticallySigningInState.Messages }
+    | Unauth unauthState -> Unauth { unauthState with Messages = message :: unauthState.Messages }
+    | Auth authState -> Auth { authState with Messages = message :: authState.Messages }
+let private dismissMessage messageId state = // note: silently ignore unknown messageId
+    match state with
+    | InitializingConnection(messages, reconnectingState) -> InitializingConnection(messages |> removeMessage messageId, reconnectingState)
+    | ReadingPreferences(messages, reconnectingState) -> ReadingPreferences(messages |> removeMessage messageId, reconnectingState)
+    | RegisteringConnection registeringConnectionState ->
+        RegisteringConnection { registeringConnectionState with Messages = registeringConnectionState.Messages |> removeMessage messageId }
+    | AutomaticallySigningIn automaticallySigningInState ->
+        AutomaticallySigningIn { automaticallySigningInState with Messages = automaticallySigningInState.Messages |> removeMessage messageId }
+    | Unauth unauthState -> Unauth { unauthState with Messages = unauthState.Messages |> removeMessage messageId }
+    | Auth authState -> Auth { authState with Messages = authState.Messages |> removeMessage messageId }
+let private addMessage messageType text state =
+    let message = paraT (themeOrDefault state) TextSize.Is7 IsBlack TextWeight.Normal [ str text ]
+    match messageType with
+    | Debug -> state |> updateMessages (debugMessageDismissable [ message ])
+    | Info -> state |> updateMessages (infoMessageDismissable [ message ])
+    | Warning -> state |> updateMessages (warningMessageDismissable [ message ])
+    | Danger -> state |> updateMessages (dangerMessageDismissable [ message ])
 
-let private addError debugOnly (error:string) (state:State) = // TODO-NMB: Add to state.Messages...
-    if debugOnly then Browser.console.log error
-    state
-let private addDebugError = addError true
+let private addDebugError error state = state |> addMessage MessageType.Debug (sprintf "ERROR -> %s" error)
 // #region shouldNeverHappen
-let private shouldNeverHappen (error:string) (state:State) : State * Cmd<Input> =
+let private shouldNeverHappen error state : State * Cmd<Input> =
 #if DEBUG
     state |> addDebugError (shouldNeverHappen error), Cmd.none
 #else
-    let error = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator." // TEMP-NMB...
-    state |> addError false SHOULD_NEVER_HAPPEN, Cmd.none
+    state |> addMessage MessageType.Error SOMETHING_HAS_GONE_WRONG None, Cmd.none
 #endif
 // #endregion
 
@@ -169,15 +214,15 @@ let private handleRemoteUiInput remoteUiInput state =
         | Some(ImageUrl imageUrl) -> sprintf "<img src=\"%s\" width=\"48\" height=\"48\" style=\"vertical-align:middle\"><img>&nbsp&nbsp" imageUrl
         | None -> String.Empty
     match remoteUiInput, state with
-    | Initialized, InitializingConnection connectionId -> ReadingPreferences connectionId, readPreferencesCmd
+    | Initialized, InitializingConnection(messages, reconnectingState) -> ReadingPreferences(messages, reconnectingState), readPreferencesCmd
     | Registered(connectionId, serverStarted), RegisteringConnection registeringConnectionState ->
         let connectionState = { ConnectionId = connectionId ; ServerStarted = serverStarted }
         match registeringConnectionState.LastUser with
         | Some(userName, jwt) ->
             let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInInput
-            AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.AppState connectionState (userName, jwt)), cmd
+            AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.Messages registeringConnectionState.AppState connectionState (userName, jwt)), cmd
         | None ->
-            Unauth(unauthState registeringConnectionState.AppState connectionState None None), Cmd.none
+            Unauth(unauthState registeringConnectionState.Messages registeringConnectionState.AppState connectionState None None), Cmd.none
     | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         let usersData, error = authState.UsersData |> updateActivity userId
         let state = Auth { authState with UsersData = usersData }
@@ -213,8 +258,9 @@ let private handleRemoteUiInput remoteUiInput state =
     | ForceUserSignOut forcedSignOutReason, Auth authState ->
         let state =
             match forcedSignOutReason with
-            | Some forcedSignOutReason -> Unauth(unauthState authState.AppState authState.ConnectionState None (Some(forcedSignOutReason, authState.AuthUser.User.UserName)))
-            | None -> Unauth(unauthState authState.AppState authState.ConnectionState None None)
+            | Some forcedSignOutReason ->
+                Unauth(unauthState authState.Messages authState.AppState authState.ConnectionState None (Some(forcedSignOutReason, authState.AuthUser.User.UserName)))
+            | None -> Unauth(unauthState authState.Messages authState.AppState authState.ConnectionState None None)
         let toastCmd, extra =
             match forcedSignOutReason with
             | Some forcedSignOutReason -> warningToastCmd, sprintf " because %s" (forcedSignOutBecause forcedSignOutReason)
@@ -244,22 +290,26 @@ let private handleRemoteUiInput remoteUiInput state =
 let private handleDisconnected state =
     match state with
     | InitializingConnection _ -> state, Cmd.none
-    | _ -> InitializingConnection (Some state), Cmd.none
+    | _ ->
+        let messages =
+            match state with
+            | InitializingConnection(messages, _) | ReadingPreferences(messages, _) -> messages
+            | RegisteringConnection registeringConnectionState -> registeringConnectionState.Messages
+            | AutomaticallySigningIn automaticallySigningInState -> automaticallySigningInState.Messages
+            | Unauth unauthState -> unauthState.Messages
+            | Auth authState -> authState.Messages
+        InitializingConnection(messages, Some state), Cmd.none
 
 let private handlePreferencesInput preferencesInput state =
     match preferencesInput, state with
-    | ReadPreferencesResult(Some(Ok preferences)), ReadingPreferences reconnectingState ->
-        let appState = {
-            Ticks = 0<tick>
-            AffinityId = preferences.AffinityId
-            Theme = preferences.Theme
-            NavbarBurgerIsActive = false }
+    | ReadPreferencesResult(Some(Ok preferences)), ReadingPreferences(messages, reconnectingState) ->
+        let appState = appState preferences.AffinityId preferences.Theme
         setBodyClass appState.Theme
         let connectionId =
             match reconnectingState with
             | Some reconnectingState -> connectionId reconnectingState
             | None -> None
-        let cmd = RegisterConnection(appState, preferences.LastUser, connectionId) |> Cmd.ofMsg
+        let cmd = RegisterConnection(messages, appState, preferences.LastUser, connectionId) |> Cmd.ofMsg
         state, cmd
     | ReadPreferencesResult None, ReadingPreferences _ ->
         let preferences = preferencesOrDefault state
@@ -268,8 +318,7 @@ let private handlePreferencesInput preferencesInput state =
             PreferencesInput(ReadPreferencesResult(Some(Ok preferences))) |> Cmd.ofMsg ]
         state, cmds
     | ReadPreferencesResult(Some(Error error)), ReadingPreferences _ ->
-        let cmd = PreferencesInput(ReadPreferencesResult None) |> Cmd.ofMsg
-        state |> addDebugError (sprintf "ReadPreferencesResult error -> %s" error), cmd
+        state |> addDebugError (sprintf "ReadPreferencesResult error -> %s" error), PreferencesInput(ReadPreferencesResult None) |> Cmd.ofMsg
     | ReadPreferencesExn exn, ReadingPreferences _ ->
         let cmd = PreferencesInput(ReadPreferencesResult(Some (Error exn.Message))) |> Cmd.ofMsg
         state, cmd
@@ -309,7 +358,7 @@ let private handleOnDebouncedActivity state = // note: will only be used when AC
 let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:AutomaticallySigningInState) state =
     match autoSignInInput with
     | AutoSignInResult(Ok(authUser, mustChangePasswordReason)) ->
-        let authState = authState automaticallySigningInState.AppState automaticallySigningInState.ConnectionState authUser mustChangePasswordReason
+        let authState = authState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState authUser mustChangePasswordReason
         let (UserName userName) = authUser.User.UserName
         let cmds = Cmd.batch [
             sprintf "You have been automatically signed in as <strong>%s</strong>" userName |> successToastCmd
@@ -318,7 +367,7 @@ let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:A
         Auth { authState with UsersData = Pending }, cmds
     | AutoSignInResult(Error error) ->
         let userName = fst automaticallySigningInState.LastUser
-        let state = Unauth(unauthState automaticallySigningInState.AppState automaticallySigningInState.ConnectionState (Some(error, userName)) None)
+        let state = Unauth(unauthState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState (Some(error, userName)) None)
         let (UserName userName) = userName
         let cmds = Cmd.batch [
             sprintf "Unable to automatically sign in as <strong>%s</strong>" userName |> warningToastCmd
@@ -352,7 +401,7 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
         | Some ModalPending ->
             match signInInput with
             | SignInResult(Ok(authUser, mustChangePasswordReason)) ->
-                let authState = authState unauthState.AppState unauthState.ConnectionState authUser mustChangePasswordReason
+                let authState = authState unauthState.Messages unauthState.AppState unauthState.ConnectionState authUser mustChangePasswordReason
                 let (UserName userName) = authUser.User.UserName
                 let cmds = Cmd.batch [
                     sprintf "You have signed in as <strong>%s</strong>" userName |> successToastCmd
@@ -360,7 +409,7 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
                     getUsersCmd authState.ConnectionState.ConnectionId authState.AuthUser.Jwt ]
                 Auth { authState with UsersData = Pending }, cmds
             | SignInResult(Error error) ->
-                let signInModalState = { signInModalState with ModalStatus = Some(ModalFailed error) }
+                let signInModalState = { signInModalState with ModalStatus = Some(ModalFailed(error, UserName signInModalState.UserName)) }
                 Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
             | SignInExn exn -> state, AppInput(UnauthInput(SignInInput(SignInResult(Error exn.Message)))) |> Cmd.ofMsg
         | _ -> state |> shouldNeverHappen (sprintf "Unexpected SignInInput when SignInModalState.ModalStatus is not Pending (%A) -> %A" state signInInput)
@@ -447,14 +496,12 @@ let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) 
 let private handleSignOutInput signOutInput (authState:AuthState) state =
     match signOutInput with
     | SignOutResult(Ok _) ->
-        let state = Unauth(unauthState authState.AppState authState.ConnectionState None None)
+        let state = Unauth(unauthState authState.Messages authState.AppState authState.ConnectionState None None)
         let cmds = Cmd.batch [
             "You have signed out" |> successToastCmd
             writePreferencesCmd (preferencesOrDefault state) ]
         state, cmds
-    | SignOutResult(Error error) ->
-        let state = state |> addDebugError (sprintf "SignOutResult error -> %s" error)
-        state, AppInput(AuthInput(SignOutInput(SignOutResult(Ok())))) |> Cmd.ofMsg
+    | SignOutResult(Error error) -> state |> addDebugError (sprintf "SignOutResult error -> %s" error), AppInput(AuthInput(SignOutInput(SignOutResult(Ok())))) |> Cmd.ofMsg
     | SignOutExn exn -> state, AppInput(AuthInput(SignOutInput(SignOutResult(Error exn.Message)))) |> Cmd.ofMsg
 
 let private handleGetUsersInput getUsersInput (authState:AuthState) state =
@@ -465,8 +512,7 @@ let private handleGetUsersInput getUsersInput (authState:AuthState) state =
     | GetUsersResult(Error error) -> Auth { authState with UsersData = Failed error }, ifDebug (sprintf "GetUsersResult error -> %s" error |> errorToastCmd) Cmd.none
     | GetUsersExn exn -> state, AppInput(AuthInput(GetUsersInput(GetUsersResult(Error exn.Message)))) |> Cmd.ofMsg
 
-let initialize() : State * Cmd<Input> =
-    None |> InitializingConnection, Cmd.none
+let initialize() : State * Cmd<Input> = InitializingConnection([], None), Cmd.none
 
 let transition input state : State * Cmd<Input> =
     let appState, connectionState =
@@ -477,9 +523,11 @@ let transition input state : State * Cmd<Input> =
         | Unauth unauthState -> Some unauthState.AppState, Some unauthState.ConnectionState
         | Auth authState -> Some authState.AppState, Some authState.ConnectionState
     match input, state, (appState, connectionState) with
-    | RegisterConnection(appState, lastUser, connectionId), _, _ ->
-        Bridge.Send (RemoteServerInput.Register(appState.AffinityId, connectionId))
-        RegisteringConnection(registeringConnectionState appState lastUser connectionId), Cmd.none
+    | AddMessage message, _, _ -> state |> updateMessages message, Cmd.none
+    | DismissMessage messageId, _, _ -> state |> dismissMessage messageId, Cmd.none
+    | RegisterConnection(messages, appState, lastUser, connectionId), _, _ ->
+        Bridge.Send(RemoteServerInput.Register(appState.AffinityId, connectionId))
+        RegisteringConnection(registeringConnectionState messages appState lastUser connectionId), Cmd.none
     | RemoteUiInput remoteUiInput, _, _ -> state |> handleRemoteUiInput remoteUiInput
     | Disconnected, _, _ -> state |> handleDisconnected
     | PreferencesInput preferencesInput, _, _ -> state |> handlePreferencesInput preferencesInput

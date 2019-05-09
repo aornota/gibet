@@ -9,7 +9,6 @@
         <Compile Include="..\common\error-handling.fs" />
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
-        <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
         <Compile Include="..\common\markdown.fs" />
         <Compile Include="..\common\optional-builder.fs" />
         <Compile Include="..\common\revision.fs" />

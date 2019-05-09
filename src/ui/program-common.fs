@@ -5,6 +5,7 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
+open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Shared
@@ -92,7 +93,9 @@ type AppState = {
     NavbarBurgerIsActive : bool }
 
 type Input =
-    | RegisterConnection of AppState * LastUser option * ConnectionId option
+    | AddMessage of Message
+    | DismissMessage of MessageId
+    | RegisterConnection of Message list * AppState * LastUser option * ConnectionId option
     | RemoteUiInput of RemoteUiInput
     | Disconnected
     | PreferencesInput of PreferencesInput
@@ -106,6 +109,7 @@ type Input =
     | AppInput of AppInput
 
 type RegisteringConnectionState = {
+    Messages : Message list
     AppState : AppState
     LastUser : LastUser option
     ConnectionId : ConnectionId option }
@@ -115,6 +119,7 @@ type ConnectionState = {
     ServerStarted : DateTimeOffset }
 
 type AutomaticallySigningInState = {
+    Messages : Message list
     AppState : AppState
     ConnectionState : ConnectionState
     LastUser : LastUser }
@@ -129,9 +134,10 @@ type SignInModalState = {
     FocusPassword : bool
     AutoSignInError : (string * UserName) option
     ForcedSignOutReason : ForcedSignOutReason option
-    ModalStatus : ModalStatus option }
+    ModalStatus : ModalStatus<string * UserName> option }
 
 type UnauthState = {
+    Messages : Message list
     AppState : AppState
     ConnectionState : ConnectionState
     SignInModalState : SignInModalState option }
@@ -144,15 +150,16 @@ type ChangePasswordModalState = { // note: no need for UserId since implicitly f
     ConfirmPassword : string
     ConfirmPasswordChanged : bool
     MustChangePasswordReason : MustChangePasswordReason option
-    ModalStatus : ModalStatus option }
+    ModalStatus : ModalStatus<string> option }
 
 type ChangeImageUrlModalState = { // note: no need for UserId since implicitly for the AuthUser
     ImageUrlKey : Guid
     ImageUrl : string
     ImageUrlChanged : bool
-    ModalStatus : ModalStatus option }
+    ModalStatus : ModalStatus<string> option }
 
 type AuthState = {
+    Messages : Message list
     AppState : AppState
     ConnectionState : ConnectionState
     AuthUser : AuthUser
@@ -163,8 +170,8 @@ type AuthState = {
     UsersData : RemoteData<UserData list, string> }
 
 type State =
-    | InitializingConnection of reconnectingState : State option
-    | ReadingPreferences of reconnectingState : State option
+    | InitializingConnection of Message list * reconnectingState : State option
+    | ReadingPreferences of Message list * reconnectingState : State option
     | RegisteringConnection of RegisteringConnectionState
     | AutomaticallySigningIn of AutomaticallySigningInState
     | Unauth of UnauthState

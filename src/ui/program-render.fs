@@ -2,7 +2,10 @@ module Aornota.Gibet.Ui.Program.Render
 
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Markdown
+open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
+open Aornota.Gibet.Ui.Common.LazyViewOrHMR
+open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Common.Render.Theme
 open Aornota.Gibet.Ui.Common.Render.Theme.Markdown
@@ -10,11 +13,10 @@ open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Common.TimestampHelper
 open Aornota.Gibet.Ui.Common.Tooltip
 open Aornota.Gibet.Ui.Program.Common
+open Aornota.Gibet.Ui.Program.MarkdownLiterals
 open Aornota.Gibet.Ui.Shared
 
 open System
-
-open Elmish.React.Common
 
 open Fable.React.Helpers
 
@@ -34,72 +36,8 @@ type private HeaderData = {
 
 let [<Literal>] private IMAGE__GIBET = "gibet-24x24.png"
 
-// #region TEMP-NMB: READ_ME (note that gibet-24x24.png link differs from README.md)...
-let [<Literal>] private READ_ME = """# ![gibet](gibet-24x24.png) | gibet (γ)
-
-An opinionated (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
-[Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
-[Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
-
-The [example web-app](https://gibet.azurewebsites.net/) is running on Azure - albeit on a free service plan (F1), which limits the number of concurrent websocket connections to a
-paltry 5.
-
-And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
-
-### Prerequisites
-
-- [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.202 (x64)
-- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_: I'm currently using 5.12.6
-- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_: I'm currently using 5.200.4
-- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.15.2
-- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.0
-
-#### Also recommended
-
-- [Microsoft Visual Studio Code](https://code.visualstudio.com/download/) with the following extensions:
-    - [Microsoft C#](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp)
-    - [Ionide-fsharp](https://marketplace.visualstudio.com/items?itemName=ionide.ionide-fsharp)
-    - [Microsoft Debugger for Chrome](https://marketplace.visualstudio.com/items?itemName=msjsdiag.debugger-for-chrome)
-    - [EditorConfig for VS Code](https://marketplace.visualstudio.com/items?itemName=editorconfig.editorconfig)
-    - [Rainbow Brackets](https://marketplace.visualstudio.com/items?itemName=2gua.rainbow-brackets)
-- [Google Chrome](https://www.google.com/chrome/) with the following extensions:
-    - [React Developer Tools](https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi/)
-    - [Redux DevTools](https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd/)
-- ([Microsoft .NET Framework 4.7.2 Developer Pack](https://dotnet.microsoft.com/download/dotnet-framework/net472/): this appeared to resolve problems with Intellisense in _build.fsx_)
-
-### History
-
-- Installed SAFE templates for .NET Core: _dotnet new -i "SAFE.Template::*"_
-- Created from template: _dotnet new SAFE --server giraffe --layout fulma-basic --communication remoting --pattern default --deploy azure --js-deps yarn_
-
-### Running / building / deploying
-
-- Run/watch for development (debug): _fake build --target run_ (or _fake build -t run_)
-- Build for production (release): _fake build --target build_ (or _fake build -t build_)
-- Publish for production (release): _fake build --target publish_ (or _fake build -t publish_)
-- Deploy to Azure (release): _fake build --target deploy-azure_ (or _fake build -t deploy-azure_);
-see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-registration/) and [Deploy to App Service](https://safe-stack.github.io/docs/template-appservice/)
-- Run the dev-console (debug): _fake build --target run-dev-console_ (or _fake build -t run-dev-console_)
-- Help (lists key targets): _fake build --target help_ (or just _fake build_)
-
-### Unit tests
-
-There are no unit tests yet ;(
-
-However, the repository and web API services have been designed to work with ASP.NET Core dependency injection, which should also facilitate unit testing.
-
-See _[test-user-repo-and-api.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs)_ for an example of "testing" IUserRepo
-(e.g. InMemoryUserRepoAgent) and UserApi (e.g. UserApiAgent) from a console project.
-
-## To do
-
-- [ ] extend functionality, e.g. User administation page | Chat page? | &c.
-- [ ] unit tests? AspNetCore.TestHost?
-- [ ] additional documentation, e.g. [(currently non-existent) gh-pages branch](https://aornota.github.io/gibet/)?"""
-// #endregion
-
 // #region renderHeader
-let private renderHeader headerData dispatch =
+let private renderHeader (headerData, _:int<tick>) dispatch =
     let theme, burgerIsActive = headerData.AppState.Theme, headerData.AppState.NavbarBurgerIsActive
     let spinner = iconSmaller ICON__SPINNER_PULSE
     let paraTStatus colour = paraT theme TextSize.Is7 colour TextWeight.Normal
@@ -248,9 +186,9 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [
                     str (sprintf "You have been signed out because %s" (forcedSignOutBecause forcedSignOutReason)) ] ] ]
             yield br
-        | None, None, Some(ModalFailed error) ->
+        | None, None, Some(ModalFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to sign in as " ; bold signInModalState.UserName ] ]
+                contentCentred [ paraTSmaller theme [ str "Unable to sign in as " ; bold userName ] ]
                 paraTSmallest theme [ str error ] ]
             yield br
         | None, None, _ -> ()
@@ -351,37 +289,42 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
 let private renderSigningOutModal theme =
     cardModalT theme None [ contentCentred [ paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Signing out... " ; iconSmall ICON__SPINNER_PULSE ] ] ]
 
+// #region render
 let render state dispatch =
+    let renderMessages theme messages ticks = lazyView2 renderMessages (theme, GIBET, messages, ticks) (DismissMessage >> dispatch)
     let state, reconnecting =
         match state with
-        | InitializingConnection (Some reconnectingState) | ReadingPreferences (Some reconnectingState) -> reconnectingState, true
+        | InitializingConnection (_, Some reconnectingState) | ReadingPreferences (_, Some reconnectingState) -> reconnectingState, true
         | _ -> state, false
     match state with
-    | InitializingConnection _ | ReadingPreferences _ -> pageLoaderT Light IsLink
+    | InitializingConnection _ | ReadingPreferences _ -> // note: messages (if any) not rendered
+        pageLoaderT Light IsLink
     | RegisteringConnection registeringConnectionState ->
-        let theme = registeringConnectionState.AppState.Theme
+        let theme, ticks = registeringConnectionState.AppState.Theme, registeringConnectionState.AppState.Ticks
         let headerData = {
             AppState = registeringConnectionState.AppState
             HeaderState = Registering }
         div [] [
-            yield lazyView2 renderHeader headerData dispatch
+            yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
+            yield renderMessages theme registeringConnectionState.Messages ticks // note: renderMessages handles lazyView2 itself
             yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is7 IsLink TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ] ] ]
             yield divVerticalSpace 15
             yield lazyView renderFooter theme ]
     | AutomaticallySigningIn automaticallySigningInState ->
-        let theme = automaticallySigningInState.AppState.Theme
+        let theme, ticks = automaticallySigningInState.AppState.Theme, automaticallySigningInState.AppState.Ticks
         let headerData = {
             AppState = automaticallySigningInState.AppState
             HeaderState = SigningIn(automaticallySigningInState.ConnectionState, fst automaticallySigningInState.LastUser, true) }
         div [] [
-            yield lazyView2 renderHeader headerData dispatch
+            yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
+            yield renderMessages theme automaticallySigningInState.Messages ticks // note: renderMessages handles lazyView2 itself
             yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is7 IsInfo TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ] ] ]
             yield divVerticalSpace 15
             yield lazyView renderFooter theme ]
     | Unauth unauthState ->
-        let theme = unauthState.AppState.Theme
+        let theme, ticks = unauthState.AppState.Theme, unauthState.AppState.Ticks
         let headerData = {
             AppState = unauthState.AppState
             HeaderState =
@@ -394,8 +337,9 @@ let render state dispatch =
                     | None, None -> NotSignedIn unauthState.ConnectionState
                 | None -> NotSignedIn unauthState.ConnectionState }
         div [] [
-            yield lazyView2 renderHeader headerData dispatch
+            yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
+            yield renderMessages theme unauthState.Messages ticks // note: renderMessages handles lazyView2 itself
             yield div [] [ containerFluid [ contentFromMarkdownLeft theme (Markdown READ_ME) ] ] // TEMP-NMB...
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
@@ -405,15 +349,23 @@ let render state dispatch =
                 | Some signInModalState -> yield lazyView2 renderSignInModal (theme, signInModalState) (SignInModalInput >> UnauthInput >> AppInput >> dispatch)
                 | None -> () ]
     | Auth authState ->
-        let theme = authState.AppState.Theme
+        let theme, ticks = authState.AppState.Theme, authState.AppState.Ticks
         let headerData = {
             AppState = authState.AppState
             HeaderState =
                 if authState.SigningOut then SigningOut authState.ConnectionState
                 else SignedIn(authState.ConnectionState, authState.AuthUser) }
         div [] [
-            yield lazyView2 renderHeader headerData dispatch
+            yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
+            // TEMP-NMB...
+#if DEBUG
+#else
+            let message = paraT theme TextSize.Is7 IsBlack TextWeight.Normal [ str "More functionality for signed in users coming soon..." ]
+            yield lazyView renderMessageSpecial (theme, GIBET, infoMessage [ message ] false, authState.AppState.Ticks)
+#endif
+            // ...TEMP=-NMB
+            yield renderMessages theme authState.Messages ticks // note: renderMessages handles lazyView2 itself
             yield div [] [ containerFluid [ contentFromMarkdownLeft theme (Markdown READ_ME) ] ] // TEMP-NMB...
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
@@ -428,3 +380,4 @@ let render state dispatch =
                     yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser, changeImageUrlModalState)
                         (ChangeImageUrlModalInput >> AuthInput >> AppInput >> dispatch)
                 | None, None -> () ]
+// #endregion

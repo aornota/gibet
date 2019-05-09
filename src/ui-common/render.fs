@@ -21,6 +21,7 @@ let private padStyle padV padH =
     Style [ Padding padding ]
 
 let div props children = div props children
+let divEmpty = div [] []
 let divVerticalSpace height = div [ padStyle (Some (height / 2)) None ] [ str SPACE ]
 
 let str text = str text
@@ -36,8 +37,20 @@ let onEnterPressed onEnter =
             onEnter()
         | _ -> ())
 
-let column children = Column.column [] children
-let columns children = Columns.columns [] children
+let private columns isMobile children = Columns.columns [ if isMobile then yield Columns.IsMobile ] children
+let private column children = Column.column [] children
+let private columnEmpty = column []
+let columnsLeftAndRight leftChildren rightChildren = columns true [ column leftChildren ; column rightChildren ]
+let columnContent children =
+    columns true [
+        columnEmpty
+        Column.column [
+            Column.Width(Screen.Mobile, Column.IsFourFifths)
+            Column.Width(Screen.Tablet, Column.IsFourFifths)
+            Column.Width(Screen.Desktop, Column.IsThreeQuarters)
+            Column.Width(Screen.WideScreen, Column.IsThreeFifths)
+            Column.Width(Screen.FullHD, Column.IsHalf) ] children
+        columnEmpty ]
 
 let containerFluid children = Container.container [ Container.IsFluid ] children
 
@@ -71,6 +84,11 @@ let image source size =
         Image.Props [ Key source ]
         size
     ] [ img [ Src source ] ]
+
+let level hasContinuation children = Level.level [ if hasContinuation then yield Level.Level.CustomClass "hasContinuation" ] children
+let levelLeft children = Level.left [] children
+let levelRight children = Level.right [] children
+let levelItem children = Level.item [] children
 
 let navbarBrand children = Navbar.Brand.div [] children
 let navbarBurger onClick isActive =

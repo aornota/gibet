@@ -5,9 +5,9 @@ open Aornota.Gibet.Ui.Common.RemoteData
 
 open System
 
-type ModalStatus =
+type ModalStatus<'a> =
     | ModalPending
-    | ModalFailed of string
+    | ModalFailed of 'a
 
 type UserData = User * bool * DateTimeOffset option
 

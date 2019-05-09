@@ -8,7 +8,6 @@
         <Compile Include="..\common\error-handling.fs" />
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
-        <!--TODO-NMB?...<Compile Include="..\common\literals.fs" />-->
         <Compile Include="..\common\markdown.fs" />
         <Compile Include="..\common\optional-builder.fs" />
         <Compile Include="..\common\revision.fs" />
@@ -19,10 +18,9 @@
         <Compile Include="..\common\bridge\bridge.fs" />
         <Compile Include="..\common\api\route.fs" />
         <Compile Include="..\common\api\user-api.fs" />
-        <!--TODO-NMB?...<Compile Include="..\ui-common\lazy-view-or-hmr.fs" />-->
         <Compile Include="..\ui-common\local-storage.fs" />
+        <Compile Include="..\ui-common\lazy-view-or-hmr.fs" />
         <Compile Include="..\ui-common\marked.fs" />
-        <!--TODO-NMB?...<Compile Include="..\ui-common\notifications.fs" />-->
         <Compile Include="..\ui-common\remote-data.fs" />
         <Compile Include="..\ui-common\theme.fs" />
         <Compile Include="..\ui-common\icon.fs" />
@@ -32,12 +30,14 @@
         <Compile Include="..\ui-common\render-theme-markdown.fs" />
         <Compile Include="..\ui-common\should-never-happen.fs" />
         <Compile Include="..\ui-common\timestamp-helper.fs" />
+        <Compile Include="..\ui-common\message.fs" />
         <Compile Include="..\ui-common\toast.fs" />
         <Compile Include="ui-shared.fs" />
         <!--TODO-NMB?...<Compile Include="pages\..." />-->
         <Compile Include="program-server-api.fs" />
         <Compile Include="program-common.fs" />
         <Compile Include="program-state.fs" />
+        <Compile Include="program-markdown-literals.fs" />
         <Compile Include="program-render.fs" />
         <Compile Include="program-run.fs" />
     </ItemGroup>
