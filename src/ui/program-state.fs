@@ -26,10 +26,10 @@ open Elmish.Bridge
 
 open Fable.Import
 
+open Fulma
+
 open Thoth.Elmish
 open Thoth.Json
-open Fulma
-open System.Diagnostics
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
@@ -172,7 +172,7 @@ let private authState messages appState connectionState authUser mustChangePassw
         UsersData = NotRequested
     }
 
-let private updateMessages message state =
+let private addToMessages message state =
     match state with
     | InitializingConnection(messages, reconnectingState) -> InitializingConnection(message :: messages, reconnectingState)
     | ReadingPreferences(messages, reconnectingState) -> ReadingPreferences(message :: messages, reconnectingState)
@@ -191,12 +191,13 @@ let private dismissMessage messageId state = // note: silently ignore unknown me
     | Unauth unauthState -> Unauth { unauthState with Messages = unauthState.Messages |> removeMessage messageId }
     | Auth authState -> Auth { authState with Messages = authState.Messages |> removeMessage messageId }
 let private addMessage messageType text state =
-    let message = paraT (themeOrDefault state) TextSize.Is7 IsBlack TextWeight.Normal [ str text ]
-    match messageType with
-    | Debug -> state |> updateMessages (debugMessageDismissable [ message ])
-    | Info -> state |> updateMessages (infoMessageDismissable [ message ])
-    | Warning -> state |> updateMessages (warningMessageDismissable [ message ])
-    | Danger -> state |> updateMessages (dangerMessageDismissable [ message ])
+    let message =
+        match messageType with
+        | Debug -> debugMessageDismissable text
+        | Info -> infoMessageDismissable text
+        | Warning -> warningMessageDismissable text
+        | Danger -> dangerMessageDismissable text
+    state |> addToMessages message
 
 let private addDebugError error state = state |> addMessage MessageType.Debug (sprintf "ERROR -> %s" error)
 // #region shouldNeverHappen
@@ -207,6 +208,8 @@ let private shouldNeverHappen error state : State * Cmd<Input> =
     state |> addMessage MessageType.Error SOMETHING_HAS_GONE_WRONG None, Cmd.none
 #endif
 // #endregion
+
+let private unexpectedInputWhenState input (state:State) = sprintf "Unexpected %A when %A" input state
 
 let private handleRemoteUiInput remoteUiInput state =
     let toastImage imageUrl =
@@ -285,7 +288,7 @@ let private handleRemoteUiInput remoteUiInput state =
         | None -> state, ifDebug (sprintf "%A added (UsersData now %A)" user.UserId usersRvn |> infoToastCmd) Cmd.none
     // TODO-NMB: More RemoteUiInput?...
     | UnexpectedServerInput error, _ -> state |> shouldNeverHappen error
-    | _ -> state |> shouldNeverHappen (sprintf "Unexpected RemoteUiInput when %A -> %A" state remoteUiInput)
+    | _ -> state |> shouldNeverHappen (unexpectedInputWhenState remoteUiInput state)
 
 let private handleDisconnected state =
     match state with
@@ -324,7 +327,7 @@ let private handlePreferencesInput preferencesInput state =
         state, cmd
     | WritePreferencesOk _, _ -> state, Cmd.none
     | WritePreferencesExn exn, _ -> state |> addDebugError (sprintf "WritePreferencesExn -> %s" exn.Message), Cmd.none
-    | _ -> state |> shouldNeverHappen (sprintf "Unexpected PreferencesInput when %A -> %A" state preferencesInput)
+    | _ -> state |> shouldNeverHappen (unexpectedInputWhenState preferencesInput state)
 
 let private handleOnTick appState state : State * Cmd<Input> = // note: will only be used when TICK is defined (see webpack.config.js)
     match appState with
@@ -379,7 +382,7 @@ let private handleSignInModalInput signInModalInput (unauthState:UnauthState) st
     match unauthState.SignInModalState with
     | Some signInModalState ->
         match signInModalInput, signInModalState.ModalStatus with
-        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected SignInModalInput when SignInModalState.ModalStatus is Pending (%A) -> %A" state signInModalInput)
+        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.ModalStatus is Pending (%A)" signInModalInput state)
         | UserNameChanged userName, _ ->
             let signInModalState = { signInModalState with UserName = userName ; UserNameChanged = true }
             Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none
@@ -393,7 +396,7 @@ let private handleSignInModalInput signInModalInput (unauthState:UnauthState) st
             let signInModalState = { signInModalState with AutoSignInError = None ; ForcedSignOutReason = None ; ModalStatus = Some ModalPending }
             Unauth { unauthState with SignInModalState = Some signInModalState }, cmd
         | CancelSignIn, _ -> Unauth { unauthState with SignInModalState = None }, Cmd.none
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected SignInModalInput when SignInModalState is None (%A) -> %A" state signInModalInput)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState is None (%A)" signInModalInput state)
 let private handleSignInInput signInInput (unauthState:UnauthState) state =
     match unauthState.SignInModalState with
     | Some signInModalState ->
@@ -412,14 +415,14 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
                 let signInModalState = { signInModalState with ModalStatus = Some(ModalFailed(error, UserName signInModalState.UserName)) }
                 Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
             | SignInExn exn -> state, AppInput(UnauthInput(SignInInput(SignInResult(Error exn.Message)))) |> Cmd.ofMsg
-        | _ -> state |> shouldNeverHappen (sprintf "Unexpected SignInInput when SignInModalState.ModalStatus is not Pending (%A) -> %A" state signInInput)
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected SignInInput when SignInModalState is None (%A) -> %A" state signInInput)
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.ModalStatus is not Pending (%A)" signInInput state)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState is None (%A)" signInInput state)
 
 let private handleChangePasswordModalInput changePasswordModalInput (authState:AuthState) state =
     match authState.ChangePasswordModalState with
     | Some changePasswordModalState ->
         match changePasswordModalInput, changePasswordModalState.ModalStatus with
-        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordModalInput when ChangePasswordModalState.ModalStatus is Pending (%A) -> %A" state changePasswordModalInput)
+        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState.ModalStatus is Pending (%A)" changePasswordModalInput state)
         | NewPasswordChanged newPassword, _ ->
             let changePasswordModalState = { changePasswordModalState with NewPassword = newPassword ; NewPasswordChanged = true }
             Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none
@@ -441,9 +444,9 @@ let private handleChangePasswordModalInput changePasswordModalInput (authState:A
             | None ->
                 let changePasswordModalState = { changePasswordModalState with ModalStatus = Some (ModalFailed UNEXPECTED_ERROR) }
                 let state = Auth { authState with ChangePasswordModalState = Some changePasswordModalState }
-                state |> shouldNeverHappen (sprintf "Unexpected ChangePassword when %A not found in authState.UsersData -> %A" authState.AuthUser.User.UserId state)
+                state |> shouldNeverHappen (sprintf "Unexpected ChangePassword when %A not found in authState.UsersData (%A)" authState.AuthUser.User.UserId state)
         | CancelChangePassword, _ -> Auth { authState with ChangePasswordModalState = None }, Cmd.none
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordModalInput when ChangePasswordModalState is None (%A) -> %A" state changePasswordModalInput)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordModalInput state)
 let private handleChangePasswordInput changePasswordInput (authState:AuthState) state =
     match authState.ChangePasswordModalState with
     | Some changePasswordModalState ->
@@ -456,14 +459,14 @@ let private handleChangePasswordInput changePasswordInput (authState:AuthState) 
                 let changePasswordModalState = { changePasswordModalState with ModalStatus = Some(ModalFailed error) }
                 Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none // no need for toast (since error will be displayed on ChangePasswordModal)
             | ChangePasswordExn exn -> state, AppInput(AuthInput(ChangePasswordInput(ChangePasswordResult(Error exn.Message)))) |> Cmd.ofMsg
-        | _ -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordInput when ChangePasswordModalState.ModalStatus is not Pending (%A) -> %A" state changePasswordInput)
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangePasswordInput when ChangePasswordModalState is None (%A) -> %A" state changePasswordInput)
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState.ModalStatus is not Pending (%A)" changePasswordInput state)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordInput state)
 
 let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:AuthState) state =
     match authState.ChangeImageUrlModalState with
     | Some changeImageUrlModalState ->
         match changeImageUrlModalInput, changeImageUrlModalState.ModalStatus with
-        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlModalInput when ChangeImageUrlModalState.ModalStatus is Pending (%A) -> %A" state changeImageUrlModalInput)
+        | _, Some ModalPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangeImageUrlModalState.ModalStatus is Pending (%A)" changeImageUrlModalInput state)
         | ImageUrlChanged imageUrl, _ ->
             let changeImageUrlModalState = { changeImageUrlModalState with ImageUrl = imageUrl ; ImageUrlChanged = true }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none
@@ -477,7 +480,7 @@ let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:A
             let changeImageUrlModalState = { changeImageUrlModalState with ModalStatus = Some ModalPending }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, cmd
         | CancelChangeImageUrl, _ -> Auth { authState with ChangeImageUrlModalState = None }, Cmd.none
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlModalInput when ChangeImageUrlModalState is None (%A) -> %A" state changeImageUrlModalInput)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangeImageUrlModalState is None (%A)" changeImageUrlModalInput state)
 let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) state =
     match authState.ChangeImageUrlModalState with
     | Some changeImageUrlModalState ->
@@ -490,8 +493,8 @@ let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) 
                 let changeImageUrlModalState = { changeImageUrlModalState with ModalStatus = Some(ModalFailed error) }
                 Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none // no need for toast (since error will be displayed on ChangeImageUrlModal)
             | ChangeImageUrlExn exn -> state, AppInput(AuthInput(ChangeImageUrlInput(ChangeImageUrlResult(Error exn.Message)))) |> Cmd.ofMsg
-        | _ -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlInput when changeImageUrlModalState.ModalStatus is not Pending (%A) -> %A" state changeImageUrlInput)
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected ChangeImageUrlInput when changeImageUrlModalState is None (%A) -> %A" state changeImageUrlInput)
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when changeImageUrlModalState.ModalStatus is not Pending (%A)" changeImageUrlInput state)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when changeImageUrlModalState is None (%A)" changeImageUrlInput state)
 
 let private handleSignOutInput signOutInput (authState:AuthState) state =
     match signOutInput with
@@ -523,7 +526,7 @@ let transition input state : State * Cmd<Input> =
         | Unauth unauthState -> Some unauthState.AppState, Some unauthState.ConnectionState
         | Auth authState -> Some authState.AppState, Some authState.ConnectionState
     match input, state, (appState, connectionState) with
-    | AddMessage message, _, _ -> state |> updateMessages message, Cmd.none
+    | AddMessage message, _, _ -> state |> addToMessages message, Cmd.none
     | DismissMessage messageId, _, _ -> state |> dismissMessage messageId, Cmd.none
     | RegisterConnection(messages, appState, lastUser, connectionId), _, _ ->
         Bridge.Send(RemoteServerInput.Register(appState.AffinityId, connectionId))
@@ -545,19 +548,19 @@ let transition input state : State * Cmd<Input> =
     | AutoSignInInput autoSignInInput, AutomaticallySigningIn automaticallySigningInState, _ -> state |> handleAutoSignInInput autoSignInInput automaticallySigningInState
     | AppInput(UnauthInput ShowSignInModal), Unauth unauthState, _ ->
         match unauthState.SignInModalState with
-        | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A" signInModalState)
+        | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A (%A)" signInModalState state)
         | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None) }, Cmd.none
     | AppInput(UnauthInput(SignInModalInput signInModalInput)), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
     | AppInput(UnauthInput(SignInInput signInInput)), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
     | AppInput(AuthInput ShowChangePasswordModal), Auth authState, _ ->
         match authState.ChangePasswordModalState with
-        | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A" changePasswordModalState)
+        | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A (%A)" changePasswordModalState state)
         | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
     | AppInput(AuthInput(ChangePasswordModalInput changePasswordModalInput)), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
     | AppInput(AuthInput(ChangePasswordInput changePasswordInput)), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
     | AppInput(AuthInput ShowChangeImageUrlModal), Auth authState, _ ->
         match authState.ChangeImageUrlModalState with
-        | Some changeImageUrlModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is %A" changeImageUrlModalState)
+        | Some changeImageUrlModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is %A (%A)" changeImageUrlModalState state)
         | None -> Auth { authState with ChangeImageUrlModalState = Some(changeImageUrlModalState authState.AuthUser.User.ImageUrl) }, Cmd.none
     | AppInput(AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput)), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
     | AppInput(AuthInput(ChangeImageUrlInput changeImageUrlInput)), Auth authState, _ -> state |> handleChangeImageUrlInput changeImageUrlInput authState
@@ -567,4 +570,4 @@ let transition input state : State * Cmd<Input> =
     | AppInput(AuthInput(SignOutInput signOutInput)), Auth authState, _ -> state |> handleSignOutInput signOutInput authState
     | AppInput(AuthInput(GetUsersInput getUsersInput)), Auth authState, _ -> state |> handleGetUsersInput getUsersInput authState
     | AppInput(AuthInput TempShowUserAdminPage), Auth authState, _ -> state, "The <strong>User administration</strong> page has not yet been implemented" |> warningToastCmd // TEMP-NMB...
-    | _ -> state |> shouldNeverHappen (sprintf "Unexpected Input when %A -> %A" state input)
+    | _ -> state |> shouldNeverHappen (unexpectedInputWhenState input state)

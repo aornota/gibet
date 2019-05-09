@@ -361,8 +361,7 @@ let render state dispatch =
             // TEMP-NMB...
 #if DEBUG
 #else
-            let message = paraT theme TextSize.Is7 IsBlack TextWeight.Normal [ str "More functionality for signed in users coming soon..." ]
-            yield lazyView renderMessageSpecial (theme, GIBET, infoMessage [ message ] false, authState.AppState.Ticks)
+            yield lazyView renderMessageSpecial (theme, GIBET, infoMessage "More functionality for signed in users coming soon..." false, authState.AppState.Ticks)
 #endif
             // ...TEMP=-NMB
             yield renderMessages theme authState.Messages ticks // note: renderMessages handles lazyView2 itself

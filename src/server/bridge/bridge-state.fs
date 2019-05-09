@@ -20,11 +20,12 @@ let private sendIfNotSignedIn userId connectionId =
 
 // #region handleUnexpectedInput
 let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubState) =
-    clientDispatch (UnexpectedServerInput (sprintf "Unexpected ServerInput when %A -> %A" state input))
+    let unexpectedInputWhenState = sourced "Unexpected {input} when {state}" LOG_SOURCE
+    clientDispatch (UnexpectedServerInput(sprintf "Unexpected %A when %A" input state))
 #if DEBUG
-    Log.Logger.Warning(sourced "Unexpected ServerInput when {state} -> {input}" LOG_SOURCE, state, input)
+    Log.Logger.Warning(unexpectedInputWhenState, input, state)
 #else
-    Log.Logger.Error(sourced "Unexpected ServerInput when {state} -> {input}" LOG_SOURCE, state, input)
+    Log.Logger.Error(unexpectedInputWhenState, input, state)
 #endif
     state
 // #endregion

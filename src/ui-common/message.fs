@@ -18,7 +18,7 @@ type MessageType = | Debug | Info | Warning | Danger
 type Message = {
     MessageId : MessageId
     MessageType : MessageType
-    Children : ReactElement list
+    Text : string
     Timestamp : DateTime
     Dismissable : bool }
 
@@ -43,7 +43,7 @@ let private render theme source dispatch message =
             level true [
                 levelLeft [ levelItem [ contentLeft [ paraT theme TextSize.Is7 textColour TextWeight.Bold [ str sourceAndType ] ] ] ]
                 ofOption timestamp ]
-            contentLeft message.Children ]
+            contentLeft [ paraT theme TextSize.Is7 textColour TextWeight.Normal [ str message.Text ] ] ]
     ]
 // #endregion
 
@@ -56,21 +56,21 @@ let private shouldRender (message:Message) =
 #endif
 // #endregion
 
-let message messageType children timestamp dismissable = {
+let message messageType text timestamp dismissable = {
     MessageId = MessageId.Create ()
     MessageType = messageType
-    Children = children
+    Text = text
     Timestamp = timestamp
     Dismissable = dismissable }
 
-let debugMessage children dismissable = message Debug children DateTime.Now dismissable
-let debugMessageDismissable children = message Debug children DateTime.Now true
-let infoMessage children dismissable = message Info children DateTime.Now dismissable
-let infoMessageDismissable children = message Info children DateTime.Now true
-let warningMessage children dismissable = message Warning children DateTime.Now dismissable
-let warningMessageDismissable children = message Warning children DateTime.Now true
-let dangerMessage children dismissable = message Danger children DateTime.Now dismissable
-let dangerMessageDismissable children = message Danger children DateTime.Now true
+let debugMessage text dismissable = message Debug text DateTime.Now dismissable
+let debugMessageDismissable text = message Debug text DateTime.Now true
+let infoMessage text dismissable = message Info text DateTime.Now dismissable
+let infoMessageDismissable text = message Info text DateTime.Now true
+let warningMessage text dismissable = message Warning text DateTime.Now dismissable
+let warningMessageDismissable text = message Warning text DateTime.Now true
+let dangerMessage text dismissable = message Danger text DateTime.Now dismissable
+let dangerMessageDismissable text = message Danger text DateTime.Now true
 
 let removeMessage messageId messages = messages |> List.filter (fun message -> message.MessageId <> messageId)
 
