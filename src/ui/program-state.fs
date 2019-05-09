@@ -205,7 +205,7 @@ let private shouldNeverHappen error state : State * Cmd<Input> =
 #if DEBUG
     state |> addDebugError (shouldNeverHappen error), Cmd.none
 #else
-    state |> addMessage MessageType.Error SOMETHING_HAS_GONE_WRONG None, Cmd.none
+    state |> addMessage Danger SOMETHING_HAS_GONE_WRONG, Cmd.none
 #endif
 // #endregion
 
