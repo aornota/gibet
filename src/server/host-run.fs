@@ -31,12 +31,13 @@ open Fable.Remoting.Server
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "Host.Run"
-
 let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
 
-Log.Logger <- createLogger "logs/server_{Date}.log"
-Log.Logger.Information(sourced "Starting server..." LOG_SOURCE)
+Log.Logger <- defaultLogger "logs/server_{Date}.log"
+
+let logger = Log.Logger |> sourcedLogger "Host.Run"
+
+logger.Information("Starting server...")
 
 let private publicPath =
     let publicPath = Path.GetFullPath(Path.Combine("..", "ui/public")) // e.g. when served via webpack-dev-server
@@ -75,9 +76,9 @@ let private webAppWithLogging =
         userApi
     ] |> SerilogAdapter.Enable
 
-let private userRepo = InMemoryUserRepoAgent.InMemoryUserRepoAgent Log.Logger :> IUserRepo
+let private userRepo = InMemoryUserRepoAgent.InMemoryUserRepoAgent(Log.Logger) :> IUserRepo
 //#if DEBUG
-UserTestData.create Log.Logger userRepo |> Async.RunSynchronously |> ignore
+UserTestData.create userRepo |> Async.RunSynchronously |> ignore
 //#endif
 
 let private configureLogging(loggingBuilder:ILoggingBuilder) = loggingBuilder.ClearProviders() |> ignore // to suppress "info: Microsoft.AspNetCore.Hosting.Internal.WebHost" stuff

@@ -16,7 +16,7 @@ open FsToolkit.ErrorHandling
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "DevConsole.TestUserRepoAndApi"
+let private logger = Log.Logger |> sourcedLogger "DevConsole.TestUserRepoAndApi"
 
 let private hub = { // note: fake implementation that literally does nothing!
     new IHub<HubState, RemoteServerInput, RemoteUiInput> with
@@ -37,16 +37,16 @@ let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTe
     let satan, satanPassword = UserName "satan", Password "blzbub"
     // #endregion
     // #region IMemoryUserRepoAgent
-    Log.Logger.Information(sourced "Testing user repository..." LOG_SOURCE)
+    logger.Information("Testing user repository...")
     let userRepo = InMemoryUserRepoAgent(Log.Logger) :> IUserRepo
     let! nephUser = userRepo.CreateUser(Some nephId, neph, initialPassword, BenevolentDictatorForLife, Some nephImageUrl)
     let! _ = userRepo.CreateUser(Some rosieId, rosie, initialPassword, Administrator, None)
     let! hughUser = userRepo.CreateUser(Some hughId, hugh, initialPassword, Pleb, None)
     let! _ = userRepo.CreateUser(Some willId, will, initialPassword, Pleb, None)
-    Log.Logger.Information(sourced "...user repository tested" LOG_SOURCE)
+    logger.Information("...user repository tested")
     // #endregion
     // #region UserApiAgent
-    Log.Logger.Information(sourced "Testing user Api..." LOG_SOURCE)
+    logger.Information("Testing user Api...")
     let userApi, connectionId = UserApiAgent(userRepo, hub, Log.Logger), ConnectionId.Create()
     let! authUser, _ = userApi.SignIn(connectionId, neph, initialPassword)
     let! _ = userApi.GetUsers(connectionId, authUser.Jwt)
@@ -63,6 +63,6 @@ let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTe
     let! _ = userApi.SignOut(connectionId, authUser.Jwt)
     let! authUser, _ = userApi.AutoSignIn(connectionId, authUser.Jwt)
     let! _ = userApi.CreateUser(authUser.Jwt, satan, satanPassword, PersonaNonGrata, None)
-    Log.Logger.Information(sourced "...user Api tested" LOG_SOURCE)
+    logger.Information("...user Api tested")
     // #endregion
     return () }

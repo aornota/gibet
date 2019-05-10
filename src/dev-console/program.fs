@@ -8,13 +8,15 @@ open System
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "DevConsole.Program"
+let [<Literal>] private SOURCE = "DevConsole.Program"
 
-Log.Logger <- createLogger "logs/dev-console_{Date}.log"
+Log.Logger <- defaultLogger "logs/dev-console_{Date}.log"
+
+let private logger = Log.Logger |> sourcedLogger SOURCE
 
 let private mainAsync argv = async {
     // #region "Running DevConsole.Program.mainAsync..."
-    writeNewLine "Running DevConsole.Program.mainAsync" ConsoleColor.Magenta
+    writeNewLine (sprintf "Running %s.mainAsync" SOURCE) ConsoleColor.Magenta
     write (sprintf " %A" argv) ConsoleColor.DarkMagenta
     write "...\n\n" ConsoleColor.Magenta
     // #endregion
@@ -22,9 +24,9 @@ let private mainAsync argv = async {
     try
         // #region Logging examples
         (* let test = Some 3.14
-        Log.Logger.Debug(sourced "This is a debug message" LOG_SOURCE)
-        Log.Logger.Information(sourced "This is an information message: {test}" LOG_SOURCE, test)
-        Log.Logger.Warning(sourced "This is a warning message" LOG_SOURCE)
+        logger.Debug(sourced "This is a debug message" LOG_SOURCE)
+        logger.Information(sourced "This is an information message: {test}" LOG_SOURCE, test)
+        logger.Warning(sourced "This is a warning message" LOG_SOURCE)
         failwith "Fake error. Sad!" *)
         // #endregion
 
@@ -32,9 +34,9 @@ let private mainAsync argv = async {
         match! testUserRepoAndApi() with | Ok _ -> () | Error error -> failwith error
         // #endregion
 
-        // TEMP-NMB...Log.Logger.Information(sourced "TODO-NMB..." LOG_SOURCE)
+        // TEMP-NMB...logger.Information("TODO-NMB...")
 
-    with | exn -> Log.Logger.Error(sourced "Unexpected error: {message}\n{stackTrace}" LOG_SOURCE, exn.Message, exn.StackTrace)
+    with | exn -> logger.Error("Unexpected error: {errorMessage}\n{stackTrace}", exn.Message, exn.StackTrace)
 
     // #region "Press any key to exit..."
     writeNewLine "Press any key to exit..." ConsoleColor.Magenta

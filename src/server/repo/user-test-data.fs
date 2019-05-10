@@ -10,10 +10,10 @@ open FsToolkit.ErrorHandling
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "UserTestData"
+let private logger = Log.Logger |> sourcedLogger "Repo.UserTestData"
 
-let create (logger:ILogger) (userRepo:IUserRepo) = asyncResult {
-    logger.Information(sourced "Creating user test data..." LOG_SOURCE)
+let create (userRepo:IUserRepo) = asyncResult {
+    logger.Information("Creating user test data...")
     let initialPassword = Password "password" // note: invalid for IUserApi - but okay for IUserRepo
     let nephId, neph, nephPassword, nephImageUrl =
         UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "neph", ImageUrl "djnarration-128x128.png"
@@ -31,5 +31,5 @@ let create (logger:ILogger) (userRepo:IUserRepo) = asyncResult {
     let! willUser = userRepo.CreateUser(Some willId, will, initialPassword, Pleb, Some willImageUrl)
     let! _ = userRepo.ChangePassword(willUser.UserId, willPassword, willUser.Rvn)
     let! _ = userRepo.CreateUser(None, satan, satanPassword, PersonaNonGrata, None)
-    logger.Information(sourced "...user test data created" LOG_SOURCE)
+    logger.Information("...user test data created")
     return () }

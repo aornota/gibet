@@ -6,21 +6,24 @@ open Giraffe.SerilogExtensions
 
 open Serilog
 
+let [<Literal>] private LOG_SOURCE = "LogSource"
+
 let [<Literal>] private FILE_SIZE_LIMIT = 1_000_000L
 let [<Literal>] private RETAINED_FILE_COUNT = 7
 
-let sourced message source = sprintf "%s: %s" source message
-
-// #region createLogger
-let createLogger fileName =
+// #region defaultLogger
+let defaultLogger (fileName:string) =
+    let outputTemplate = sprintf "[{Timestamp:HH:mm:ss} {Level:u3}] {%s}{Message:lj}{NewLine}" LOG_SOURCE
     LoggerConfiguration()
         .Destructure.FSharpTypes()
 #if DEBUG
         .MinimumLevel.Debug()
-        .WriteTo.LiterateConsole()
+        .WriteTo.LiterateConsole(outputTemplate = outputTemplate)
 #else
         .MinimumLevel.Information()
-        .WriteTo.RollingFile(fileName, fileSizeLimitBytes = Nullable<int64>(FILE_SIZE_LIMIT), retainedFileCountLimit = Nullable<int>(RETAINED_FILE_COUNT))
+        .WriteTo.RollingFile(fileName, outputTemplate = outputTemplate, fileSizeLimitBytes = Nullable<int64>(FILE_SIZE_LIMIT), retainedFileCountLimit = Nullable<int>(RETAINED_FILE_COUNT))
 #endif
         .CreateLogger()
 // #endregion
+
+let sourcedLogger source (logger:ILogger) = logger.ForContext(LOG_SOURCE, sprintf "%s: " source)

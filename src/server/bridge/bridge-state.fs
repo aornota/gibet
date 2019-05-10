@@ -11,7 +11,7 @@ open Elmish
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "Bridge.State"
+let private logger = Log.Logger |> sourcedLogger "Bridge.State"
 
 let private serverStarted = DateTimeOffset.UtcNow
 
@@ -20,12 +20,12 @@ let private sendIfNotSignedIn userId connectionId =
 
 // #region handleUnexpectedInput
 let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubState) =
-    let unexpectedInputWhenState = sourced "Unexpected {input} when {state}" LOG_SOURCE
+    let unexpectedInputWhenState = "Unexpected {input} when {state}"
     clientDispatch (UnexpectedServerInput(sprintf "Unexpected %A when %A" input state))
 #if DEBUG
-    Log.Logger.Warning(unexpectedInputWhenState, input, state)
+    logger.Warning(unexpectedInputWhenState, input, state)
 #else
-    Log.Logger.Error(unexpectedInputWhenState, input, state)
+    logger.Error(unexpectedInputWhenState, input, state)
 #endif
     state
 // #endregion
