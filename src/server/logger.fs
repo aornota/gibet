@@ -6,7 +6,7 @@ open Giraffe.SerilogExtensions
 
 open Serilog
 
-let [<Literal>] private LOG_SOURCE = "LogSource"
+let [<Literal>] private LOG_SOURCE = "Source"
 
 let [<Literal>] private FILE_SIZE_LIMIT = 1_000_000L
 let [<Literal>] private RETAINED_FILE_COUNT = 7

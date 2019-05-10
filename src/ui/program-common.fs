@@ -95,7 +95,6 @@ type AppState = {
 type Input =
     | AddMessage of Message
     | DismissMessage of MessageId
-    | RegisterConnection of Message list * AppState * LastUser option * ConnectionId option
     | RemoteUiInput of RemoteUiInput
     | Disconnected
     | PreferencesInput of PreferencesInput

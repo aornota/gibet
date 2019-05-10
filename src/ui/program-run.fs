@@ -21,9 +21,12 @@ let [<Literal>] private SECONDS_PER_TICK = 1<second/tick> // note: "ignored" if 
 
 Globals.marked.setOptions(unbox(createObj [ "sanitize" ==> true ])) |> ignore // note: "sanitize" ensures Html within Markdown rendered as text
 
+let private secondsPerTick =
+    let minSecondsPerTick = 1<second/tick>
+    if SECONDS_PER_TICK < minSecondsPerTick then minSecondsPerTick else SECONDS_PER_TICK
+let private millisecondsPerTick = float secondsPerTick * MILLISECONDS_PER_SECOND
+
 let private onTick (_:State) =
-    let minSecondsPerTick = if SECONDS_PER_TICK >= 1<second/tick> then SECONDS_PER_TICK else 1<second/tick>
-    let millisecondsPerTick = float minSecondsPerTick * MILLISECONDS_PER_SECOND
     fun dispatch ->
         Browser.Dom.window.setInterval((fun _ -> dispatch OnTick), int millisecondsPerTick) |> ignore
     |> Cmd.ofSub
@@ -54,7 +57,8 @@ Program.mkProgram initialize transition render
 |> Program.withSubscription subscriptions
 |> Program.withReactSynchronous "elmish-app" // i.e. <div id="elmish-app"> in index.html
 #if DEBUG
-|> Program.withConsoleTrace
+(* Note: Rather than using Program.withConsoleTrace, logging is handled "manually" in State.initialize and State.transition, which allows selective logging of inputs (e.g. suppressing
+   logging for OnTick | OnMouseMove | &c.). *)
 |> Program.withDebugger
 #endif
 |> Program.run

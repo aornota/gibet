@@ -10,8 +10,6 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
-open Aornota.Gibet.Ui.Common.Render
-open Aornota.Gibet.Ui.Common.Render.Theme
 open Aornota.Gibet.Ui.Common.ShouldNeverHappen
 open Aornota.Gibet.Ui.Common.Toast
 open Aornota.Gibet.Ui.Common.Theme
@@ -24,18 +22,21 @@ open System
 open Elmish
 open Elmish.Bridge
 
+open Fable.Core.JS
 open Fable.Import
-
-open Fulma
 
 open Thoth.Elmish
 open Thoth.Json
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
+let [<Literal>] private SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
+
 let [<Literal>] private ACTIVITY_DEBOUNCER_THRESHOLD = 15.<second> // note: "ignored" if less than 5.<second>
 
-let [<Literal>] private SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
+let private activityDebouncerThreshold =
+    let minActivityDebouncerThreshold = 5.<second>
+    if ACTIVITY_DEBOUNCER_THRESHOLD < minActivityDebouncerThreshold then minActivityDebouncerThreshold else ACTIVITY_DEBOUNCER_THRESHOLD
 
 let private setBodyClass theme =
     Browser.document.body.className <- themeClass theme
@@ -312,8 +313,8 @@ let private handlePreferencesInput preferencesInput state =
             match reconnectingState with
             | Some reconnectingState -> connectionId reconnectingState
             | None -> None
-        let cmd = RegisterConnection(messages, appState, preferences.LastUser, connectionId) |> Cmd.ofMsg
-        state, cmd
+        Bridge.Send(RemoteServerInput.Register(appState.AffinityId, connectionId))
+        RegisteringConnection(registeringConnectionState messages appState preferences.LastUser connectionId), Cmd.none
     | ReadPreferencesResult None, ReadingPreferences _ ->
         let preferences = preferencesOrDefault state
         let cmds = Cmd.batch [
@@ -340,9 +341,8 @@ let private handleOnTick appState state : State * Cmd<Input> = // note: will onl
 let private handleOnMouseMove state = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     match state with
     | Auth authState ->
-        let minActivityDebouncerThreshold = if ACTIVITY_DEBOUNCER_THRESHOLD >= 5.<second> then ACTIVITY_DEBOUNCER_THRESHOLD else 5.<second>
         let debouncerState, debouncerCmd =
-            authState.ActivityDebouncerState |> Debouncer.bounce (TimeSpan.FromSeconds(float minActivityDebouncerThreshold)) "OnMouseMove" OnDebouncedActivity
+            authState.ActivityDebouncerState |> Debouncer.bounce (TimeSpan.FromSeconds(float activityDebouncerThreshold)) "OnMouseMove" OnDebouncedActivity
         Auth { authState with ActivityDebouncerState = debouncerState }, debouncerCmd |> Cmd.map ActivityDebouncerSelfInput
     | _ -> state, Cmd.none
 let private handleActivityDebouncerSelfInput selfInput state = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
@@ -515,9 +515,21 @@ let private handleGetUsersInput getUsersInput (authState:AuthState) state =
     | GetUsersResult(Error error) -> Auth { authState with UsersData = Failed error }, ifDebug (sprintf "GetUsersResult error -> %s" error |> errorToastCmd) Cmd.none
     | GetUsersExn exn -> state, AppInput(AuthInput(GetUsersInput(GetUsersResult(Error exn.Message)))) |> Cmd.ofMsg
 
-let initialize() : State * Cmd<Input> = InitializingConnection([], None), Cmd.none
+// #region initialize
+let initialize() : State * Cmd<Input> =
+    let state = InitializingConnection([], None)
+#if DEBUG
+    console.log("Initial state:", state)
+#endif
+    state, Cmd.none
+// #endregion
 
+// #region transition
 let transition input state : State * Cmd<Input> =
+    let log = match input with | OnTick | OnMouseMove | ActivityDebouncerSelfInput _ -> false | _ -> true
+#if DEBUG
+    if log then console.log("Input:", input)
+#endif
     let appState, connectionState =
         match state with
         | InitializingConnection _ | ReadingPreferences _ -> None, None
@@ -525,49 +537,52 @@ let transition input state : State * Cmd<Input> =
         | AutomaticallySigningIn automaticallySigningInState -> Some automaticallySigningInState.AppState, Some automaticallySigningInState.ConnectionState
         | Unauth unauthState -> Some unauthState.AppState, Some unauthState.ConnectionState
         | Auth authState -> Some authState.AppState, Some authState.ConnectionState
-    match input, state, (appState, connectionState) with
-    | AddMessage message, _, _ -> state |> addToMessages message, Cmd.none
-    | DismissMessage messageId, _, _ -> state |> dismissMessage messageId, Cmd.none
-    | RegisterConnection(messages, appState, lastUser, connectionId), _, _ ->
-        Bridge.Send(RemoteServerInput.Register(appState.AffinityId, connectionId))
-        RegisteringConnection(registeringConnectionState messages appState lastUser connectionId), Cmd.none
-    | RemoteUiInput remoteUiInput, _, _ -> state |> handleRemoteUiInput remoteUiInput
-    | Disconnected, _, _ -> state |> handleDisconnected
-    | PreferencesInput preferencesInput, _, _ -> state |> handlePreferencesInput preferencesInput
-    | OnTick, _, _ -> state |> handleOnTick appState
-    | OnMouseMove, _, _ -> state |> handleOnMouseMove
-    | ActivityDebouncerSelfInput selfInput, _, _ -> state |> handleActivityDebouncerSelfInput selfInput
-    | OnDebouncedActivity, _, _ -> state |> handleOnDebouncedActivity
-    | ToggleTheme, _, (Some appState, _) ->
-        let appState = { appState with Theme = match appState.Theme with | Light -> Dark | Dark -> Light }
-        setBodyClass appState.Theme
-        state |> updateAppState appState |> writePreferencesOrDefault
-    | ToggleNavbarBurger, _, (Some appState, _) ->
-        let appState = { appState with NavbarBurgerIsActive = not appState.NavbarBurgerIsActive }
-        state |> updateAppState appState |> writePreferencesOrDefault
-    | AutoSignInInput autoSignInInput, AutomaticallySigningIn automaticallySigningInState, _ -> state |> handleAutoSignInInput autoSignInInput automaticallySigningInState
-    | AppInput(UnauthInput ShowSignInModal), Unauth unauthState, _ ->
-        match unauthState.SignInModalState with
-        | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A (%A)" signInModalState state)
-        | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None) }, Cmd.none
-    | AppInput(UnauthInput(SignInModalInput signInModalInput)), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
-    | AppInput(UnauthInput(SignInInput signInInput)), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
-    | AppInput(AuthInput ShowChangePasswordModal), Auth authState, _ ->
-        match authState.ChangePasswordModalState with
-        | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A (%A)" changePasswordModalState state)
-        | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
-    | AppInput(AuthInput(ChangePasswordModalInput changePasswordModalInput)), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
-    | AppInput(AuthInput(ChangePasswordInput changePasswordInput)), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
-    | AppInput(AuthInput ShowChangeImageUrlModal), Auth authState, _ ->
-        match authState.ChangeImageUrlModalState with
-        | Some changeImageUrlModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is %A (%A)" changeImageUrlModalState state)
-        | None -> Auth { authState with ChangeImageUrlModalState = Some(changeImageUrlModalState authState.AuthUser.User.ImageUrl) }, Cmd.none
-    | AppInput(AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput)), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
-    | AppInput(AuthInput(ChangeImageUrlInput changeImageUrlInput)), Auth authState, _ -> state |> handleChangeImageUrlInput changeImageUrlInput authState
-    | AppInput(AuthInput SignOut), Auth authState, _ ->
-        let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutInput >> AuthInput >> AppInput)
-        Auth { authState with SigningOut = true }, cmd
-    | AppInput(AuthInput(SignOutInput signOutInput)), Auth authState, _ -> state |> handleSignOutInput signOutInput authState
-    | AppInput(AuthInput(GetUsersInput getUsersInput)), Auth authState, _ -> state |> handleGetUsersInput getUsersInput authState
-    | AppInput(AuthInput TempShowUserAdminPage), Auth authState, _ -> state, "The <strong>User administration</strong> page has not yet been implemented" |> warningToastCmd // TEMP-NMB...
-    | _ -> state |> shouldNeverHappen (unexpectedInputWhenState input state)
+    let state, cmd =
+        match input, state, (appState, connectionState) with
+        | AddMessage message, _, _ -> state |> addToMessages message, Cmd.none
+        | DismissMessage messageId, _, _ -> state |> dismissMessage messageId, Cmd.none
+        | RemoteUiInput remoteUiInput, _, _ -> state |> handleRemoteUiInput remoteUiInput
+        | Disconnected, _, _ -> state |> handleDisconnected
+        | PreferencesInput preferencesInput, _, _ -> state |> handlePreferencesInput preferencesInput
+        | OnTick, _, _ -> state |> handleOnTick appState
+        | OnMouseMove, _, _ -> state |> handleOnMouseMove
+        | ActivityDebouncerSelfInput selfInput, _, _ -> state |> handleActivityDebouncerSelfInput selfInput
+        | OnDebouncedActivity, _, _ -> state |> handleOnDebouncedActivity
+        | ToggleTheme, _, (Some appState, _) ->
+            let appState = { appState with Theme = match appState.Theme with | Light -> Dark | Dark -> Light }
+            setBodyClass appState.Theme
+            state |> updateAppState appState |> writePreferencesOrDefault
+        | ToggleNavbarBurger, _, (Some appState, _) ->
+            let appState = { appState with NavbarBurgerIsActive = not appState.NavbarBurgerIsActive }
+            state |> updateAppState appState |> writePreferencesOrDefault
+        | AutoSignInInput autoSignInInput, AutomaticallySigningIn automaticallySigningInState, _ -> state |> handleAutoSignInInput autoSignInInput automaticallySigningInState
+        | AppInput(UnauthInput ShowSignInModal), Unauth unauthState, _ ->
+            match unauthState.SignInModalState with
+            | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A (%A)" signInModalState state)
+            | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None) }, Cmd.none
+        | AppInput(UnauthInput(SignInModalInput signInModalInput)), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
+        | AppInput(UnauthInput(SignInInput signInInput)), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
+        | AppInput(AuthInput ShowChangePasswordModal), Auth authState, _ ->
+            match authState.ChangePasswordModalState with
+            | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A (%A)" changePasswordModalState state)
+            | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
+        | AppInput(AuthInput(ChangePasswordModalInput changePasswordModalInput)), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
+        | AppInput(AuthInput(ChangePasswordInput changePasswordInput)), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
+        | AppInput(AuthInput ShowChangeImageUrlModal), Auth authState, _ ->
+            match authState.ChangeImageUrlModalState with
+            | Some changeImageUrlModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is %A (%A)" changeImageUrlModalState state)
+            | None -> Auth { authState with ChangeImageUrlModalState = Some(changeImageUrlModalState authState.AuthUser.User.ImageUrl) }, Cmd.none
+        | AppInput(AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput)), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
+        | AppInput(AuthInput(ChangeImageUrlInput changeImageUrlInput)), Auth authState, _ -> state |> handleChangeImageUrlInput changeImageUrlInput authState
+        | AppInput(AuthInput SignOut), Auth authState, _ ->
+            let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutInput >> AuthInput >> AppInput)
+            Auth { authState with SigningOut = true }, cmd
+        | AppInput(AuthInput(SignOutInput signOutInput)), Auth authState, _ -> state |> handleSignOutInput signOutInput authState
+        | AppInput(AuthInput(GetUsersInput getUsersInput)), Auth authState, _ -> state |> handleGetUsersInput getUsersInput authState
+        | AppInput(AuthInput TempShowUserAdminPage), Auth authState, _ -> state, "The <strong>User administration</strong> page has not yet been implemented" |> warningToastCmd // TEMP-NMB...
+        | _ -> state |> shouldNeverHappen (unexpectedInputWhenState input state)
+#if DEBUG
+    if log then console.log("New state:", state)
+#endif
+    state, cmd
+// #endregion
