@@ -25,18 +25,15 @@ open Elmish.Bridge
 open Fable.Core.JS
 open Fable.Import
 
-open Thoth.Elmish
 open Thoth.Json
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
 let [<Literal>] private SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
 
-let [<Literal>] private ACTIVITY_DEBOUNCER_THRESHOLD = 15.<second> // note: "ignored" if less than 5.<second>
+let [<Literal>] private ACTIVITY_THROTTLE = 15.<second> // note: "ignored" if less than 5.<second>
 
-let private activityDebouncerThreshold =
-    let minActivityDebouncerThreshold = 5.<second>
-    if ACTIVITY_DEBOUNCER_THRESHOLD < minActivityDebouncerThreshold then minActivityDebouncerThreshold else ACTIVITY_DEBOUNCER_THRESHOLD
+let private activityThrottle = max ACTIVITY_THROTTLE 5.<second>
 
 let private setBodyClass theme =
     Browser.document.body.className <- themeClass theme
@@ -161,12 +158,13 @@ let private authState messages appState connectionState authUser mustChangePassw
         match mustChangePasswordReason with
         | Some mustChangePasswordReason -> Some(changePasswordModalState (Some mustChangePasswordReason))
         | None -> None
+    Bridge.Send RemoteServerInput.Activity
     {
         Messages = messages
         AppState = appState
         ConnectionState = connectionState
         AuthUser = authUser
-        ActivityDebouncerState = Debouncer.create()
+        LastActivity = DateTime.Now
         ChangePasswordModalState = changePasswordModalState
         ChangeImageUrlModalState = None
         SigningOut = false
@@ -332,30 +330,19 @@ let private handlePreferencesInput preferencesInput state =
 
 let private handleOnTick appState state : State * Cmd<Input> = // note: will only be used when TICK is defined (see webpack.config.js)
     match appState with
-    | Some appState ->
-        let appState = { appState with Ticks = appState.Ticks + 1<tick> }
-        state |> updateAppState appState, Cmd.none
-    | _ ->
-        state, Cmd.none
-
-let private handleOnMouseMove state = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    | Some appState -> state |> updateAppState { appState with Ticks = appState.Ticks + 1<tick> }, Cmd.none
+    | _ -> state, Cmd.none
+let private handleOnMouseMove state : State * Cmd<Input> = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     match state with
     | Auth authState ->
-        let debouncerState, debouncerCmd =
-            authState.ActivityDebouncerState |> Debouncer.bounce (TimeSpan.FromSeconds(float activityDebouncerThreshold)) "OnMouseMove" OnDebouncedActivity
-        Auth { authState with ActivityDebouncerState = debouncerState }, debouncerCmd |> Cmd.map ActivityDebouncerSelfInput
-    | _ -> state, Cmd.none
-let private handleActivityDebouncerSelfInput selfInput state = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-    match state with
-    | Auth authState ->
-        let debouncerState, cmd = authState.ActivityDebouncerState |> Debouncer.update selfInput
-        Auth { authState with ActivityDebouncerState = debouncerState }, cmd
-    | _ -> state, Cmd.none
-let private handleOnDebouncedActivity state = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-    match state with
-    | Auth _ ->
-        Bridge.Send RemoteServerInput.Activity
-        state, Cmd.none
+        let now, lastActivity = DateTime.Now, authState.LastActivity
+        let elapsed = now - lastActivity
+        let lastActivity =
+            if elapsed.TotalSeconds * 1.<second> > activityThrottle then
+                Bridge.Send RemoteServerInput.Activity
+                now
+            else lastActivity
+        Auth { authState with LastActivity = lastActivity }, Cmd.none
     | _ -> state, Cmd.none
 
 let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:AutomaticallySigningInState) state =
@@ -526,7 +513,7 @@ let initialize() : State * Cmd<Input> =
 
 // #region transition
 let transition input state : State * Cmd<Input> =
-    let log = match input with | OnTick | OnMouseMove | ActivityDebouncerSelfInput _ -> false | _ -> true
+    let log = match input with | OnTick | OnMouseMove -> false | _ -> true
 #if DEBUG
     if log then console.log("Input:", input)
 #endif
@@ -546,8 +533,6 @@ let transition input state : State * Cmd<Input> =
         | PreferencesInput preferencesInput, _, _ -> state |> handlePreferencesInput preferencesInput
         | OnTick, _, _ -> state |> handleOnTick appState
         | OnMouseMove, _, _ -> state |> handleOnMouseMove
-        | ActivityDebouncerSelfInput selfInput, _, _ -> state |> handleActivityDebouncerSelfInput selfInput
-        | OnDebouncedActivity, _, _ -> state |> handleOnDebouncedActivity
         | ToggleTheme, _, (Some appState, _) ->
             let appState = { appState with Theme = match appState.Theme with | Light -> Dark | Dark -> Light }
             setBodyClass appState.Theme

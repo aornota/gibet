@@ -12,8 +12,6 @@ open Aornota.Gibet.Ui.Shared
 
 open System
 
-open Thoth.Elmish
-
 type LastUser = UserName * Jwt
 
 type Preferences = {
@@ -100,8 +98,6 @@ type Input =
     | PreferencesInput of PreferencesInput
     | OnTick // note: will only be used when TICK is defined (see webpack.config.js)
     | OnMouseMove // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-    | ActivityDebouncerSelfInput of Debouncer.SelfMessage<Input> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-    | OnDebouncedActivity // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     | ToggleTheme
     | ToggleNavbarBurger
     | AutoSignInInput of AutoSignInInput
@@ -162,7 +158,7 @@ type AuthState = {
     AppState : AppState
     ConnectionState : ConnectionState
     AuthUser : AuthUser
-    ActivityDebouncerState : Debouncer.State // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    LastActivity : DateTime
     ChangePasswordModalState : ChangePasswordModalState option
     ChangeImageUrlModalState : ChangeImageUrlModalState option
     SigningOut : bool

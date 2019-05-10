@@ -101,7 +101,7 @@ module.exports = {
                     loader: "fable-loader"
                     , options: {
                         babel: config.babel
-                        , define: isProduction ? [ "ACTIVITY", "TICK" ] : [ "DEBUG", "ACTIVITY"/*, "HMR"*/, "TICK" ] // TODO-NMB: Review whether to use HMR (&c.)...
+                        , define: isProduction ? [ "ACTIVITY", "TICK" ] : [ "DEBUG", "ACTIVITY", "TICK"/*, "HMR"*/ ] // note: enable HMR if required (though this seems to cause ServerHub to reset client state to NotRegistered, which can lead to confusing behaviour)
                     }
                 }
             }

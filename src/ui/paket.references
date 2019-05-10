@@ -17,5 +17,4 @@ group ui
     Fulma.Extensions.Wikiki.Checkradio
 	Fulma.Extensions.Wikiki.PageLoader
 	Fulma.Extensions.Wikiki.Tooltip
-    Thoth.Elmish.Debouncer
 	Thoth.Json

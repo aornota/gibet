@@ -58,7 +58,6 @@ group ui
     nuget Fulma.Extensions.Wikiki.Checkradio
 	nuget Fulma.Extensions.Wikiki.PageLoader prerelease
 	nuget Fulma.Extensions.Wikiki.Tooltip prerelease
-	nuget Thoth.Elmish.Debouncer prerelease
 	nuget Thoth.Json prerelease
 
 group dev-console
