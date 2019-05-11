@@ -2,9 +2,12 @@ module Aornota.Gibet.Ui.Shared
 
 open Aornota.Gibet.Ui.Common.Message
 
-type ModalStatus<'a> = | ModalPending | ModalFailed of 'a
+type ModalStatus<'a> =
+    | ModalPending
+    | ModalFailed of 'a
 
-let [<Literal>] GIBET = "gibet (γ)" // note: also update index.html, package.json, README.md and READ_ME (α | β | γ | δ | ε)
+// α | β | γ | δ | ε | ζ | η | θ | ι | κ | λ | μ | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
+let [<Literal>] GIBET = "gibet (δ)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
 
 let renderDebugMessage theme text = renderMessage theme GIBET Debug text
 let renderInfoMessage theme text = renderMessage theme GIBET Info text

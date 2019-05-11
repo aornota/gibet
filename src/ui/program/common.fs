@@ -1,5 +1,6 @@
 module Aornota.Gibet.Ui.Program.Common
 
+open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
@@ -40,7 +41,8 @@ type SignInInput =
     | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | SignInExn of exn
 
-type UnauthPage = | About
+type UnauthPage =
+    | About
 
 type UnauthInput =
     | ShowUnauthPage of UnauthPage
@@ -63,7 +65,7 @@ type ChangeImageUrlModalInput =
     | ChangeImageUrl
     | CancelChangeImageUrl
 type ChangeImageUrlInput =
-    | ChangeImageUrlResult of Result<UserName, string>
+    | ChangeImageUrlResult of Result<UserName * ImageChangeType option, string>
     | ChangeImageUrlExn of exn
 
 type SignOutInput =
@@ -74,9 +76,13 @@ type GetUsersInput =
     | GetUsersResult of Result<(User * bool) list * Rvn, string>
     | GetUsersExn of exn
 
-type AuthPage = | Chat | UserAdmin
+type AuthPage =
+    | Chat
+    | UserAdmin
 
-type Page = | UnauthPage of UnauthPage | AuthPage of AuthPage
+type Page =
+    | UnauthPage of UnauthPage
+    | AuthPage of AuthPage
 
 type AuthInput =
     | ShowPage of Page
@@ -94,13 +100,13 @@ type AuthInput =
     | GetUsersInput of GetUsersInput
 
 type Input =
+    | OnTick // note: will only be used when TICK is defined (see webpack.config.js)
+    | OnMouseMove // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     | AddMessage of Message
     | DismissMessage of MessageId
     | RemoteUiInput of RemoteUiInput
     | Disconnected
     | PreferencesInput of PreferencesInput
-    | OnTick // note: will only be used when TICK is defined (see webpack.config.js)
-    | OnMouseMove // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     | ToggleTheme
     | ToggleNavbarBurger
     | AutoSignInInput of AutoSignInInput

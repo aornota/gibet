@@ -13,7 +13,11 @@ open Fulma
 
 type MessageId = | MessageId of Guid with static member Create() = MessageId(Guid.NewGuid())
 
-type MessageType = | Debug | Info | Warning | Danger
+type MessageType =
+    | Debug
+    | Info
+    | Warning
+    | Danger
 
 type Message = {
     MessageId : MessageId

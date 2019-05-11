@@ -7,7 +7,11 @@ open System
 open Fulma
 open Fulma.Extensions.Wikiki
 
-type TooltipPosition = | TooltipTop | TooltipRight | TooltipBottom | TooltipLeft
+type TooltipPosition =
+    | TooltipTop
+    | TooltipRight
+    | TooltipBottom
+    | TooltipLeft
 
 type TooltipData = {
     TooltipPosition : TooltipPosition

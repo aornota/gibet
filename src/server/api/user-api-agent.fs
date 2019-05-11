@@ -32,7 +32,7 @@ type private Input =
     | AutoSignIn of ConnectionId * Jwt * AsyncReplyChannelResult<AuthUser * MustChangePasswordReason option, string>
     | SignOut of ConnectionId * Jwt * AsyncReplyChannelResult<unit, string>
     | ChangePassword of Jwt * Password * Rvn * AsyncReplyChannelResult<UserName, string>
-    | ChangeImageUrl of Jwt * ImageUrl option * Rvn * AsyncReplyChannelResult<UserName, string>
+    | ChangeImageUrl of Jwt * ImageUrl option * Rvn * AsyncReplyChannelResult<UserName * ImageChangeType option, string>
     | GetUsers of ConnectionId * Jwt * AsyncReplyChannelResult<(User * bool) list * Rvn, string>
     | CreateUser of Jwt * UserName * Password * UserType * ImageUrl option * AsyncReplyChannelResult<UserName, string>
     | ResetPassword of Jwt * UserId * Password * Rvn * AsyncReplyChannelResult<UserName, string>
@@ -148,7 +148,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserUpdated(user,agentRvn))
+                                    hub.SendClientIf hasUsers (UserUpdated(user, agentRvn, PasswordChanged))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -177,19 +177,19 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                         let! repoResult = userRepo.ChangeImageUrl(userId, imageUrl, rvn)
                         return
                             match repoResult with
-                            | Ok user ->
+                            | Ok(user, imageChangeType) ->
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserUpdated(user,agentRvn))
-                                    Ok(user.UserName, agentRvn)
+                                    hub.SendClientIf hasUsers (UserUpdated(user, agentRvn, UserUpdateType.ImageChanged imageChangeType))
+                                    Ok((user.UserName, imageChangeType), agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
                     | Error error -> return Error error }
                 let agentRvn =
                     match result with
-                    | Ok(userName, agentRvn) ->
-                        logger.Debug("Image URL changed for {userName} (UserApiAgent now {rvn})", userName, agentRvn)
+                    | Ok((userName, imageChangeType), agentRvn) ->
+                        logger.Debug("Image URL {changeType} for {userName} (UserApiAgent now {rvn})", changeType imageChangeType, userName, agentRvn)
                         agentRvn
                     | Error error ->
                         logger.Warning("Unable to change image URL (UserApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
@@ -211,10 +211,10 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
             | CreateUser(jwt, userName, password, userType, imageUrl, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake CreateUser error -> %A" jwt) else Ok()
-                    let! _, jwtUserType = fromJwt jwt
+                    let! _, byUserType = fromJwt jwt
                     let! _ =
-                        if canCreateUser userType jwtUserType then Ok()
-                        else Error(ifDebug (sprintf "%s.CreateUser -> canCreateUser for %A returned false for %A" SOURCE userType jwtUserType) UNEXPECTED_ERROR)
+                        if canCreateUser userType byUserType then Ok()
+                        else Error(ifDebug (sprintf "%s.CreateUser -> canCreateUser for %A returned false for %A" SOURCE userType byUserType) UNEXPECTED_ERROR)
                     let userNames = userDict.Values |> List.ofSeq |> List.map (fun user -> user.UserName)
                     let! _ = match validateUserName false userName userNames with | Some error -> Error error | None -> Ok()
                     let! _ = validatePassword password
@@ -247,25 +247,26 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
             | ResetPassword(jwt, userId, password, rvn, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake ResetPassword error -> %A" jwt) else Ok()
-                    let! jwtUserId, jwtUserType = fromJwt jwt
+                    let! byUserId, byUserType = fromJwt jwt
+                    let! byUser = userDict |> findUserId byUserId
                     let! user = userDict |> findUserId userId
                     let! _ =
-                        if canResetPassword (userId, user.UserType) (jwtUserId, jwtUserType) then Ok()
-                        else Error(ifDebug (sprintf "%s.ResetPassword -> canResetPassword for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType jwtUserId jwtUserType) UNEXPECTED_ERROR)
+                        if canResetPassword (userId, user.UserType) (byUserId, byUserType) then Ok()
+                        else Error(ifDebug (sprintf "%s.ResetPassword -> canResetPassword for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType byUserId byUserType) UNEXPECTED_ERROR)
                     let! _ = validatePassword password
-                    return ()}
+                    return byUser}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
-                    | Ok _ ->
-                        let! repoResult = userRepo.ResetPassword(userId, password, rvn)
+                    | Ok byUser ->
+                        let! repoResult = userRepo.ResetPassword(byUser.UserId, userId, password, rvn)
                         return
                             match repoResult with
                             | Ok user ->
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendServerIf (sameUser userId) (ForceSignOut(Some PasswordReset))
-                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn))
+                                    hub.SendServerIf (sameUser userId) (ForceSignOut(Some(PasswordReset byUser.UserName)))
+                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn, UserUpdateType.PasswordReset))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -283,15 +284,16 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
             | ChangeUserType(jwt, userId, userType, rvn, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake ChangeUserType error -> %A" jwt) else Ok()
-                    let! jwtUserId, jwtUserType = fromJwt jwt
+                    let! byUserId, byUserType = fromJwt jwt
+                    let! byUser = userDict |> findUserId byUserId
                     let! user = userDict |> findUserId userId
                     let! _ =
-                        if canChangeUserType (userId, user.UserType) (jwtUserId, jwtUserType) then Ok()
-                        else Error(ifDebug (sprintf "%s.ChangeUserType -> canChangeUserType for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType jwtUserId jwtUserType) UNEXPECTED_ERROR)
-                    return ()}
+                        if canChangeUserType (userId, user.UserType) (byUserId, byUserType) then Ok()
+                        else Error(ifDebug (sprintf "%s.ChangeUserType -> canChangeUserType for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType byUserId byUserType) UNEXPECTED_ERROR)
+                    return byUser}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
-                    | Ok _ ->
+                    | Ok byUser ->
                         let! repoResult = userRepo.ChangeUserType(userId, userType, rvn)
                         return
                             match repoResult with
@@ -299,8 +301,8 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendServerIf (sameUser userId) (ForceSignOut(Some UserTypeChanged))
-                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn))
+                                    hub.SendServerIf (sameUser userId) (ForceSignOut(Some(UserTypeChanged byUser.UserName)))
+                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn, UserUpdateType.UserTypeChanged))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error

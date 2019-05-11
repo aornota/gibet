@@ -8,6 +8,12 @@ open System
 
 type ConnectionId = | ConnectionId of Guid with static member Create() = ConnectionId(Guid.NewGuid())
 
+type UserUpdateType =
+    | PasswordChanged
+    | ImageChanged of ImageChangeType option
+    | PasswordReset
+    | UserTypeChanged
+
 type RemoteUiInput =
     | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)
     | Registered of ConnectionId * serverStarted : DateTimeOffset
@@ -15,7 +21,7 @@ type RemoteUiInput =
     | UserSignedIn of UserId
     | UserSignedOut of UserId
     | ForceUserSignOut of ForcedSignOutReason option
-    | UserUpdated of User * usersRvn : Rvn
+    | UserUpdated of User * usersRvn : Rvn * UserUpdateType
     | UserAdded of User * usersRvn : Rvn
     // TODO-NMB: More?...
     | UnexpectedServerInput of string

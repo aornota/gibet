@@ -2,7 +2,9 @@ module Aornota.Gibet.Ui.Common.Theme
 
 open Fulma
 
-type Theme = | Light | Dark
+type Theme =
+    | Light
+    | Dark
 
 let defaultTheme = Light
 

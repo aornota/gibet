@@ -12,7 +12,7 @@ type UserApi = {
     autoSignIn : ConnectionId * Jwt -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     signOut : ConnectionId * Jwt -> AsyncResult<unit, string>
     changePassword : Jwt * Password * Rvn -> AsyncResult<UserName, string>
-    changeImageUrl : Jwt * ImageUrl option * Rvn -> AsyncResult<UserName, string>
+    changeImageUrl : Jwt * ImageUrl option * Rvn -> AsyncResult<UserName * ImageChangeType option, string>
     getUsers : ConnectionId * Jwt -> AsyncResult<(User * bool) list * Rvn, string>
     createUser : Jwt * UserName * Password * UserType * ImageUrl option -> AsyncResult<UserName, string>
     resetPassword : Jwt * UserId * Password * Rvn -> AsyncResult<UserName, string>

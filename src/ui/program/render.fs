@@ -79,7 +79,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 | None -> iconSmaller ICON__USER, true
             let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangePasswordModal |> AuthInput)) [ str "Change password" ] ]
             let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangeImageUrlModal |> AuthInput)) [
-                    str (sprintf "%s image" (if currentlyNone then "Choose" else "Change"))] ]
+                    str (sprintf "%s image" (if currentlyNone then "Choose" else "Change (or remove)"))] ]
             let signOut = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (SignOut |> AuthInput) ) [ str "Sign out" ] ]
             Some(navbarDropDownT theme image [
                 let userId, userType = authUser.User.UserId, authUser.User.UserType
@@ -101,7 +101,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
         |  _ -> None
     // TODO-NMB: pageTabs?...
     let toggleThemeInteraction = Clickable(fun _ -> dispatch ToggleTheme)
-    let toggleThemeTooltip = tooltip (if burgerIsActive then TooltipRight else TooltipLeft) IsInfo (sprintf "Switch to %s theme" (match theme with | Light -> "dark" | Dark -> "light"))
+    let toggleThemeTooltip = tooltip (if burgerIsActive then TooltipRight else TooltipLeft) IsPrimary (sprintf "Switch to %s theme" (match theme with | Light -> "dark" | Dark -> "light"))
     navbarT theme IsLight [
         navbarBrand [
             yield navbarItem [ image IMAGE__GIBET Image.Is24x24 ]
@@ -174,6 +174,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
             let userNameError = if signInModalState.UserNameChanged then userNameError else None
             let passwordError = if signInModalState.PasswordChanged then passwordError else None
             Some onDismiss, false, signInInteration, onEnter, userNameError, passwordError
+    let extra = ifDebug None (Some(paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "e.g. " ; bold EXAMPLE_ADMIN_USER_NAME ; str " / " ; bold EXAMPLE_ADMIN_PASSWORD ]))
     let body = [
         match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.ModalStatus with
         | Some(error, UserName userName), _, _ ->
@@ -182,9 +183,9 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 paraTSmallest theme [ str error ] ]
             yield br
         | None, Some forcedSignOutReason, _ ->
+            let because, UserName byUserName = forcedSignOutBecause forcedSignOutReason
             yield notificationT theme IsWarning None [
-                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [
-                    str (sprintf "You have been signed out because %s" (forcedSignOutBecause forcedSignOutReason)) ] ] ]
+                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [ str (sprintf "You have been signed out because %s by " because) ; bold byUserName ] ] ]
             yield br
         | None, None, Some(ModalFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [
@@ -193,14 +194,15 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
             yield br
         | None, None, _ -> ()
         yield contentCentred [
-            paraTSmaller theme [ str "Please enter your user name and password" ]
-            fieldGroupedCentred [
+            yield paraTSmaller theme [ str "Please enter your user name and password" ]
+            yield ofOption extra
+            yield fieldGroupedCentred [
                 textBoxT theme signInModalState.UserNameKey signInModalState.UserName (Some ICON__USER) false userNameError [] (not signInModalState.FocusPassword) isSigningIn
                     (UserNameChanged >> dispatch) ignore ]
-            fieldGroupedCentred [
+            yield fieldGroupedCentred [
                 textBoxT theme signInModalState.PasswordKey signInModalState.Password (Some ICON__PASSWORD) true passwordError [] signInModalState.FocusPassword isSigningIn
                     (PasswordChanged >> dispatch) onEnter ]
-            fieldGroupedCentred [
+            yield fieldGroupedCentred [
                 paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink signInInteraction false false None [ str "Sign in" ] ] ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
@@ -225,9 +227,11 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
     let body = [
         match changePasswordModalState.MustChangePasswordReason with
         | Some mustChangePasswordReason ->
-            yield notificationT theme IsWarning None [
-                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [
-                    str (sprintf "You must change your password because %s" (mustChangePasswordBecause mustChangePasswordReason)) ] ] ]
+            let because =
+                match mustChangePasswordBecause mustChangePasswordReason with
+                | because, Some(UserName byUserName) -> [ str (sprintf "You must change your password because %s by " because) ; bold byUserName ]
+                | because, None -> [ str (sprintf "You must change your password because %s" because) ]
+            yield notificationT theme IsWarning None [ contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold because ] ]
             yield br
         | None -> ()
         match changePasswordModalState.ModalStatus with
@@ -252,8 +256,13 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
 let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState:ChangeImageUrlModalState) dispatch =
     let UserName userName, currentImageUrl, imageUrl = authUser.User.UserName, authUser.User.ImageUrl, changeImageUrlModalState.ImageUrl
     let currentlyNone = match currentImageUrl with | Some _ -> false | None -> true
-    let chooseOrChange = if currentlyNone then "Choose" else "Change"
-    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str (sprintf "%s image for " chooseOrChange) ; bold userName ] ] ]
+    let action, extra = if currentlyNone then "Choose", String.Empty else "Change (or remove)", " (or blank to remove)"
+    let buttonAction =
+        match currentlyNone, String.IsNullOrWhiteSpace imageUrl with
+        | true, _ -> "Choose"
+        | false, false -> "Change"
+        | false, true -> "Remove"
+    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str (sprintf "%s image for " action) ; bold userName ] ] ]
     let hasChanged, onDismiss, isChangingImageUrl, changeImageUrlInteraction, onEnter =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangeImageUrl), (fun _ -> dispatch ChangeImageUrl)
         match changeImageUrlModalState.ModalStatus with
@@ -262,12 +271,12 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
             let imageUrl = if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
             if imageUrl <> currentImageUrl then true, Some onDismiss, false, Clickable onEnter, onEnter
             else false, Some onDismiss, false, NotEnabled, ignore
-    let info =
+    let imageUrlInfo =
         match hasChanged, currentlyNone, String.IsNullOrWhiteSpace imageUrl with
         | true, true, _ | true, false, false -> [ str "Please check the image preview above" ]
         | true, false, true -> [ str "The image will be removed for " ; bold userName ]
         | _ -> []
-    let image = if String.IsNullOrWhiteSpace imageUrl then iconSmall ICON__USER else image imageUrl Image.Is128x128
+    let image = if String.IsNullOrWhiteSpace imageUrl then None else Some(fieldGroupedCentred [ image imageUrl Image.Is128x128 ])
     let body = [
         match changeImageUrlModalState.ModalStatus with
         | Some(ModalFailed error) ->
@@ -277,13 +286,14 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
             yield br
         | _ -> ()
         yield contentCentred [
-            paraTSmaller theme [ str "Please enter the URL for your (preferably square) image" ]
-            fieldGroupedCentred [ image ]
-            fieldExpanded [
-                textBoxT theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl (Some ICON__IMAGE) false None info true isChangingImageUrl
+            yield paraTSmaller theme [ str (sprintf "Please enter the URL for your image%s" extra) ]
+            yield paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "The selected image should preferably be square (i.e. 1:1 aspect ratio)" ]
+            yield ofOption image
+            yield fieldExpanded [
+                textBoxT theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl (Some ICON__IMAGE) false None imageUrlInfo true isChangingImageUrl
                     (ImageUrlChanged >> dispatch) onEnter ]
-            fieldGroupedCentred [
-                paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink changeImageUrlInteraction false false None [ str (sprintf "%s image" chooseOrChange) ] ] ] ] ]
+            yield fieldGroupedCentred [
+                paraTSmallest theme [ buttonT theme (Some IsSmall) IsLink changeImageUrlInteraction false false None [ str (sprintf "%s image" buttonAction) ] ] ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
 let private renderSigningOutModal theme =
@@ -366,12 +376,12 @@ let render state dispatch =
             | UnauthPage About -> yield About.Render.render theme
             | AuthPage Chat -> yield Chat.Render.render theme authUser usersData authState.ChatState ticks (ChatInput >> AuthInput >> dispatch)
             | AuthPage UserAdmin ->
-                match authUser.User.UserType with
-                | BenevolentDictatorForLife | Administrator ->
+                let userType = authUser.User.UserType
+                if canAdministerUsers userType then
                     match authState.UserAdminState with
                     | Some userAdminState -> yield UserAdmin.Render.render theme authUser usersData userAdminState (UserAdminInput >> AuthInput >> dispatch)
                     | None -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserAdminState is None" UNEXPECTED_ERROR)
-                | _ -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserType is neither BenevolentDictatorForLife nor Administrator" UNEXPECTED_ERROR)
+                else yield renderDangerMessage theme (ifDebug (sprintf "CurrentPage is AuthPage UserAdmin but canAdministerUsers returned false for %A" userType) UNEXPECTED_ERROR)
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme

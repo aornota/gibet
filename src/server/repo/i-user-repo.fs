@@ -12,10 +12,10 @@ type IUserRepo =
     abstract SignIn: UserName * Password -> AsyncResult<UserId * MustChangePasswordReason option, string>
     abstract AutoSignIn: UserId -> AsyncResult<UserId * MustChangePasswordReason option, string>
     abstract ChangePassword: UserId * Password * Rvn -> AsyncResult<User, string>
-    abstract ChangeImageUrl: UserId * ImageUrl option * Rvn -> AsyncResult<User, string>
+    abstract ChangeImageUrl: UserId * ImageUrl option * Rvn -> AsyncResult<User * ImageChangeType option, string>
     abstract GetUsers: unit -> AsyncResult<User list, string>
     abstract CreateUser: UserId option * UserName * Password * UserType * ImageUrl option -> AsyncResult<User, string>
-    abstract ResetPassword: UserId * Password * Rvn -> AsyncResult<User, string>
+    abstract ResetPassword: byUserId : UserId * UserId * Password * Rvn -> AsyncResult<User, string>
     abstract ChangeUserType: UserId * UserType * Rvn -> AsyncResult<User, string>
 
 type Salt = | Salt of string

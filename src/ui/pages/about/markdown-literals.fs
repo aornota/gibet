@@ -2,7 +2,7 @@ module Aornota.Gibet.Ui.Pages.About.MarkdownLiterals
 
 // #region READ_ME
 // Note: gibet-24x24.png link differs from README.md (because https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png does not seem to work for rendered Markdown).
-let [<Literal>] READ_ME = """# ![gibet](gibet-24x24.png) | gibet (γ)
+let [<Literal>] READ_ME = """# ![gibet](gibet-24x24.png) | gibet (δ)
 
 An opinionated (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),

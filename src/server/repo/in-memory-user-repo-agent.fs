@@ -19,17 +19,17 @@ open Serilog
 (* Enforces unique UserId.
    Enforces actual/expected Rvn/s.
    Does not enforce unique UserName (but cannot sign in with non-unique UserName).
-   Does not enforce any length (&c.) restrictions on UserName or Password - but ensures ImageUrl None if (Some whitespace-only).
+   Does not enforce any length (&c.) restrictions on UserName or Password - but trims UserName and Password and ensures ImageUrl None if (Some whitespace-only).
    Does not prevent SignIn/AutoSignIn if PersonaNonGrata. *)
 
 type private Input =
     | SignIn of UserName * Password * AsyncReplyChannelResult<UserId * MustChangePasswordReason option, string>
     | AutoSignIn of UserId * AsyncReplyChannelResult<UserId * MustChangePasswordReason option, string>
     | ChangePassword of UserId * Password * Rvn * AsyncReplyChannelResult<User, string>
-    | ChangeImageUrl of UserId * ImageUrl option * Rvn * AsyncReplyChannelResult<User, string>
+    | ChangeImageUrl of UserId * ImageUrl option * Rvn * AsyncReplyChannelResult<User * ImageChangeType option, string>
     | GetUsers of AsyncReplyChannelResult<User list, string>
     | CreateUser of UserId option * UserName * Password * UserType * ImageUrl option * AsyncReplyChannelResult<User, string>
-    | ResetPassword of UserId * Password * Rvn * AsyncReplyChannelResult<User, string>
+    | ResetPassword of byUserId : UserId * UserId * Password * Rvn * AsyncReplyChannelResult<User, string>
     | ChangeUserType of UserId * UserType * Rvn * AsyncReplyChannelResult<User, string>
 
 type private InMemoryUser = {
@@ -59,7 +59,7 @@ let private addUser userId userName password userType imageUrl (imUserDict:ImUse
             Rvn = initialRvn
             UserName = userName
             UserType = userType
-            ImageUrl = sanitizeImageUrl imageUrl }
+            ImageUrl = imageUrl }
         let salt = salt()
         let imUser = {
             User = user
@@ -112,7 +112,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 | Error error -> logger.Warning("Unable to automatically sign in as {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict
-            | ChangePassword(userId, password, rvn, reply) ->
+            | ChangePassword(userId, Password password, rvn, reply) ->
+                let password = Password(password.Trim())
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
                     let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
@@ -128,15 +129,22 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 reply.Reply result
                 return! loop imUserDict
             | ChangeImageUrl(userId, imageUrl, rvn, reply) ->
+                let imageUrl = sanitizeImageUrl imageUrl
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
                     let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
-                    let user = { imUser.User with Rvn = incrementRvn rvn ; ImageUrl = sanitizeImageUrl imageUrl }
+                    let imageChangeType =
+                        match imUser.User.ImageUrl, imageUrl with
+                        | None, Some _ -> Some ImageChosen
+                        | Some currentImageUrl, Some imageUrl when currentImageUrl <> imageUrl -> Some ImageChanged
+                        | Some _, None -> Some ImageRemoved
+                        | _ -> None // should never happen
+                    let user = { imUser.User with Rvn = incrementRvn rvn ; ImageUrl = imageUrl }
                     let imUser = { imUser with User = user }
                     let! _ = imUserDict |> updateUser imUser
-                    return user }
+                    return user, imageChangeType }
                 match result with
-                | Ok user -> logger.Debug("Image URL changed for {user}", user)
+                | Ok(user, imageChangeType) -> logger.Debug("Image URL {changeType} for {user}", changeType imageChangeType, user)
                 | Error error -> logger.Warning("Unable to change image URL for {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict
@@ -147,21 +155,28 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 | Error error -> logger.Warning("Unable to get users -> {error}", error)
                 reply.Reply result
                 return! loop imUserDict
-            | CreateUser(userId, userName, password, userType, imageUrl, reply) ->
+            | CreateUser(userId, UserName userName, Password password, userType, imageUrl, reply) ->
+                let userName, password, imageUrl = UserName(userName.Trim()), Password(password.Trim()), sanitizeImageUrl imageUrl
                 let result = imUserDict |> addUser userId userName password userType imageUrl
                 match result with
                 | Ok user -> logger.Debug("Created {user}", user)
                 | Error error -> logger.Warning("Unable to create {userName} -> {error}", userName, error)
                 reply.Reply result
                 return! loop imUserDict
-            | ResetPassword(userId, password, rvn, reply) ->
+            | ResetPassword(byUserId, userId, Password password, rvn, reply) ->
+                let password = Password(password.Trim())
                 let result = result {
+                    let! byImUser = imUserDict |> findUserId byUserId
                     let! imUser = imUserDict |> findUserId userId
                     let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
                     let! _ = if hash password imUser.Salt = imUser.Hash then Error "New password must not be the same as existing password" else Ok()
                     let user = { imUser.User with Rvn = incrementRvn rvn }
                     let salt = salt()
-                    let imUser = { imUser with User = user ; Salt = salt ; Hash = hash password salt ; MustChangePasswordReason = Some MustChangePasswordReason.PasswordReset }
+                    let mustChangePasswordReason =
+                        match imUser.MustChangePasswordReason with
+                        | Some FirstSignIn -> Some FirstSignIn
+                        | _ -> Some(MustChangePasswordReason.PasswordReset byImUser.User.UserName)
+                    let imUser = { imUser with User = user ; Salt = salt ; Hash = hash password salt ; MustChangePasswordReason = mustChangePasswordReason }
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
@@ -192,5 +207,5 @@ type InMemoryUserRepoAgent(logger:ILogger) =
         member __.ChangeImageUrl(userId, imageUrl, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeImageUrl(userId, imageUrl, rvn, reply))
         member __.GetUsers() = agent.PostAndAsyncReply(GetUsers)
         member __.CreateUser(userId, userName, password, userType, imageUrl) = agent.PostAndAsyncReply(fun reply -> CreateUser(userId, userName, password, userType, imageUrl, reply))
-        member __.ResetPassword(userId, password, rvn) = agent.PostAndAsyncReply(fun reply -> ResetPassword(userId, password, rvn, reply))
+        member __.ResetPassword(byUserId, userId, password, rvn) = agent.PostAndAsyncReply(fun reply -> ResetPassword(byUserId, userId, password, rvn, reply))
         member __.ChangeUserType(userId, userType, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeUserType(userId, userType, rvn, reply))

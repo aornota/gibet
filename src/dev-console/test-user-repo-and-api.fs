@@ -28,9 +28,10 @@ let private hub = { // note: fake implementation that literally does nothing!
 
 let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTestData.create
     // #region UserIds &c.
-    let initialPassword = Password "password" // note: invalid for IUserApi - but okay for IUserRepo
-    let nephId, neph, nephPassword, nephImageUrl =
-        UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "nephhpen", ImageUrl "https://aornota.github.io/djnarration/public/resources/djnarration-24x24.png"
+    // Note: Some user names and passwords would be invalid for IUserApi - but are okay for IUserRepo
+    let defaultPassword = Password "password"
+    let nephId, neph, nephPassword = UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "neph", Password "nephhpen"
+    let nephImageUrl = ImageUrl "https://avatars0.githubusercontent.com/u/14148307?s=460&v=4"
     let rosieId, rosie = UserId(Guid("00000000-0000-0001-0000-000000000000")), UserName "rosie"
     let hughId, hugh, hughPassword = UserId(Guid("00000000-0000-0002-0000-000000000000")), UserName "hugh", Password "hughhguh"
     let willId, will = UserId(Guid("00000000-0000-0000-0001-000000000000")), UserName "will"
@@ -39,16 +40,16 @@ let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTe
     // #region IMemoryUserRepoAgent
     logger.Information("Testing user repository...")
     let userRepo = InMemoryUserRepoAgent(Log.Logger) :> IUserRepo
-    let! nephUser = userRepo.CreateUser(Some nephId, neph, initialPassword, BenevolentDictatorForLife, Some nephImageUrl)
-    let! _ = userRepo.CreateUser(Some rosieId, rosie, initialPassword, Administrator, None)
-    let! hughUser = userRepo.CreateUser(Some hughId, hugh, initialPassword, Pleb, None)
-    let! _ = userRepo.CreateUser(Some willId, will, initialPassword, Pleb, None)
+    let! nephUser = userRepo.CreateUser(Some nephId, neph, defaultPassword, BenevolentDictatorForLife, Some nephImageUrl)
+    let! _ = userRepo.CreateUser(Some rosieId, rosie, defaultPassword, Administrator, None)
+    let! hughUser = userRepo.CreateUser(Some hughId, hugh, defaultPassword, Pleb, None)
+    let! _ = userRepo.CreateUser(Some willId, will, defaultPassword, Pleb, None)
     logger.Information("...user repository tested")
     // #endregion
     // #region UserApiAgent
     logger.Information("Testing user Api...")
     let userApi, connectionId = UserApiAgent(userRepo, hub, Log.Logger), ConnectionId.Create()
-    let! authUser, _ = userApi.SignIn(connectionId, neph, initialPassword)
+    let! authUser, _ = userApi.SignIn(connectionId, neph, defaultPassword)
     let! _ = userApi.GetUsers(connectionId, authUser.Jwt)
     let nephRvn = nephUser.Rvn
     let! _ = userApi.ChangePassword(authUser.Jwt, nephPassword, nephRvn)
