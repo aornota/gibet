@@ -69,18 +69,15 @@ let private addUser userId userName password userType imageUrl (imUserDict:ImUse
         imUserDict.Add(userId, imUser)
         return imUser.User }
     result
-
 let private updateUser imUser (imUserDict:ImUserDict) =
     let userId = imUser.User.UserId
     if imUserDict.ContainsKey userId then
         imUserDict.[userId] <- imUser
         Ok()
     else Error(ifDebug (sprintf "%s.updateUser -> Unable to update %A" SOURCE userId) UNEXPECTED_ERROR)
-
 let private findUserId userId (imUserDict:ImUserDict) =
     if imUserDict.ContainsKey userId then Ok imUserDict.[userId]
     else Error(ifDebug (sprintf "%s.findUserId -> Unable to find %A" SOURCE userId) UNEXPECTED_ERROR)
-
 let private findUserName userName error (imUserDict:ImUserDict) =
     match imUserDict.Values |> List.ofSeq |> List.filter (fun imUser -> imUser.User.UserName = userName) with
     | [ imUser ] -> Ok imUser

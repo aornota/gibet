@@ -1,5 +1,6 @@
 module Aornota.Gibet.Ui.Common.Render.Theme
 
+open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Common.Tooltip
@@ -32,7 +33,7 @@ let buttonT theme size colour interaction outlined inverted tooltip children =
     let tooltip = tooltip |> Option.map (fun tooltip -> { tooltip with TooltipColour = tooltip.TooltipColour |> transformColour theme })
     Button.button [
         match size with | Some size -> yield Button.Size size | None -> ()
-        yield Button.Color (colour |> transformColour theme)
+        yield Button.Color(colour |> transformColour theme)
         match interaction with
         | Clickable onClick -> yield Button.OnClick onClick
         | Loading -> yield Button.IsLoading true
@@ -40,11 +41,12 @@ let buttonT theme size colour interaction outlined inverted tooltip children =
         | NotEnabled -> ()
         if outlined then yield Button.IsOutlined
         if inverted then yield Button.IsInverted
-        match tooltip with | Some tooltip -> yield Button.CustomClass (tooltipClass tooltip) | None -> ()
+        match tooltip with | Some tooltip -> yield Button.CustomClass(tooltipClass tooltip) | None -> ()
         yield Button.Props [
             yield Disabled (match interaction with | NotEnabled -> true | _ -> false)
             match tooltip with | Some tooltip -> yield tooltipProps tooltip | None -> () ]
     ] children
+let buttonTSmall theme colour interaction children = buttonT theme (Some IsSmall) colour interaction false false None children
 
 let cardModalT theme head body =
     let themeClass = themeClass theme
@@ -52,16 +54,25 @@ let cardModalT theme head body =
         Modal.background [] []
         Modal.Card.card [] [
             match head with
-            | Some (title, onDismiss) ->
-                yield Modal.Card.head [ CustomClass (themeAlternativeClass theme) ] [
+            | Some(title, onDismiss) ->
+                yield Modal.Card.head [ CustomClass(themeAlternativeClass theme) ] [
                     yield Modal.Card.title [ CustomClass themeClass ] title
                     match onDismiss with | Some onDismiss -> yield Delete.delete [ Delete.OnClick onDismiss ] [] | None -> () ]
             | None -> ()
             yield Modal.Card.body [ CustomClass themeClass ] body ] ]
 
-let footerT theme useAlternativeClass children = Footer.footer [ CustomClass (if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] children
+let footerT theme useAlternativeClass children = Footer.footer [ CustomClass(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] children
 
-let hr theme useAlternativeClass = hr [ ClassName (if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ]
+let helpT theme colour children = Help.help [ Help.Color(colour |> transformColour theme) ] children
+let helpTInfo theme children = helpT theme IsInfo children
+let helpTSuccess theme children = helpT theme IsSuccess children
+let helpTWarning theme children = helpT theme IsWarning children
+let helpTDanger theme children = helpT theme IsDanger children
+
+let hr theme useAlternativeClass = hr [ ClassName(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ]
+
+let labelT theme size colour weight children = Label.label [ Label.Modifiers [ sizeM size ; colourM (colour |> transformColour theme) ; weightM weight ] ] children
+let labelTSmallest theme children = labelT theme TextSize.Is7 IsBlack TextWeight.Normal children
 
 let private linkT theme linkType children =
     let customClasses = [
@@ -71,14 +82,13 @@ let private linkT theme linkType children =
     a [
         match customClass with | Some customClass -> yield ClassName customClass :> IHTMLProp | None -> ()
         match linkType with
-        | Internal onClick ->
-            yield OnClick onClick :> IHTMLProp
+        | Internal onClick -> yield OnClick onClick
         | NewWindow url ->
-            yield Href url :> IHTMLProp
-            yield Target "_blank" :> IHTMLProp
+            yield Href url
+            yield Target "_blank"
         | DownloadFile(url, fileName) ->
-            yield Href url :> IHTMLProp
-            yield Download fileName :> IHTMLProp
+            yield Href url
+            yield Download fileName
     ] children
 let linkTInternal theme onClick children = linkT theme (Internal onClick) children
 let linkTNewWindow theme url children = linkT theme (NewWindow url) children
@@ -87,14 +97,10 @@ let linkTDownloadFile theme (url, fileName) children = linkT theme (DownloadFile
 let navbarT theme colour children =
     Navbar.navbar [
         Navbar.IsFixedTop
-        Navbar.Color (colour |> transformColour theme)
-        Navbar.CustomClass (themeClass theme)
+        Navbar.Color(colour |> transformColour theme)
+        Navbar.CustomClass(themeClass theme)
     ] [ containerFluid children ]
-let navbarMenuT theme isActive children =
-    Navbar.menu [
-        Navbar.Menu.CustomClass (themeClass theme)
-        Navbar.Menu.IsActive isActive
-    ] children
+let navbarMenuT theme isActive children = Navbar.menu [ Navbar.Menu.CustomClass(themeClass theme) ; Navbar.Menu.IsActive isActive ] children
 let navbarDropDownT theme element children =
     let themeClass = themeClass theme
     Navbar.Item.div [
@@ -103,28 +109,16 @@ let navbarDropDownT theme element children =
     ] [
         Navbar.Link.div [ Navbar.Link.CustomClass themeClass ] [ element ]
         Navbar.Dropdown.div [ Navbar.Dropdown.CustomClass themeClass ] children ]
-let navbarDropDownItemT theme isActive children =
-    Navbar.Item.div [
-        Navbar.Item.CustomClass (themeClass theme)
-        Navbar.Item.IsActive isActive
-    ] children
+let navbarDropDownItemT theme isActive children = Navbar.Item.div [ Navbar.Item.CustomClass(themeClass theme) ; Navbar.Item.IsActive isActive ] children
 
 let notificationT theme colour onDismiss children =
-    Notification.notification [ Notification.Color (colour |> transformColour theme) ] [
+    Notification.notification [ Notification.Color(colour |> transformColour theme) ] [
         match onDismiss with | Some onDismiss -> yield delete onDismiss | None -> ()
         yield! children ]
 
-let pageLoaderT theme colour =
-    PageLoader.pageLoader [
-        PageLoader.Color (colour |> transformColour theme)
-        PageLoader.IsActive true ] []
+let pageLoaderT theme colour = PageLoader.pageLoader [ PageLoader.Color(colour |> transformColour theme) ; PageLoader.IsActive true ] []
 
-let paraT theme size colour weight children =
-    Text.p [ Modifiers [
-        Modifier.TextSize(Screen.All, size)
-        Modifier.TextColor (colour |> transformColour theme)
-        Modifier.TextWeight weight
-    ] ] children
+let paraT theme size colour weight children = Text.p [ Modifiers [ sizeM size ; colourM (colour |> transformColour theme) ; weightM weight ] ] children
 let paraTSmallest theme children = paraT theme TextSize.Is7 IsBlack TextWeight.Normal children
 let paraTSmaller theme children = paraT theme TextSize.Is6 IsBlack TextWeight.Normal children
 let paraTSmall theme children = paraT theme TextSize.Is5 IsBlack TextWeight.Normal children
@@ -133,12 +127,19 @@ let paraTLarge theme children = paraT theme TextSize.Is3 IsBlack TextWeight.Norm
 let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Normal children
 let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
 
-let textBoxT theme (key:Guid) text iconClass isPassword error info autoFocus disabled (onChange:string -> unit) onEnter =
-    let input = if isPassword then Input.password else Input.text
-    Control.div [ Control.HasIconLeft ] [
+let textT theme (key:Guid) text status password iconLeft autoFocus disabled (onChange:string -> unit) onEnter =
+    let colour, iconRight, help =
+        match status with
+        | Some(colour, iconRight, help) -> Some colour, Some iconRight, Some help
+        | None -> None, None, None
+    let input = if password then Input.password else Input.text
+    Control.div [
+        match iconLeft with | Some _ -> yield Control.HasIconLeft | None -> ()
+        match iconRight with | Some _ -> yield Control.HasIconRight | None -> ()
+    ] [
         yield input [
-            match error with | Some _ -> yield Input.Color IsDanger | None -> ()
-            yield Input.CustomClass (themeClass theme)
+            match colour with | Some colour -> yield Input.Color(colour |> transformColour theme) | None -> ()
+            yield Input.CustomClass(themeClass theme)
             yield Input.Size IsSmall
             yield Input.DefaultValue text
             yield Input.Props [
@@ -147,6 +148,8 @@ let textBoxT theme (key:Guid) text iconClass isPassword error info autoFocus dis
                 AutoFocus autoFocus
                 OnChange(fun ev -> !!ev.target?value |> onChange)
                 onEnterPressed onEnter ] ]
-        match iconClass with | Some iconClass -> yield iconSmallerLeft iconClass | None -> ()
-        match error with | Some error -> yield Help.help [ Help.Color IsDanger ] [ str error ] | None -> ()
-        match info with | _ :: _ -> yield Help.help [ Help.Color IsInfo ] info | [] -> () ]
+        match iconLeft with | Some iconLeft -> yield iconSmallerLeft iconLeft | None -> ()
+        match iconRight with | Some iconRight -> yield iconSmallerRight iconRight | None -> ()
+        yield ofOption help ]
+let textTDefault theme key text status iconLeft autoFocus disabled onChange onEnter = textT theme key text status false (Some iconLeft) autoFocus disabled onChange onEnter
+let textTPassword theme key text status autoFocus disabled onChange onEnter = textT theme key text status true (Some ICON__PASSWORD) autoFocus disabled onChange onEnter

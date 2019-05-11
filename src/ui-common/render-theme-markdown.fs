@@ -20,11 +20,9 @@ let private contentFromMarkdown theme alignment inNotification (Markdown markdow
         yield MARKDOWN_CLASS
         if inNotification then yield sprintf "%s-in-notification" themeClass else yield themeClass ]
     let customClass = match customClasses with | _ :: _ -> Some(ClassName(String.concat SPACE customClasses)) | [] -> None
-    Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, alignment) ] ] [
-        div [
-            match customClass with | Some customClass -> yield customClass | None -> ()
-            yield DangerouslySetInnerHTML { __html = Globals.marked.parse markdown }
-        ] [] ]
+    content alignment [ div [
+        match customClass with | Some customClass -> yield customClass | None -> ()
+        yield DangerouslySetInnerHTML { __html = Globals.marked.parse markdown } ] [] ]
 
 let contentFromMarkdownCentred theme markdown = contentFromMarkdown theme TextAlignment.Centered false markdown
 let contentFromMarkdownLeft theme markdown = contentFromMarkdown theme TextAlignment.Left false markdown

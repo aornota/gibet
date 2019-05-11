@@ -48,14 +48,12 @@ let private addUser user (userDict:UserDict) =
     else
         userDict.Add(userId, user)
         Ok()
-
 let private updateUser user (userDict:UserDict) =
     let userId = user.UserId
     if userDict.ContainsKey userId then
         userDict.[userId] <- user
         Ok()
     else Error(ifDebug (sprintf "%s.updateUser -> Unable to update %A" SOURCE userId) UNEXPECTED_ERROR)
-
 let private findUserId userId (userDict:UserDict) =
     if userDict.ContainsKey userId then Ok userDict.[userId]
     else Error(ifDebug (sprintf "%s.findUserId -> Unable to find %A" SOURCE userId) UNEXPECTED_ERROR)

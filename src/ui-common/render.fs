@@ -22,7 +22,7 @@ let private padStyle padV padH =
 
 let div props children = div props children
 let divEmpty = div [] []
-let divVerticalSpace height = div [ padStyle (Some (height / 2)) None ] [ str SPACE ]
+let divVerticalSpace height = div [ padStyle (Some(height / 2)) None ] [ str SPACE ]
 
 let str text = str text
 let bold text = b [] [ str text ]
@@ -36,6 +36,11 @@ let onEnterPressed onEnter =
             ev.preventDefault()
             onEnter()
         | _ -> ())
+
+let alignmentM alignment = Modifier.TextAlignment(Screen.All, alignment)
+let colourM colour = Modifier.TextColor colour
+let sizeM size = Modifier.TextSize(Screen.All, size)
+let weightM weight = Modifier.TextWeight weight
 
 let private columns isMobile children = Columns.columns [ if isMobile then yield Columns.IsMobile ] children
 let private column children = Column.column [] children
@@ -54,13 +59,13 @@ let columnsLeftAndRight leftChildren rightChildren = columns true [ column leftC
 
 let containerFluid children = Container.container [ Container.IsFluid ] children
 
-let private content alignment children = Content.content [ Content.Modifiers [ Modifier.TextAlignment(Screen.All, alignment) ] ] children
+let content alignment children = Content.content [ Content.Modifiers [ alignmentM alignment ] ] children
 let contentCentred children = content TextAlignment.Centered children
 let contentLeft children = content TextAlignment.Left children
 let contentRight children = content TextAlignment.Right children
 
 let private field options children = Field.div [ yield! options ] children
-let fieldExpanded children = field [ Field.IsExpanded ] children
+let fieldDefault children = field [] children
 let fieldGroupedCentred children = field [ Field.IsGroupedCentered ] children
 
 let private icon size options iconClass =
@@ -75,15 +80,12 @@ let private icon size options iconClass =
     ] [ i [ match customClass with | Some customClass -> yield ClassName customClass | None -> () ] [] ]
 let iconSmaller iconClass = icon (Some IsSmall) [] iconClass
 let iconSmallerLeft iconClass = icon (Some IsSmall) [ Icon.IsLeft ] iconClass
+let iconSmallerRight iconClass = icon (Some IsSmall) [ Icon.IsRight ] iconClass
 let iconSmall iconClass = icon None [] iconClass
 let iconLarge iconClass = icon (Some IsMedium) [] iconClass
 let iconLarger iconClass = icon (Some IsLarge) [] iconClass
 
-let image source size =
-    Image.image [
-        Image.Props [ Key source ]
-        size
-    ] [ img [ Src source ] ]
+let image source size = Image.image [ Image.Props [ Key source ] ; size ] [ img [ Src source ] ]
 
 let level hasContinuation children = Level.level [ if hasContinuation then yield Level.Level.CustomClass "hasContinuation" ] children
 let levelLeft children = Level.left [] children

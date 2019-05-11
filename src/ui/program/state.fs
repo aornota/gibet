@@ -33,6 +33,15 @@ let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
 let [<Literal>] private SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
 
+// #region AUTO_SHOW_SIGN_IN_MODAL
+let [<Literal>] private AUTO_SHOW_SIGN_IN_MODAL =
+#if DEBUG
+    true
+#else
+    false
+#endif
+// #endregion
+
 let [<Literal>] private ACTIVITY_THROTTLE = 15.<second> // note: "ignored" if less than 5.<second>
 
 let private activityThrottle = max ACTIVITY_THROTTLE 5.<second>
@@ -126,13 +135,14 @@ let private signInModalState userName autoSignInError forcedSignOutReason =
         ForcedSignOutReason = forcedSignOutReason
         ModalStatus = None
     }
-let private unauthState messages appState connectionState autoSignInError forcedSignOutReason : UnauthState * Cmd<Input> =
+let private unauthState messages appState connectionState autoSignInError forcedSignOutReason showSignInModal : UnauthState * Cmd<Input> =
     // TODO-NMB: "last page"...
     let signInModalState =
-        match autoSignInError, forcedSignOutReason with
-        | Some(error, userName), _ -> Some(signInModalState (Some userName) (Some(error, userName)) None)
-        | None, Some(forcedSignOutReason, userName) -> Some(signInModalState (Some userName) None (Some forcedSignOutReason))
-        | None, None -> None
+        match autoSignInError, forcedSignOutReason, showSignInModal with
+        | Some(error, userName), _, _ -> Some(signInModalState (Some userName) (Some(error, userName)) None)
+        | None, Some(forcedSignOutReason, userName), _ -> Some(signInModalState (Some userName) None (Some forcedSignOutReason))
+        | None, None, true -> Some(signInModalState None None None)
+        | None, None, false -> None
     let unauthState = {
         Messages = messages
         AppState = appState
@@ -252,7 +262,7 @@ let private handleRemoteUiInput remoteUiInput state =
             let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInInput
             AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.Messages registeringConnectionState.AppState connectionState (userName, jwt)), cmd
         | None ->
-            let unauthState, cmd = unauthState registeringConnectionState.Messages registeringConnectionState.AppState connectionState None None
+            let unauthState, cmd = unauthState registeringConnectionState.Messages registeringConnectionState.AppState connectionState None None AUTO_SHOW_SIGN_IN_MODAL
             Unauth unauthState, cmd
     | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         let usersData, error = authState.UsersData |> updateActivity userId
@@ -290,10 +300,10 @@ let private handleRemoteUiInput remoteUiInput state =
         let state, cmd =
             match forcedSignOutReason with
             | Some forcedSignOutReason ->
-                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None (Some(forcedSignOutReason, authState.AuthUser.User.UserName))
+                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None (Some(forcedSignOutReason, authState.AuthUser.User.UserName)) false
                 Unauth unauthState, cmd
             | None ->
-                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None None
+                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None None false
                 Unauth unauthState, cmd
         let toastCmd, extra =
             match forcedSignOutReason with
@@ -376,7 +386,7 @@ let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:A
     | AutoSignInResult(Error error) ->
         let userName = fst automaticallySigningInState.LastUser
         let unauthState, cmd =
-            unauthState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState (Some(error, userName)) None
+            unauthState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState (Some(error, userName)) None false
         let state = Unauth unauthState
         let (UserName userName) = userName
         let cmds = Cmd.batch [
@@ -507,7 +517,7 @@ let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) 
 let private handleSignOutInput signOutInput (authState:AuthState) state =
     match signOutInput with
     | SignOutResult(Ok _) ->
-        let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None None
+        let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None None false
         let state = Unauth unauthState
         let cmds = Cmd.batch [
             cmd
