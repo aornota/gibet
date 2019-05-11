@@ -14,6 +14,8 @@ open Aornota.Gibet.Ui.User.Shared
 
 open Fulma
 
+let [<Literal>] PAGE_TITLE = "User administration"
+
 let render theme (authUser:AuthUser) (usersData:RemoteData<UserData list, string>) (state:State) (dispatch:Input -> unit) =
     columnsDefault [ contentCentred [
         yield paraT theme TextSize.Is5 IsBlack TextWeight.Bold [ str "User administration" ]

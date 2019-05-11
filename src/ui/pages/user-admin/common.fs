@@ -4,4 +4,4 @@ type Input =
     | ToDo
 
 type State = {
-    ToDo : unit }
+    ToDo : string }

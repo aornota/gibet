@@ -7,7 +7,7 @@ open Aornota.Gibet.Ui.Pages.Chat.ServerApi
 open Elmish
 
 let initialize (authUser:AuthUser) : State * Cmd<Input> =
-    { ToDo = () }, Cmd.none
+    { ToDo = System.String.Empty }, Cmd.none
 
 let transition (authUser:AuthUser) (input:Input) (state:State) : State * Cmd<Input> =
     match input with

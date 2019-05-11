@@ -127,6 +127,9 @@ let paraTLarge theme children = paraT theme TextSize.Is3 IsBlack TextWeight.Norm
 let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Normal children
 let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
 
+let tabsT theme options tabs = Tabs.tabs [ yield Tabs.CustomClass(themeClass theme) ; yield! options ] tabs
+let tabsTSmallDefault theme tabs = tabsT theme [ Tabs.Size IsSmall ] tabs
+
 let textT theme (key:Guid) text status password iconLeft autoFocus disabled (onChange:string -> unit) onEnter =
     let colour, iconRight, help =
         match status with

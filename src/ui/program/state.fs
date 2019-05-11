@@ -47,6 +47,7 @@ let [<Literal>] private ACTIVITY_THROTTLE = 15.<second> // note: "ignored" if le
 let private activityThrottle = max ACTIVITY_THROTTLE 5.<second>
 
 let private setBodyClass theme = Browser.document.body.className <- themeClass theme
+let private setTitle pageTitle = Browser.document.title <- sprintf "%s | %s" GIBET pageTitle
 
 let private readPreferencesCmd =
     let readPreferences() = async {
@@ -60,13 +61,13 @@ let private writePreferencesCmd preferences =
     Cmd.OfAsync.either writePreferences preferences WritePreferencesOk WritePreferencesExn |> Cmd.map PreferencesInput
 
 let private preferencesOrDefault state =
-    let appState, lastUser =
+    let appState, lastUser, lastPage =
         match state with
-        | InitializingConnection _ | ReadingPreferences _ -> None, None
-        | RegisteringConnection registeringConnectionState -> Some registeringConnectionState.AppState, None
-        | AutomaticallySigningIn automaticallySigningInState -> Some automaticallySigningInState.AppState, Some automaticallySigningInState.LastUser
-        | Unauth unauthState -> Some unauthState.AppState, None
-        | Auth authState -> Some authState.AppState, Some(authState.AuthUser.User.UserName, authState.AuthUser.Jwt)
+        | InitializingConnection _ | ReadingPreferences _ -> None, None, None
+        | RegisteringConnection registeringConnectionState -> Some registeringConnectionState.AppState, None, None
+        | AutomaticallySigningIn automaticallySigningInState -> Some automaticallySigningInState.AppState, Some automaticallySigningInState.LastUser, None
+        | Unauth unauthState -> Some unauthState.AppState, None, Some(UnauthPage unauthState.CurrentPage)
+        | Auth authState -> Some authState.AppState, Some(authState.AuthUser.User.UserName, authState.AuthUser.Jwt), Some authState.CurrentPage
     let affinityId, theme =
         match appState with
         | Some appState -> appState.AffinityId, appState.Theme
@@ -75,9 +76,10 @@ let private preferencesOrDefault state =
         AffinityId = affinityId
         Theme = theme
         LastUser = lastUser
+        LastPage = lastPage
     }
 let private writePreferencesOrDefault state =
-    let preferences = preferencesOrDefault state
+    let preferences = state |> preferencesOrDefault
     state, writePreferencesCmd preferences
 
 let private getUsersCmd connection jwt = Cmd.OfAsync.either userApi.getUsers (connection, jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersInput >> AuthInput)
@@ -110,16 +112,18 @@ let private updateAppState appState state =
     | Unauth unauthState -> Unauth { unauthState with AppState = appState }
     | Auth authState -> Auth { authState with AppState = appState }
 
-let private registeringConnectionState messages appState lastUser connectionId = {
+let private registeringConnectionState messages appState lastUser lastPage connectionId = {
     Messages = messages
     AppState = appState
     LastUser = lastUser
+    LastPage = lastPage
     ConnectionId = connectionId }
-let private automaticallySigningInState messages appState connectionState lastUser = {
+let private automaticallySigningInState messages appState connectionState lastUser lastPage = {
     Messages = messages
     AppState = appState
     ConnectionState = connectionState
-    LastUser = lastUser }
+    LastUser = lastUser
+    LastPage = lastPage }
 
 let private signInModalState userName autoSignInError forcedSignOutReason =
     let userName, focusPassword = match userName with | Some(UserName userName) -> userName, true | None -> String.Empty, false
@@ -135,19 +139,21 @@ let private signInModalState userName autoSignInError forcedSignOutReason =
         ForcedSignOutReason = forcedSignOutReason
         ModalStatus = None
     }
-let private unauthState messages appState connectionState autoSignInError forcedSignOutReason showSignInModal : UnauthState * Cmd<Input> =
-    // TODO-NMB: "last page"...
+let private unauthState messages appState connectionState lastPage autoSignInError forcedSignOutReason showSignInModal : UnauthState * Cmd<Input> =
     let signInModalState =
         match autoSignInError, forcedSignOutReason, showSignInModal with
         | Some(error, userName), _, _ -> Some(signInModalState (Some userName) (Some(error, userName)) None)
         | None, Some(forcedSignOutReason, userName), _ -> Some(signInModalState (Some userName) None (Some forcedSignOutReason))
         | None, None, true -> Some(signInModalState None None None)
         | None, None, false -> None
+    let currentPage = match lastPage with | Some(UnauthPage page) -> page | _ -> About
+    let pageTitle = match currentPage with | About -> About.Render.PAGE_TITLE
+    setTitle pageTitle
     let unauthState = {
         Messages = messages
         AppState = appState
         ConnectionState = connectionState
-        CurrentPage = About
+        CurrentPage = currentPage
         SignInModalState = signInModalState }
     unauthState, Cmd.none
 
@@ -165,27 +171,39 @@ let private changeImageUrlModalState imageUrl = {
     ImageUrl = match imageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> String.Empty
     ImageUrlChanged = false
     ModalStatus = None }
-let private authState messages appState connectionState authUser mustChangePasswordReason =
-    // TODO-NMB: "last page"...
+let private authState messages appState connectionState lastPage authUser mustChangePasswordReason =
     let changePasswordModalState =
         match mustChangePasswordReason with
         | Some mustChangePasswordReason -> Some(changePasswordModalState (Some mustChangePasswordReason))
         | None -> None
-    Bridge.Send RemoteServerInput.Activity
+    let currentPage = match lastPage with | Some page -> page | _ -> UnauthPage About
     let chatState, chatCmd = Chat.State.initialize authUser
-    // TODO-NMB: Initialize UserAdmin.State - if "last page"...
+    let userAdminState, userAdminCmd =
+        match currentPage with
+        | AuthPage UserAdmin ->
+            let userAdminState, userAdminCmd = UserAdmin.State.initialize authUser
+            Some userAdminState, userAdminCmd
+        | _ -> None, Cmd.none
+    let pageTitle =
+        match currentPage with
+        | UnauthPage About -> About.Render.PAGE_TITLE
+        | AuthPage Chat -> Chat.Render.pageTitle chatState
+        | AuthPage UserAdmin -> UserAdmin.Render.PAGE_TITLE
+    setTitle pageTitle
+    Bridge.Send RemoteServerInput.Activity
     let cmds = Cmd.batch [
         getUsersCmd connectionState.ConnectionId authUser.Jwt
-        chatCmd |> Cmd.map (ChatInput >> AuthInput) ]
+        chatCmd |> Cmd.map (ChatInput >> AuthInput)
+        userAdminCmd |> Cmd.map (UserAdminInput >> AuthInput) ]
     let authState = {
         Messages = messages
         AppState = appState
         ConnectionState = connectionState
         AuthUser = authUser
         LastActivity = DateTime.Now
-        CurrentPage = AuthPage Chat // TODO-NMB: Should depend on "last page"...
+        CurrentPage = currentPage
         ChatState = chatState
-        UserAdminState = None
+        UserAdminState = userAdminState
         ChangePasswordModalState = changePasswordModalState
         ChangeImageUrlModalState = None
         SigningOut = false
@@ -235,7 +253,7 @@ let private handleOnTick appState state : State * Cmd<Input> = // note: will onl
     match appState with
     | Some appState -> state |> updateAppState { appState with Ticks = appState.Ticks + 1<tick> }, Cmd.none
     | _ -> state, Cmd.none
-let private handleOnMouseMove state : State * Cmd<Input> = // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+let private handleOnMouseMove state : State * Cmd<Input> =  // TODO-NMB: Chat maintenance... // note: will only be used when ACTIVITY is defined (see webpack.config.js)
     match state with
     | Auth authState ->
         let now, lastActivity = DateTime.Now, authState.LastActivity
@@ -245,6 +263,7 @@ let private handleOnMouseMove state : State * Cmd<Input> = // note: will only be
                 Bridge.Send RemoteServerInput.Activity
                 now
             else lastActivity
+        // TODO-NMB: If authState.CurrentPage = AuthPage Chat, clear "unseen count"?....
         Auth { authState with LastActivity = lastActivity }, Cmd.none
     | _ -> state, Cmd.none
 
@@ -260,10 +279,13 @@ let private handleRemoteUiInput remoteUiInput state =
         match registeringConnectionState.LastUser with
         | Some(userName, jwt) ->
             let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInInput
-            AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.Messages registeringConnectionState.AppState connectionState (userName, jwt)), cmd
+            AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.Messages registeringConnectionState.AppState connectionState (userName, jwt)
+                registeringConnectionState.LastPage), cmd
         | None ->
-            let unauthState, cmd = unauthState registeringConnectionState.Messages registeringConnectionState.AppState connectionState None None AUTO_SHOW_SIGN_IN_MODAL
-            Unauth unauthState, cmd
+            let unauthState, cmd =
+                unauthState registeringConnectionState.Messages registeringConnectionState.AppState connectionState registeringConnectionState.LastPage None None AUTO_SHOW_SIGN_IN_MODAL
+            let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
+            state, Cmd.batch [ cmd ; writePreferencesCmd ]
     | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         let usersData, error = authState.UsersData |> updateActivity userId
         let state = Auth { authState with UsersData = usersData }
@@ -300,11 +322,15 @@ let private handleRemoteUiInput remoteUiInput state =
         let state, cmd =
             match forcedSignOutReason with
             | Some forcedSignOutReason ->
-                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None (Some(forcedSignOutReason, authState.AuthUser.User.UserName)) false
+                let unauthState, cmd =
+                    unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None
+                        (Some(forcedSignOutReason, authState.AuthUser.User.UserName)) false
                 Unauth unauthState, cmd
             | None ->
-                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None None false
-                Unauth unauthState, cmd
+                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
+                let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
+                state, Cmd.batch [ cmd ; writePreferencesCmd ]
+        let state, writePreferencesCmd = state |> writePreferencesOrDefault
         let toastCmd, extra =
             match forcedSignOutReason with
             | Some forcedSignOutReason ->
@@ -314,7 +340,7 @@ let private handleRemoteUiInput remoteUiInput state =
         let cmds = Cmd.batch [
             cmd
             sprintf "You have been signed out%s" extra |> toastCmd
-            writePreferencesCmd (preferencesOrDefault state) ]
+            writePreferencesCmd ]
         state, cmds
     | UserUpdated(user, usersRvn, userUpdateType), Auth authState ->
         let authUser = authState.AuthUser
@@ -357,9 +383,9 @@ let private handlePreferencesInput preferencesInput state =
             | Some reconnectingState -> connectionId reconnectingState
             | None -> None
         Bridge.Send(RemoteServerInput.Register(appState.AffinityId, connectionId))
-        RegisteringConnection(registeringConnectionState messages appState preferences.LastUser connectionId), Cmd.none
+        RegisteringConnection(registeringConnectionState messages appState preferences.LastUser preferences.LastPage connectionId), Cmd.none
     | ReadPreferencesResult None, ReadingPreferences _ ->
-        let preferences = preferencesOrDefault state
+        let preferences = state |> preferencesOrDefault
         let cmds = Cmd.batch [
             writePreferencesCmd preferences
             PreferencesInput(ReadPreferencesResult(Some(Ok preferences))) |> Cmd.ofMsg ]
@@ -376,23 +402,27 @@ let private handlePreferencesInput preferencesInput state =
 let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:AutomaticallySigningInState) state =
     match autoSignInInput with
     | AutoSignInResult(Ok(authUser, mustChangePasswordReason)) ->
-        let authState, cmd = authState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState authUser mustChangePasswordReason
+        let authState, cmd =
+            authState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState automaticallySigningInState.LastPage
+                authUser mustChangePasswordReason
+        let state, writePreferencesCmd = Auth { authState with UsersData = Pending } |> writePreferencesOrDefault
         let (UserName userName) = authUser.User.UserName
         let cmds = Cmd.batch [
             cmd
             sprintf "You have been automatically signed in as <strong>%s</strong>" userName |> successToastCmd
-            writePreferencesCmd (preferencesOrDefault (Auth authState)) ]
-        Auth { authState with UsersData = Pending }, cmds
+            writePreferencesCmd ]
+        state, cmds
     | AutoSignInResult(Error error) ->
         let userName = fst automaticallySigningInState.LastUser
         let unauthState, cmd =
-            unauthState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState (Some(error, userName)) None false
-        let state = Unauth unauthState
+            unauthState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState automaticallySigningInState.LastPage
+                (Some(error, userName)) None false
+        let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
         let (UserName userName) = userName
         let cmds = Cmd.batch [
             cmd
             sprintf "Unable to automatically sign in as <strong>%s</strong>" userName |> warningToastCmd
-            writePreferencesCmd (preferencesOrDefault state) ]
+            writePreferencesCmd ]
         state, cmds
     | AutoSignInExn exn -> state, AutoSignInInput(AutoSignInResult(Error exn.Message)) |> Cmd.ofMsg
 
@@ -422,13 +452,15 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
         | Some ModalPending ->
             match signInInput with
             | SignInResult(Ok(authUser, mustChangePasswordReason)) ->
-                let authState, cmd = authState unauthState.Messages unauthState.AppState unauthState.ConnectionState authUser mustChangePasswordReason
+                let authState, cmd =
+                    authState unauthState.Messages unauthState.AppState unauthState.ConnectionState (Some(UnauthPage unauthState.CurrentPage)) authUser mustChangePasswordReason
+                let state, writePreferencesCmd = Auth { authState with UsersData = Pending } |> writePreferencesOrDefault
                 let (UserName userName) = authUser.User.UserName
                 let cmds = Cmd.batch [
                     cmd
                     sprintf "You have signed in as <strong>%s</strong>" userName |> successToastCmd
-                    writePreferencesCmd (preferencesOrDefault (Auth authState)) ]
-                Auth { authState with UsersData = Pending }, cmds
+                    writePreferencesCmd ]
+                state, cmds
             | SignInResult(Error error) ->
                 let signInModalState = { signInModalState with ModalStatus = Some(ModalFailed(error, UserName signInModalState.UserName)) }
                 Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
@@ -517,12 +549,12 @@ let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) 
 let private handleSignOutInput signOutInput (authState:AuthState) state =
     match signOutInput with
     | SignOutResult(Ok _) ->
-        let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState None None false
-        let state = Unauth unauthState
+        let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
+        let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
         let cmds = Cmd.batch [
             cmd
             "You have signed out" |> successToastCmd
-            writePreferencesCmd (preferencesOrDefault state) ]
+            writePreferencesCmd ]
         state, cmds
     | SignOutResult(Error error) -> state |> addDebugError (sprintf "SignOutResult error -> %s" error), AuthInput(SignOutInput(SignOutResult(Ok()))) |> Cmd.ofMsg
     | SignOutExn exn -> state, AuthInput(SignOutInput(SignOutResult(Error exn.Message))) |> Cmd.ofMsg
@@ -574,23 +606,42 @@ let transition input state : State * Cmd<Input> =
             let appState = { appState with NavbarBurgerIsActive = not appState.NavbarBurgerIsActive }
             state |> updateAppState appState |> writePreferencesOrDefault
         | AutoSignInInput autoSignInInput, AutomaticallySigningIn automaticallySigningInState, _ -> state |> handleAutoSignInInput autoSignInInput automaticallySigningInState
-
-        // TODO-NMB...| UnauthInput(ShowUnauthPage About), Unauth unauthState, _ -> state, Cmd.none
-
+        | UnauthInput(ShowUnauthPage About), Unauth unauthState, _ -> match unauthState.CurrentPage with | About -> state, Cmd.none
         | UnauthInput ShowSignInModal, Unauth unauthState, _ ->
             match unauthState.SignInModalState with
             | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A (%A)" signInModalState state)
             | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None) }, Cmd.none
         | UnauthInput(SignInModalInput signInModalInput), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
         | UnauthInput(SignInInput signInInput), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
-
-        // TODO-NMB...| AuthInput(ShowPage(UnauthPage About)), Auth authState, _ -> state, Cmd.none
-        // TODO-NMB...| AuthInput(ShowPage(AuthPage Chat)), Auth authState, _ -> state, Cmd.none
-        // TEMP-NMB...
-        | AuthInput(ShowPage(AuthPage UserAdmin)), Auth authState, _ -> state, "The <strong>User administration</strong> page has not yet been implemented" |> warningToastCmd
+        | AuthInput(ShowPage(UnauthPage About)), Auth authState, _ -> // TODO-NMB: Chat maintenance...
+            match authState.CurrentPage with
+            | UnauthPage About -> state, Cmd.none
+            | AuthPage authPage ->
+                setTitle About.Render.PAGE_TITLE
+                // TODO-NMB: If authPage = Chat, notify that no longer current?...
+                Auth { authState with CurrentPage = UnauthPage About } |> writePreferencesOrDefault
+        | AuthInput(ShowPage(AuthPage Chat)), Auth authState, _ ->
+            match authState.CurrentPage with
+            | AuthPage Chat -> state, Cmd.none
+            | page ->
+                setTitle (Chat.Render.pageTitle authState.ChatState)
+                Auth { authState with CurrentPage = AuthPage Chat } |> writePreferencesOrDefault
+        | AuthInput(ShowPage(AuthPage UserAdmin)), Auth authState, _ -> // TODO-NMB: Chat maintenance...
+            match authState.CurrentPage with
+            | AuthPage UserAdmin -> state, Cmd.none
+            | page ->
+                let userAdminState, userAdminCmd =
+                    match authState.UserAdminState with
+                    | Some userAdminState -> userAdminState, Cmd.none
+                    | None ->
+                        let userAdminState, userAdminCmd = UserAdmin.State.initialize authState.AuthUser
+                        userAdminState, userAdminCmd |> Cmd.map (UserAdminInput >> AuthInput)
+                setTitle UserAdmin.Render.PAGE_TITLE
+                let state, writePreferencesCmd = Auth { authState with CurrentPage = AuthPage UserAdmin ; UserAdminState = Some userAdminState } |> writePreferencesOrDefault
+                // TODO-NMB: If page = AuthPage Chat, notify that no longer current?...
+                state, Cmd.batch [ userAdminCmd ; writePreferencesCmd ]
         // TODO-NMB...| AuthInput(ChatInput chatInput), Auth authState ,_ -> state, Cmd.none
         // TODO-NMB...| AuthInput(UserAdminInput userAdminInput), Auth authState ,_ -> state, Cmd.none
-
         | AuthInput ShowChangePasswordModal, Auth authState, _ ->
             match authState.ChangePasswordModalState with
             | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A (%A)" changePasswordModalState state)

@@ -30,11 +30,29 @@ type private HeaderState =
     | SignedIn of ConnectionState * AuthUser
     | SigningOut of ConnectionState
 
+type private HeaderPage =
+    | Tab of Fable.React.ReactElement
+    | UserAdminDropdown of bool
+
 type private HeaderData = {
     AppState : AppState
-    HeaderState : HeaderState }
+    HeaderState : HeaderState
+    PageData : HeaderPage list }
 
-let [<Literal>] private IMAGE__GIBET = "gibet-24x24.png"
+let private pageData theme dispatch state = // TODO-NMB: Chat "unseen count"?...
+    let tab text isActive onClick = tab isActive [ paraTSmallest theme [ linkTInternal theme onClick [ str text ] ] ]
+    match state with
+    | InitializingConnection _ | ReadingPreferences _ | RegisteringConnection _ | AutomaticallySigningIn _ -> []
+    | Unauth unauthState ->
+        [
+            Tab(tab About.Render.PAGE_TITLE (unauthState.CurrentPage = About) (fun _ -> About |> ShowUnauthPage |> UnauthInput |> dispatch))
+        ]
+    | Auth authState ->
+        [
+            Tab(tab About.Render.PAGE_TITLE (authState.CurrentPage = UnauthPage About) (fun _ -> UnauthPage About |> ShowPage |> AuthInput |> dispatch))
+            Tab(Chat.Render.renderTab theme (authState.CurrentPage = AuthPage Chat) authState.ChatState (fun _ -> AuthPage Chat |> ShowPage |> AuthInput |> dispatch))
+            UserAdminDropdown(authState.CurrentPage = AuthPage UserAdmin)
+        ]
 
 // #region renderHeader
 let private renderHeader (headerData, _:int<tick>) dispatch =
@@ -91,20 +109,22 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 | false -> ()
                 yield navbarDropDownItemT theme false [ signOut ] ])
         | _ -> None
+    let pageTabs = headerData.PageData |> List.choose (fun page -> match page with | Tab element -> Some element | _ -> None)
     let adminDropDown =
         match headerData.HeaderState with
         | SignedIn(_, authUser) ->
-            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (UserAdmin |> AuthPage |> ShowPage |> AuthInput) ) [ str "User administration" ] ]
+            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthPage UserAdmin |> ShowPage |> AuthInput) ) [ str "User administration" ] ]
             match canAdministerUsers authUser.User.UserType with
-            | true -> Some(navbarDropDownT theme (iconSmaller ICON__ADMIN) [ navbarDropDownItemT theme false [ showUserAdminPage ] ])
+            | true ->
+                let userAdminIsActive = headerData.PageData |> List.exists (fun page -> match page with | UserAdminDropdown true -> true | _ -> false)
+                Some(navbarDropDownT theme (iconSmaller ICON__ADMIN) [ navbarDropDownItemT theme userAdminIsActive [ showUserAdminPage ] ])
             | false -> None
         |  _ -> None
-    // TODO-NMB: pageTabs?...
     let toggleThemeInteraction = Clickable(fun _ -> dispatch ToggleTheme)
     let toggleThemeTooltip = tooltip (if burgerIsActive then TooltipRight else TooltipLeft) IsPrimary (sprintf "Switch to %s theme" (match theme with | Light -> "dark" | Dark -> "light"))
     navbarT theme IsLight [
         navbarBrand [
-            yield navbarItem [ image IMAGE__GIBET Image.Is24x24 ]
+            yield navbarItem [ image "gibet-24x24.png" Image.Is24x24 ]
             yield navbarItem [ paraT theme TextSize.Is7 IsBlack TextWeight.Bold [ str GIBET ] ]
             yield ofOption serverStatus
             yield! statusItems |> List.map (fun element -> navbarItem [ element ])
@@ -112,7 +132,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
         navbarMenuT theme burgerIsActive [
             navbarStart [
                 ofOption authUserDropDown
-                // TODO-NMB?...yield navbarItem [ tabs theme { tabsDefault with Tabs = pageTabs } ]
+                navbarItem [ tabsTSmallDefault theme pageTabs ]
                 ofOption adminDropDown ]
             navbarEnd [
 #if TICK
@@ -313,39 +333,42 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
 let private renderSigningOutModal theme =
     cardModalT theme None [ contentCentred [ paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Signing out... " ; iconSmall ICON__SPINNER_PULSE ] ] ]
 
-// #region render
 let render state dispatch =
-    let renderMessages theme messages ticks = lazyView2 renderMessages (theme, GIBET, messages, ticks) (DismissMessage >> dispatch)
-    let divSpinner theme colour = div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is7 colour TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ] ] ]
+    let lazyRenderMessages theme messages ticks = [
+        divVerticalSpace 25
+        lazyView2 renderMessages (theme, GIBET, messages, ticks) (DismissMessage >> dispatch) ]
+    let divSpinner theme colour =
+        div [] [ containerFluid [ contentCentred [
+            paraT theme TextSize.Is7 colour TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ]
+            divVerticalSpace 15 ] ] ]
     let state, reconnecting =
         match state with
         | InitializingConnection (_, Some reconnectingState) | ReadingPreferences (_, Some reconnectingState) -> reconnectingState, true
         | _ -> state, false
+    let pageData theme = state |> pageData theme dispatch
     match state with
     | InitializingConnection _ | ReadingPreferences _ -> pageLoaderT Light IsLink // note: messages (if any) not rendered
     | RegisteringConnection registeringConnectionState ->
         let theme, ticks = registeringConnectionState.AppState.Theme, registeringConnectionState.AppState.Ticks
         let headerData = {
             AppState = registeringConnectionState.AppState
-            HeaderState = Registering }
+            HeaderState = Registering
+            PageData = pageData theme }
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
-            yield divVerticalSpace 25
-            yield renderMessages theme registeringConnectionState.Messages ticks
+            yield! lazyRenderMessages theme registeringConnectionState.Messages ticks
             yield divSpinner theme IsLink
-            yield divVerticalSpace 15
             yield lazyView renderFooter theme ]
     | AutomaticallySigningIn automaticallySigningInState ->
         let theme, ticks = automaticallySigningInState.AppState.Theme, automaticallySigningInState.AppState.Ticks
         let headerData = {
             AppState = automaticallySigningInState.AppState
-            HeaderState = SigningIn(automaticallySigningInState.ConnectionState, fst automaticallySigningInState.LastUser, true) }
+            HeaderState = SigningIn(automaticallySigningInState.ConnectionState, fst automaticallySigningInState.LastUser, true)
+            PageData = pageData theme }
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
-            yield divVerticalSpace 25
-            yield renderMessages theme automaticallySigningInState.Messages ticks
+            yield! lazyRenderMessages theme automaticallySigningInState.Messages ticks
             yield divSpinner theme IsInfo
-            yield divVerticalSpace 15
             yield lazyView renderFooter theme ]
     | Unauth unauthState ->
         let theme, ticks = unauthState.AppState.Theme, unauthState.AppState.Ticks
@@ -359,21 +382,19 @@ let render state dispatch =
                     | None, Some ModalPending -> SigningIn(unauthState.ConnectionState, UserName signInModalState.UserName, false)
                     | None, Some(ModalFailed _) -> SignInError(unauthState.ConnectionState, UserName signInModalState.UserName, false)
                     | None, None -> NotSignedIn unauthState.ConnectionState
-                | None -> NotSignedIn unauthState.ConnectionState }
+                | None -> NotSignedIn unauthState.ConnectionState
+            PageData = pageData theme }
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
-            yield divVerticalSpace 25
-            yield renderMessages theme unauthState.Messages ticks
+            yield! lazyRenderMessages theme unauthState.Messages ticks
             match unauthState.CurrentPage with
             | About -> yield About.Render.render theme
-            yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
             else
                 match unauthState.SignInModalState with
                 | Some signInModalState -> yield lazyView2 renderSignInModal (theme, signInModalState) (SignInModalInput >> UnauthInput >> dispatch)
                 | None -> () ]
-    // #region Auth
     | Auth authState ->
         let theme, ticks = authState.AppState.Theme, authState.AppState.Ticks
         let authUser, usersData = authState.AuthUser, authState.UsersData
@@ -381,11 +402,11 @@ let render state dispatch =
             AppState = authState.AppState
             HeaderState =
                 if authState.SigningOut then SigningOut authState.ConnectionState
-                else SignedIn(authState.ConnectionState, authState.AuthUser) }
+                else SignedIn(authState.ConnectionState, authState.AuthUser)
+            PageData = pageData theme }
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
-            yield divVerticalSpace 25
-            yield renderMessages theme authState.Messages ticks
+            yield! lazyRenderMessages theme authState.Messages ticks
             match authState.CurrentPage with
             | UnauthPage About -> yield About.Render.render theme
             | AuthPage Chat -> yield Chat.Render.render theme authUser usersData authState.ChatState ticks (ChatInput >> AuthInput >> dispatch)
@@ -396,7 +417,6 @@ let render state dispatch =
                     | Some userAdminState -> yield UserAdmin.Render.render theme authUser usersData userAdminState (UserAdminInput >> AuthInput >> dispatch)
                     | None -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserAdminState is None" UNEXPECTED_ERROR)
                 else yield renderDangerMessage theme (ifDebug (sprintf "CurrentPage is AuthPage UserAdmin but canAdministerUsers returned false for %A" userType) UNEXPECTED_ERROR)
-            yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
             else if authState.SigningOut then yield lazyView renderSigningOutModal theme
@@ -407,5 +427,3 @@ let render state dispatch =
                 | None, Some changeImageUrlModalState ->
                     yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser, changeImageUrlModalState) (ChangeImageUrlModalInput >> AuthInput >> dispatch)
                 | None, None -> () ]
-    // #endregion
-// #endregion

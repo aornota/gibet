@@ -9,7 +9,7 @@ open Aornota.Gibet.Ui.UserApi
 open Elmish
 
 let initialize (authUser:AuthUser) : State * Cmd<Input> =
-    { ToDo = () }, Cmd.none
+    { ToDo = System.String.Empty }, Cmd.none
 
 let transition (authUser:AuthUser) (usersData:RemoteData<UserData list, string>) (input:Input) (state:State) : State * Cmd<Input> =
     match input with

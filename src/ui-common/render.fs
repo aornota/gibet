@@ -101,3 +101,5 @@ let navbarBurger onClick isActive =
 let navbarItem children = Navbar.Item.div [] children
 let navbarStart children = Navbar.Start.div [] children
 let navbarEnd children = Navbar.End.div [] children
+
+let tab isActive children = Tabs.tab [ Tabs.Tab.IsActive isActive ] children

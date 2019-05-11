@@ -16,6 +16,12 @@ open Aornota.Gibet.Ui.User.Shared
 
 open Fulma
 
+let [<Literal>] private PAGE_TITLE = "Chat"
+
+let pageTitle (state:State) = PAGE_TITLE // TODO-NMB: "Unseen count" &c.?...
+
+let renderTab theme isActive (state:State) onClick = tab isActive [ paraTSmallest theme [ linkTInternal theme onClick [ str PAGE_TITLE ] ] ] // TODO-NMB: "Unseen count" &c.?...
+
 let render theme (authUser:AuthUser) (usersData:RemoteData<UserData list, string>) (state:State) (_:int<tick>) (dispatch:Input -> unit) =
     columnsDefault [ contentCentred [
         yield paraT theme TextSize.Is5 IsBlack TextWeight.Bold [ str "Chat" ]

@@ -1,6 +1,5 @@
 module Aornota.Gibet.Ui.Program.Common
 
-open Aornota.Gibet.Common.Api.UserApi
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
@@ -17,10 +16,22 @@ open System
 
 type LastUser = UserName * Jwt
 
+type UnauthPage =
+    | About
+
+type AuthPage =
+    | Chat
+    | UserAdmin
+
+type Page =
+    | UnauthPage of UnauthPage
+    | AuthPage of AuthPage
+
 type Preferences = {
     AffinityId : AffinityId
     Theme : Theme
-    LastUser : LastUser option }
+    LastUser : LastUser option
+    LastPage : Page option }
 
 type PreferencesInput =
     | ReadPreferencesResult of Result<Preferences, string> option
@@ -37,12 +48,10 @@ type SignInModalInput =
     | PasswordChanged of string
     | SignIn
     | CancelSignIn
+
 type SignInInput =
     | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | SignInExn of exn
-
-type UnauthPage =
-    | About
 
 type UnauthInput =
     | ShowUnauthPage of UnauthPage
@@ -56,6 +65,7 @@ type ChangePasswordModalInput =
     | ConfirmPasswordChanged of string
     | ChangePassword
     | CancelChangePassword
+
 type ChangePasswordInput =
     | ChangePasswordResult of Result<UserName, string>
     | ChangePasswordExn of exn
@@ -64,6 +74,7 @@ type ChangeImageUrlModalInput =
     | ImageUrlChanged of string
     | ChangeImageUrl
     | CancelChangeImageUrl
+
 type ChangeImageUrlInput =
     | ChangeImageUrlResult of Result<UserName * ImageChangeType option, string>
     | ChangeImageUrlExn of exn
@@ -75,14 +86,6 @@ type SignOutInput =
 type GetUsersInput =
     | GetUsersResult of Result<(User * bool) list * Rvn, string>
     | GetUsersExn of exn
-
-type AuthPage =
-    | Chat
-    | UserAdmin
-
-type Page =
-    | UnauthPage of UnauthPage
-    | AuthPage of AuthPage
 
 type AuthInput =
     | ShowPage of Page
@@ -123,6 +126,7 @@ type RegisteringConnectionState = {
     Messages : Message list
     AppState : AppState
     LastUser : LastUser option
+    LastPage : Page option
     ConnectionId : ConnectionId option }
 
 type ConnectionState = {
@@ -133,7 +137,8 @@ type AutomaticallySigningInState = {
     Messages : Message list
     AppState : AppState
     ConnectionState : ConnectionState
-    LastUser : LastUser }
+    LastUser : LastUser
+    LastPage : Page option }
 
 type SignInModalState = {
     UserNameKey : Guid
