@@ -1,4 +1,4 @@
-module Aornota.Gibet.Ui.Program.ServerApi
+module Aornota.Gibet.Ui.UserApi
 
 open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Api.UserApi

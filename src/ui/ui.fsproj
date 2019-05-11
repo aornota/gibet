@@ -9,7 +9,7 @@
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
         <Compile Include="..\common\markdown.fs" />
-        <Compile Include="..\common\optional-builder.fs" />
+        <Compile Include="..\common\optional-builder.fs" /> <!--TODO-NMB: Remove if unused?...-->
         <Compile Include="..\common\revision.fs" />
         <Compile Include="..\common\unexpected-error.fs" />
         <Compile Include="..\common\units-of-measure.fs" />
@@ -30,16 +30,25 @@
         <Compile Include="..\ui-common\render-theme-markdown.fs" />
         <Compile Include="..\ui-common\should-never-happen.fs" />
         <Compile Include="..\ui-common\timestamp-helper.fs" />
-        <Compile Include="..\ui-common\message.fs" />
         <Compile Include="..\ui-common\toast.fs" />
-        <Compile Include="ui-shared.fs" />
-        <!--TODO-NMB?...<Compile Include="pages\..." />-->
-        <Compile Include="program-server-api.fs" />
-        <Compile Include="program-common.fs" />
-        <Compile Include="program-state.fs" />
-        <Compile Include="program-markdown-literals.fs" />
-        <Compile Include="program-render.fs" />
-        <Compile Include="program-run.fs" />
+        <Compile Include="..\ui-common\message.fs" />
+        <Compile Include="shared.fs" />
+        <Compile Include="user-api.fs" />
+        <Compile Include="user-shared.fs" />
+        <Compile Include="pages\about\markdown-literals.fs" />
+        <Compile Include="pages\about\render.fs" />
+        <Compile Include="pages\chat\common.fs" />
+        <Compile Include="pages\chat\server-api.fs" />
+        <Compile Include="pages\chat\state.fs" />
+        <Compile Include="pages\chat\markdown-literals.fs" />
+        <Compile Include="pages\chat\render.fs" />
+        <Compile Include="pages\user-admin\common.fs" />
+        <Compile Include="pages\user-admin\state.fs" />
+        <Compile Include="pages\user-admin\render.fs" />
+        <Compile Include="program\common.fs" />
+        <Compile Include="program\state.fs" />
+        <Compile Include="program\render.fs" />
+        <Compile Include="program\run.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

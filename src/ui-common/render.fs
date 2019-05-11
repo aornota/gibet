@@ -40,8 +40,7 @@ let onEnterPressed onEnter =
 let private columns isMobile children = Columns.columns [ if isMobile then yield Columns.IsMobile ] children
 let private column children = Column.column [] children
 let private columnEmpty = column []
-let columnsLeftAndRight leftChildren rightChildren = columns true [ column leftChildren ; column rightChildren ]
-let columnContent children =
+let columnsDefault children =
     columns true [
         columnEmpty
         Column.column [
@@ -51,6 +50,7 @@ let columnContent children =
             Column.Width(Screen.WideScreen, Column.IsThreeFifths)
             Column.Width(Screen.FullHD, Column.IsHalf) ] children
         columnEmpty ]
+let columnsLeftAndRight leftChildren rightChildren = columns true [ column leftChildren ; column rightChildren ]
 
 let containerFluid children = Container.container [ Container.IsFluid ] children
 

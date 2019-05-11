@@ -8,7 +8,9 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Theme
+open Aornota.Gibet.Ui.Pages
 open Aornota.Gibet.Ui.Shared
+open Aornota.Gibet.Ui.User.Shared
 
 open System
 
@@ -38,7 +40,11 @@ type SignInInput =
     | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | SignInExn of exn
 
+type UnauthPage = | About
+
 type UnauthInput =
+    | ShowUnauthPage of UnauthPage
+    // Note: No need for AboutInput as About page has no inputs.
     | ShowSignInModal
     | SignInModalInput of SignInModalInput
     | SignInInput of SignInInput
@@ -68,7 +74,15 @@ type GetUsersInput =
     | GetUsersResult of Result<(User * bool) list * Rvn, string>
     | GetUsersExn of exn
 
+type AuthPage = | Chat | UserAdmin
+
+type Page = | UnauthPage of UnauthPage | AuthPage of AuthPage
+
 type AuthInput =
+    | ShowPage of Page
+    // Note: No need for AboutInput as About page has no inputs.
+    | ChatInput of Chat.Common.Input
+    | UserAdminInput of UserAdmin.Common.Input
     | ShowChangePasswordModal
     | ChangePasswordModalInput of ChangePasswordModalInput
     | ChangePasswordInput of ChangePasswordInput
@@ -78,17 +92,6 @@ type AuthInput =
     | SignOut
     | SignOutInput of SignOutInput
     | GetUsersInput of GetUsersInput
-    | TempShowUserAdminPage // TEMP-NMB: Rethink unauth/auth "page" handling...
-
-type AppInput =
-    | UnauthInput of UnauthInput
-    | AuthInput of AuthInput
-
-type AppState = {
-    Ticks : int<tick> // note: will only be updated when TICK is defined (see webpack.config.js)
-    AffinityId : AffinityId
-    Theme : Theme
-    NavbarBurgerIsActive : bool }
 
 type Input =
     | AddMessage of Message
@@ -101,7 +104,14 @@ type Input =
     | ToggleTheme
     | ToggleNavbarBurger
     | AutoSignInInput of AutoSignInInput
-    | AppInput of AppInput
+    | UnauthInput of UnauthInput
+    | AuthInput of AuthInput
+
+type AppState = {
+    Ticks : int<tick> // note: will only be updated when TICK is defined (see webpack.config.js)
+    AffinityId : AffinityId
+    Theme : Theme
+    NavbarBurgerIsActive : bool }
 
 type RegisteringConnectionState = {
     Messages : Message list
@@ -135,9 +145,11 @@ type UnauthState = {
     Messages : Message list
     AppState : AppState
     ConnectionState : ConnectionState
+    CurrentPage : UnauthPage
+    // Note: No need for AboutState as About page has no state.
     SignInModalState : SignInModalState option }
 
-type ChangePasswordModalState = { // note: no need for UserId since implicitly for the AuthUser
+type ChangePasswordModalState = {
     NewPasswordKey : Guid
     NewPassword : string
     NewPasswordChanged : bool
@@ -147,7 +159,7 @@ type ChangePasswordModalState = { // note: no need for UserId since implicitly f
     MustChangePasswordReason : MustChangePasswordReason option
     ModalStatus : ModalStatus<string> option }
 
-type ChangeImageUrlModalState = { // note: no need for UserId since implicitly for the AuthUser
+type ChangeImageUrlModalState = {
     ImageUrlKey : Guid
     ImageUrl : string
     ImageUrlChanged : bool
@@ -159,6 +171,9 @@ type AuthState = {
     ConnectionState : ConnectionState
     AuthUser : AuthUser
     LastActivity : DateTime
+    CurrentPage : Page
+    ChatState : Chat.Common.State
+    UserAdminState : UserAdmin.Common.State option
     ChangePasswordModalState : ChangePasswordModalState option
     ChangeImageUrlModalState : ChangeImageUrlModalState option
     SigningOut : bool
@@ -171,8 +186,6 @@ type State =
     | AutomaticallySigningIn of AutomaticallySigningInState
     | Unauth of UnauthState
     | Auth of AuthState
-
-let [<Literal>] GIBET = "gibet (γ)" // note: also update index.html, package.json, README.md and READ_ME (α | β | γ | δ | ε)
 
 let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
     match usersData with

@@ -59,8 +59,9 @@ let cardModalT theme head body =
             | None -> ()
             yield Modal.Card.body [ CustomClass themeClass ] body ] ]
 
-let footerT theme useAlternativeClass children =
-    Footer.footer [ CustomClass (if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] children
+let footerT theme useAlternativeClass children = Footer.footer [ CustomClass (if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] children
+
+let hr theme useAlternativeClass = hr [ ClassName (if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ]
 
 let private linkT theme linkType children =
     let customClasses = [

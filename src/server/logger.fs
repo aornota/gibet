@@ -13,7 +13,7 @@ let [<Literal>] private RETAINED_FILE_COUNT = 7
 
 // #region defaultLogger
 let defaultLogger (fileName:string) =
-    let outputTemplate = sprintf "[{Timestamp:HH:mm:ss} {Level:u3}] {%s}{Message:lj}{NewLine}" LOG_SOURCE
+    let outputTemplate = sprintf "[{Timestamp:HH:mm:ss zzz} {Level:u3}] {%s}{Message:lj}{NewLine}" LOG_SOURCE
     LoggerConfiguration()
         .Destructure.FSharpTypes()
 #if DEBUG

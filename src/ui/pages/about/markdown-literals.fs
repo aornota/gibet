@@ -1,4 +1,4 @@
-module Aornota.Gibet.Ui.Program.MarkdownLiterals
+module Aornota.Gibet.Ui.Pages.About.MarkdownLiterals
 
 // #region READ_ME
 // Note: gibet-24x24.png link differs from README.md (because https://github.com/aornota/gibet/blob/master/src/ui/public/gibet-24x24.png does not seem to work for rendered Markdown).

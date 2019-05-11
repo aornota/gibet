@@ -1,19 +1,19 @@
 module Aornota.Gibet.Ui.Program.Render
 
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.Markdown
+open Aornota.Gibet.Common.IfDebug
+open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.LazyViewOrHMR
 open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Common.Render.Theme
-open Aornota.Gibet.Ui.Common.Render.Theme.Markdown
 open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Common.TimestampHelper
 open Aornota.Gibet.Ui.Common.Tooltip
+open Aornota.Gibet.Ui.Pages
 open Aornota.Gibet.Ui.Program.Common
-open Aornota.Gibet.Ui.Program.MarkdownLiterals
 open Aornota.Gibet.Ui.Shared
 
 open System
@@ -56,7 +56,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
     // #endregion
     let statusItems =
         let separator = paraT theme TextSize.Is7 IsBlack TextWeight.SemiBold [ str "|" ]
-        let signIn = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowSignInModal |> UnauthInput |> AppInput) ) [ str "Sign in" ] ]
+        let signIn = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowSignInModal |> UnauthInput) ) [ str "Sign in" ] ]
         match headerData.HeaderState with
         | Registering -> []
         | NotSignedIn _ -> [ separator ; paraTStatus IsGreyDarker [ str "Not signed in" ] ; signIn ]
@@ -77,10 +77,10 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 match authUser.User.ImageUrl with
                 | Some(ImageUrl imageUrl) -> image imageUrl Image.Is24x24, false
                 | None -> iconSmaller ICON__USER, true
-            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangePasswordModal |> AuthInput |> AppInput)) [ str "Change password" ] ]
-            let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangeImageUrlModal |> AuthInput |> AppInput)) [
+            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangePasswordModal |> AuthInput)) [ str "Change password" ] ]
+            let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangeImageUrlModal |> AuthInput)) [
                     str (sprintf "%s image" (if currentlyNone then "Choose" else "Change"))] ]
-            let signOut = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (SignOut |> AuthInput |> AppInput) ) [ str "Sign out" ] ]
+            let signOut = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (SignOut |> AuthInput) ) [ str "Sign out" ] ]
             Some(navbarDropDownT theme image [
                 let userId, userType = authUser.User.UserId, authUser.User.UserType
                 match canChangePassword userId (userId, userType) with
@@ -94,7 +94,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
     let adminDropDown =
         match headerData.HeaderState with
         | SignedIn(_, authUser) ->
-            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (TempShowUserAdminPage |> AuthInput |> AppInput) ) [ str "User administration" ] ]
+            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (UserAdmin |> AuthPage |> ShowPage |> AuthInput) ) [ str "User administration" ] ]
             match canAdministerUsers authUser.User.UserType with
             | true -> Some(navbarDropDownT theme (iconSmaller ICON__ADMIN) [ navbarDropDownItemT theme false [ showUserAdminPage ] ])
             | false -> None
@@ -292,13 +292,13 @@ let private renderSigningOutModal theme =
 // #region render
 let render state dispatch =
     let renderMessages theme messages ticks = lazyView2 renderMessages (theme, GIBET, messages, ticks) (DismissMessage >> dispatch)
+    let divSpinner theme colour = div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is7 colour TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ] ] ]
     let state, reconnecting =
         match state with
         | InitializingConnection (_, Some reconnectingState) | ReadingPreferences (_, Some reconnectingState) -> reconnectingState, true
         | _ -> state, false
     match state with
-    | InitializingConnection _ | ReadingPreferences _ -> // note: messages (if any) not rendered
-        pageLoaderT Light IsLink
+    | InitializingConnection _ | ReadingPreferences _ -> pageLoaderT Light IsLink // note: messages (if any) not rendered
     | RegisteringConnection registeringConnectionState ->
         let theme, ticks = registeringConnectionState.AppState.Theme, registeringConnectionState.AppState.Ticks
         let headerData = {
@@ -307,8 +307,8 @@ let render state dispatch =
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
-            yield renderMessages theme registeringConnectionState.Messages ticks // note: renderMessages handles lazyView2 itself
-            yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is7 IsLink TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ] ] ]
+            yield renderMessages theme registeringConnectionState.Messages ticks
+            yield divSpinner theme IsLink
             yield divVerticalSpace 15
             yield lazyView renderFooter theme ]
     | AutomaticallySigningIn automaticallySigningInState ->
@@ -319,8 +319,8 @@ let render state dispatch =
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
-            yield renderMessages theme automaticallySigningInState.Messages ticks // note: renderMessages handles lazyView2 itself
-            yield div [] [ containerFluid [ contentCentred [ paraT theme TextSize.Is7 IsInfo TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ] ] ]
+            yield renderMessages theme automaticallySigningInState.Messages ticks
+            yield divSpinner theme IsInfo
             yield divVerticalSpace 15
             yield lazyView renderFooter theme ]
     | Unauth unauthState ->
@@ -339,17 +339,20 @@ let render state dispatch =
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
-            yield renderMessages theme unauthState.Messages ticks // note: renderMessages handles lazyView2 itself
-            yield div [] [ containerFluid [ contentFromMarkdownLeft theme (Markdown READ_ME) ] ] // TEMP-NMB...
+            yield renderMessages theme unauthState.Messages ticks
+            match unauthState.CurrentPage with
+            | About -> yield About.Render.render theme
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
             else
                 match unauthState.SignInModalState with
-                | Some signInModalState -> yield lazyView2 renderSignInModal (theme, signInModalState) (SignInModalInput >> UnauthInput >> AppInput >> dispatch)
+                | Some signInModalState -> yield lazyView2 renderSignInModal (theme, signInModalState) (SignInModalInput >> UnauthInput >> dispatch)
                 | None -> () ]
+    // #region Auth
     | Auth authState ->
         let theme, ticks = authState.AppState.Theme, authState.AppState.Ticks
+        let authUser, usersData = authState.AuthUser, authState.UsersData
         let headerData = {
             AppState = authState.AppState
             HeaderState =
@@ -358,14 +361,17 @@ let render state dispatch =
         div [] [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield divVerticalSpace 25
-            // TEMP-NMB...
-#if DEBUG
-#else
-            yield lazyView renderMessageSpecial (theme, GIBET, infoMessage "More functionality for signed in users coming soon..." false, authState.AppState.Ticks)
-#endif
-            // ...TEMP=-NMB
-            yield renderMessages theme authState.Messages ticks // note: renderMessages handles lazyView2 itself
-            yield div [] [ containerFluid [ contentFromMarkdownLeft theme (Markdown READ_ME) ] ] // TEMP-NMB...
+            yield renderMessages theme authState.Messages ticks
+            match authState.CurrentPage with
+            | UnauthPage About -> yield About.Render.render theme
+            | AuthPage Chat -> yield Chat.Render.render theme authUser usersData authState.ChatState ticks (ChatInput >> AuthInput >> dispatch)
+            | AuthPage UserAdmin ->
+                match authUser.User.UserType with
+                | BenevolentDictatorForLife | Administrator ->
+                    match authState.UserAdminState with
+                    | Some userAdminState -> yield UserAdmin.Render.render theme authUser usersData userAdminState (UserAdminInput >> AuthInput >> dispatch)
+                    | None -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserAdminState is None" UNEXPECTED_ERROR)
+                | _ -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserType is neither BenevolentDictatorForLife nor Administrator" UNEXPECTED_ERROR)
             yield divVerticalSpace 15
             yield lazyView renderFooter theme
             if reconnecting then yield lazyView renderReconnectingModal theme
@@ -373,10 +379,9 @@ let render state dispatch =
             else
                 match authState.ChangePasswordModalState, authState.ChangeImageUrlModalState with
                 | Some changePasswordModalState, _ ->
-                    yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState)
-                        (ChangePasswordModalInput >> AuthInput >> AppInput >> dispatch)
+                    yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState) (ChangePasswordModalInput >> AuthInput >> dispatch)
                 | None, Some changeImageUrlModalState ->
-                    yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser, changeImageUrlModalState)
-                        (ChangeImageUrlModalInput >> AuthInput >> AppInput >> dispatch)
+                    yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser, changeImageUrlModalState) (ChangeImageUrlModalInput >> AuthInput >> dispatch)
                 | None, None -> () ]
+    // #endregion
 // #endregion
