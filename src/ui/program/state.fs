@@ -118,6 +118,7 @@ let private registeringConnectionState messages appState lastUser lastPage conne
     LastUser = lastUser
     LastPage = lastPage
     ConnectionId = connectionId }
+
 let private automaticallySigningInState messages appState connectionState lastUser lastPage = {
     Messages = messages
     AppState = appState

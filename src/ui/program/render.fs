@@ -40,17 +40,17 @@ type private HeaderData = {
     PageData : HeaderPage list }
 
 let private pageData theme dispatch state = // TODO-NMB: Chat "unseen count"?...
-    let tab text isActive onClick = tab isActive [ paraTSmallest theme [ linkTInternal theme onClick [ str text ] ] ]
+    let tab text isActive input = tab isActive [ paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch input) [ str text ] ] ]
     match state with
     | InitializingConnection _ | ReadingPreferences _ | RegisteringConnection _ | AutomaticallySigningIn _ -> []
     | Unauth unauthState ->
         [
-            Tab(tab About.Render.PAGE_TITLE (unauthState.CurrentPage = About) (fun _ -> About |> ShowUnauthPage |> UnauthInput |> dispatch))
+            Tab(tab About.Render.PAGE_TITLE (unauthState.CurrentPage = About) (UnauthInput(ShowUnauthPage About)))
         ]
     | Auth authState ->
         [
-            Tab(tab About.Render.PAGE_TITLE (authState.CurrentPage = UnauthPage About) (fun _ -> UnauthPage About |> ShowPage |> AuthInput |> dispatch))
-            Tab(Chat.Render.renderTab theme (authState.CurrentPage = AuthPage Chat) authState.ChatState (fun _ -> AuthPage Chat |> ShowPage |> AuthInput |> dispatch))
+            Tab(tab About.Render.PAGE_TITLE (authState.CurrentPage = UnauthPage About) (AuthInput(ShowPage(UnauthPage About))))
+            Tab(Chat.Render.renderTab theme (authState.CurrentPage = AuthPage Chat) authState.ChatState (fun _ -> dispatch (AuthInput(ShowPage(AuthPage Chat)))))
             UserAdminDropdown(authState.CurrentPage = AuthPage UserAdmin)
         ]
 
@@ -74,7 +74,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
     // #endregion
     let statusItems =
         let separator = paraT theme TextSize.Is7 IsBlack TextWeight.SemiBold [ str "|" ]
-        let signIn = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowSignInModal |> UnauthInput) ) [ str "Sign in" ] ]
+        let signIn = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (UnauthInput ShowSignInModal) ) [ str "Sign in" ] ]
         match headerData.HeaderState with
         | Registering -> []
         | NotSignedIn _ -> [ separator ; paraTStatus IsGreyDarker [ str "Not signed in" ] ; signIn ]
@@ -95,8 +95,8 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 match authUser.User.ImageUrl with
                 | Some(ImageUrl imageUrl) -> image imageUrl Image.Is24x24, false
                 | None -> iconSmaller ICON__USER, true
-            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangePasswordModal |> AuthInput)) [ str "Change password" ] ]
-            let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangeImageUrlModal |> AuthInput)) [
+            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthInput ShowChangePasswordModal)) [ str "Change password" ] ]
+            let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthInput ShowChangeImageUrlModal)) [
                     str (sprintf "%s image" (if currentlyNone then "Choose" else "Change (or remove)"))] ]
             let signOut = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (SignOut |> AuthInput) ) [ str "Sign out" ] ]
             Some(navbarDropDownT theme image [
@@ -113,7 +113,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
     let adminDropDown =
         match headerData.HeaderState with
         | SignedIn(_, authUser) ->
-            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthPage UserAdmin |> ShowPage |> AuthInput) ) [ str "User administration" ] ]
+            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthInput(ShowPage(AuthPage UserAdmin))) ) [ str "User administration" ] ]
             match canAdministerUsers authUser.User.UserType with
             | true ->
                 let userAdminIsActive = headerData.PageData |> List.exists (fun page -> match page with | UserAdminDropdown true -> true | _ -> false)
