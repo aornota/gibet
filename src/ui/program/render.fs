@@ -304,6 +304,7 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
             yield paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "The selected image should preferably have a 1:1 aspect ratio" ]
             yield ofOption image ]
         yield fieldDefault [
+            labelTSmallest theme [ str "Image URL" ]
             textTDefault theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl imageUrlStatus ICON__IMAGE true isChangingImageUrl (ImageUrlChanged >> dispatch)
                 ignore ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink changeImageUrlInteraction [ str (sprintf "%s image" buttonAction) ] ] ]
