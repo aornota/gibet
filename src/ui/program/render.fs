@@ -279,7 +279,7 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
             textTPassword theme changePasswordModalState.NewPasswordKey changePasswordModalState.NewPassword newPasswordStatus true isChangingPassword (NewPasswordChanged >> dispatch)
                 onEnter ]
         yield fieldDefault [
-            labelTSmallest theme [ str "Confirm new password" ]
+            labelTSmallest theme [ str "Confirm password" ]
             textTPassword theme changePasswordModalState.ConfirmPasswordKey changePasswordModalState.ConfirmPassword confirmPasswordStatus false isChangingPassword
                 (ConfirmPasswordChanged >> dispatch) onEnter ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink changePasswordInteraction [ str "Change password" ] ] ]
