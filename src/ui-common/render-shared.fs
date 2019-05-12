@@ -1,4 +1,4 @@
-module Aornota.Gibet.Ui.Common.Render
+module Aornota.Gibet.Ui.Common.Render.Shared
 
 open Browser.Types
 

@@ -1,7 +1,7 @@
 module Aornota.Gibet.Ui.Pages.About.Render
 
 open Aornota.Gibet.Common.Markdown
-open Aornota.Gibet.Ui.Common.Render
+open Aornota.Gibet.Ui.Common.Render.Shared
 open Aornota.Gibet.Ui.Common.Render.Theme.Markdown
 open Aornota.Gibet.Ui.Pages.About.MarkdownLiterals
 

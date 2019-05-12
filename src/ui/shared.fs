@@ -6,8 +6,8 @@ type ModalStatus<'a> =
     | ModalPending
     | ModalFailed of 'a
 
-// α | β | γ | δ | ε | ζ | η | θ | ι | κ | λ | μ | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
-let [<Literal>] GIBET = "gibet (δ)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
+// (α | β | γ | δ | ε) | ζ | η | θ | ι | κ | λ | μ | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
+let [<Literal>] GIBET = "gibet (ε)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
 
 let renderDebugMessage theme text = renderMessage theme GIBET Debug text
 let renderInfoMessage theme text = renderMessage theme GIBET Info text

@@ -7,7 +7,7 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.LazyViewOrHMR
 open Aornota.Gibet.Ui.Common.RemoteData
-open Aornota.Gibet.Ui.Common.Render
+open Aornota.Gibet.Ui.Common.Render.Shared
 open Aornota.Gibet.Ui.Common.Render.Theme
 open Aornota.Gibet.Ui.Pages.Chat.Common
 open Aornota.Gibet.Ui.Pages.Chat.MarkdownLiterals

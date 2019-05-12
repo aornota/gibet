@@ -25,7 +25,7 @@
         <Compile Include="..\ui-common\theme.fs" />
         <Compile Include="..\ui-common\icon.fs" />
         <Compile Include="..\ui-common\tooltip.fs" />
-        <Compile Include="..\ui-common\render.fs" />
+        <Compile Include="..\ui-common\render-shared.fs" />
         <Compile Include="..\ui-common\render-theme.fs" />
         <Compile Include="..\ui-common\render-theme-markdown.fs" />
         <Compile Include="..\ui-common\should-never-happen.fs" />

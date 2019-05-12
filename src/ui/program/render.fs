@@ -7,7 +7,7 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.LazyViewOrHMR
 open Aornota.Gibet.Ui.Common.Message
-open Aornota.Gibet.Ui.Common.Render
+open Aornota.Gibet.Ui.Common.Render.Shared
 open Aornota.Gibet.Ui.Common.Render.Theme
 open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Common.TimestampHelper
