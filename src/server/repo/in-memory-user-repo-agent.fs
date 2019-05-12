@@ -42,7 +42,7 @@ type private ImUserDict = Dictionary<UserId, InMemoryUser>
 
 let [<Literal>] private SOURCE = "Repo.InMemoryUserRepoAgent"
 
-let private sanitizeImageUrl imageUrl =
+let private canoicalizeImageUrl imageUrl =
     match imageUrl with
     | Some(ImageUrl imageUrl) ->
         if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
@@ -126,7 +126,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 reply.Reply result
                 return! loop imUserDict
             | ChangeImageUrl(userId, imageUrl, rvn, reply) ->
-                let imageUrl = sanitizeImageUrl imageUrl
+                let imageUrl = canoicalizeImageUrl imageUrl
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
                     let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
@@ -153,7 +153,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 reply.Reply result
                 return! loop imUserDict
             | CreateUser(userId, UserName userName, Password password, userType, imageUrl, reply) ->
-                let userName, password, imageUrl = UserName(userName.Trim()), Password(password.Trim()), sanitizeImageUrl imageUrl
+                let userName, password, imageUrl = UserName(userName.Trim()), Password(password.Trim()), canoicalizeImageUrl imageUrl
                 let result = imUserDict |> addUser userId userName password userType imageUrl
                 match result with
                 | Ok user -> logger.Debug("Created {user}", user)
