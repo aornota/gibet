@@ -32,7 +32,8 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 - [Google Chrome](https://www.google.com/chrome/) with the following extensions:
     - [React Developer Tools](https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi/)
     - [Redux DevTools](https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd/)
-- ([Microsoft .NET Framework 4.7.2 Developer Pack](https://dotnet.microsoft.com/download/dotnet-framework/net472/): this appeared to resolve problems with Intellisense in _build.fsx_)
+- ([Microsoft .NET Framework 4.7.2 Developer Pack](https://dotnet.microsoft.com/download/dotnet-framework/net472/): this appeared to resolve problems with Intellisense in
+_[build.fsx](https://github.com/aornota/gibet/blob/master/build.fsx)_)
 
 ### History
 
