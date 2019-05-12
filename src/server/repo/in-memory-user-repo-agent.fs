@@ -172,7 +172,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let mustChangePasswordReason =
                         match imUser.MustChangePasswordReason with
                         | Some FirstSignIn -> Some FirstSignIn
-                        | _ -> Some(MustChangePasswordReason.PasswordReset byImUser.User.UserName)
+                        | _ -> Some(PasswordReset byImUser.User.UserName)
                     let imUser = { imUser with User = user ; Salt = salt ; Hash = hash password salt ; MustChangePasswordReason = mustChangePasswordReason }
                     let! _ = imUserDict |> updateUser imUser
                     return user }

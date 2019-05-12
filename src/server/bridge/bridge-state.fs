@@ -1,6 +1,7 @@
 module Aornota.Gibet.Server.Bridge.State
 
 open Aornota.Gibet.Common.Bridge
+open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Server.Bridge.HubState
 open Aornota.Gibet.Server.Logger
@@ -45,13 +46,16 @@ let private handleRemoteServerInput clientDispatch input state =
         hub.SendClientIf (differentUserHasUsers userId) (UserSignedIn userId)
         Auth(connectionState, userId, false)
     | SignedOut, Auth(connectionState, userId, _) ->
-        hub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut None)
+        hub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut SelfSameAffinityDifferentConnection)
         sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
     | ForceSignOut forcedSignOutReason, Auth(connectionState, userId, _) ->
         clientDispatch (ForceUserSignOut forcedSignOutReason)
         sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
+    | ForceChangePassword byUserName, Auth(connectionState, userId, hasUsers) ->
+        clientDispatch (ForceUserChangePassword byUserName)
+        Auth(connectionState, userId, hasUsers)
     | HasUsers, Auth(connectionState, userId, false) -> Auth(connectionState, userId, true)
     // TODO-NMB: More RemoteServerInput?...
     | _ -> state |> handleUnexpectedInput clientDispatch (RemoteServerInput input)

@@ -320,29 +320,37 @@ let private handleRemoteUiInput remoteUiInput state =
                 | None -> Cmd.none
             state, toastCmd
     | ForceUserSignOut forcedSignOutReason, Auth authState ->
-        let state, cmd =
+        let toastCmd, because =
+            match forcedSignOutBecause forcedSignOutReason with
+            | because, Some(UserName byUserName) -> warningToastCmd, sprintf "%s by <strong>%s</strong>" because byUserName
+            | because, None -> infoToastCmd, because
+        let unauthState, cmd =
             match forcedSignOutReason with
-            | Some forcedSignOutReason ->
-                let unauthState, cmd =
-                    unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None
-                        (Some(forcedSignOutReason, authState.AuthUser.User.UserName)) false
-                Unauth unauthState, cmd
-            | None ->
-                let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
-                let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
-                state, Cmd.batch [ cmd ; writePreferencesCmd ]
+            | SelfSameAffinityDifferentConnection ->
+                unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
+            | UserTypeChanged byUserName ->
+                unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None
+                    (Some((UserTypeChanged byUserName), authState.AuthUser.User.UserName)) false
+        let state = Unauth unauthState
         let state, writePreferencesCmd = state |> writePreferencesOrDefault
-        let toastCmd, extra =
-            match forcedSignOutReason with
-            | Some forcedSignOutReason ->
-                let because, UserName byUserName = forcedSignOutBecause forcedSignOutReason
-                warningToastCmd, sprintf " because %s by <strong>%s</strong>" because byUserName
-            | None -> infoToastCmd, String.Empty
         let cmds = Cmd.batch [
             cmd
-            sprintf "You have been signed out%s" extra |> toastCmd
+            sprintf "You have been signed out because %s" because |> toastCmd
             writePreferencesCmd ]
         state, cmds
+    | ForceUserChangePassword byUserName, Auth authState ->
+        let mustChangePasswordReason = PasswordReset byUserName
+        let because =
+            match mustChangePasswordBecause mustChangePasswordReason with
+            | because, Some(UserName byUserName) -> sprintf "%s by <strong>%s</strong>" because byUserName
+            | because, None -> because
+        let toastCmd = sprintf "You must change your password becaus e%s" because |> warningToastCmd
+        let changePasswordModalState =
+            match authState.ChangePasswordModalState with
+            | Some changePasswordModalState ->
+                { changePasswordModalState with MustChangePasswordReason = Some mustChangePasswordReason }
+            | None -> changePasswordModalState (Some mustChangePasswordReason)
+        Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, toastCmd
     | UserUpdated(user, usersRvn, userUpdateType), Auth authState ->
         let authUser = authState.AuthUser
         let authUser = if user.UserId = authUser.User.UserId then { authUser with User = user } else authUser

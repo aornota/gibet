@@ -20,7 +20,8 @@ type RemoteUiInput =
     | UserActivity of UserId
     | UserSignedIn of UserId
     | UserSignedOut of UserId
-    | ForceUserSignOut of ForcedSignOutReason option
+    | ForceUserSignOut of ForcedSignOutReason
+    | ForceUserChangePassword of byUserName : UserName
     | UserUpdated of User * usersRvn : Rvn * UserUpdateType
     | UserAdded of User * usersRvn : Rvn
     // TODO-NMB: More?...
@@ -33,7 +34,8 @@ type RemoteServerInput =
     // Sent from Server:
     | SignedIn of UserId
     | SignedOut
-    | ForceSignOut of ForcedSignOutReason option
+    | ForceSignOut of ForcedSignOutReason
+    | ForceChangePassword of byUserName : UserName
     | HasUsers
     // TODO-NMB: More?...
 

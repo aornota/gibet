@@ -263,7 +263,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendServerIf (sameUser userId) (ForceSignOut(Some(PasswordReset byUser.UserName)))
+                                    hub.SendServerIf (sameUser userId) (ForceChangePassword byUser.UserName)
                                     hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn, UserUpdateType.PasswordReset))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
@@ -299,7 +299,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendServerIf (sameUser userId) (ForceSignOut(Some(UserTypeChanged byUser.UserName)))
+                                    hub.SendServerIf (sameUser userId) (ForceSignOut(UserTypeChanged byUser.UserName))
                                     hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn, UserUpdateType.UserTypeChanged))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error

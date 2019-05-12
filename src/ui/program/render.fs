@@ -209,9 +209,12 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 paraTSmallest theme [ str error ] ]
             yield br
         | None, Some forcedSignOutReason, _ ->
-            let because, UserName byUserName = forcedSignOutBecause forcedSignOutReason
+            let because =
+                match forcedSignOutBecause forcedSignOutReason with
+                | because, Some(UserName byUserName) -> [ str (sprintf "You have been signed out because %s by " because) ; bold byUserName ]
+                | because, None -> [ str (sprintf "You have been signed out because %s" because) ]
             yield notificationT theme IsWarning None [
-                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold [ str (sprintf "You have been signed out because %s by " because) ; bold byUserName ] ] ]
+                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold because ] ]
             yield br
         | None, None, Some(ModalFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [

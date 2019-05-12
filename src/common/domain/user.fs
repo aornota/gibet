@@ -10,18 +10,10 @@ type UserName = | UserName of string
 type Password = | Password of string
 type ImageUrl = | ImageUrl of string
 
-type UserType =
-    | BenevolentDictatorForLife
-    | Administrator
-    | Pleb
-    | PersonaNonGrata
+type UserType = | BenevolentDictatorForLife | Administrator | Pleb | PersonaNonGrata
 
-type MustChangePasswordReason =
-    | FirstSignIn
-    | PasswordReset of UserName
-type ForcedSignOutReason =
-    | UserTypeChanged of UserName
-    | PasswordReset of UserName
+type MustChangePasswordReason = | FirstSignIn | PasswordReset of byUserName : UserName
+type ForcedSignOutReason = | SelfSameAffinityDifferentConnection | UserTypeChanged of byUserName : UserName
 
 type User = {
     UserId : UserId
@@ -30,10 +22,7 @@ type User = {
     UserType : UserType
     ImageUrl : ImageUrl option }
 
-type ImageChangeType =
-    | ImageChosen
-    | ImageChanged
-    | ImageRemoved
+type ImageChangeType = | ImageChosen | ImageChanged | ImageRemoved
 
 type Jwt = | Jwt of string
 
@@ -92,11 +81,11 @@ let canChangeImageUrl forUserId (userId:UserId, userType) = canChangePassword fo
 let mustChangePasswordBecause mustChangePasswordReason =
     match mustChangePasswordReason with
     | FirstSignIn -> "this is the first time you have signed in", None
-    | MustChangePasswordReason.PasswordReset userName -> "it has been reset", Some userName
+    | PasswordReset userName -> "it has been reset", Some userName
 let forcedSignOutBecause forcedSignOutReason =
     match forcedSignOutReason with
-    | UserTypeChanged userName -> "your permissions have been changed", userName
-    | PasswordReset userName -> "your password has been reset", userName
+    | SelfSameAffinityDifferentConnection -> "you have signed out on another tab", None
+    | UserTypeChanged userName -> "your permissions have been changed", Some userName
 
 let changeType imageChangeType =
     match imageChangeType with
