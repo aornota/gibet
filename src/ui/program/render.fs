@@ -223,7 +223,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
         yield fieldDefault [
             labelTSmallest theme [ str "User name" ]
             textTDefault theme signInModalState.UserNameKey signInModalState.UserName userNameStatus ICON__USER (not signInModalState.FocusPassword) isSigningIn
-                (UserNameChanged >> dispatch) ignore ]
+                (UserNameChanged >> dispatch) onEnter ]
         yield fieldDefault [
             labelTSmallest theme [ str "Password" ]
             textTPassword theme signInModalState.PasswordKey signInModalState.Password passwordStatus signInModalState.FocusPassword isSigningIn (PasswordChanged >> dispatch) onEnter ]
@@ -237,9 +237,9 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
         match changePasswordModalState.ModalStatus with
         | Some ModalPending -> None, true, Loading, ignore, None, None
         | _ ->
-            let newPassword = Password changePasswordModalState.NewPassword
+            let newPassword, confirmPassword = Password changePasswordModalState.NewPassword, Password changePasswordModalState.ConfirmPassword
             let newPasswordError = validatePassword false newPassword
-            let confirmPasswordError = validateConfirmationPassword newPassword (Password changePasswordModalState.ConfirmPassword)
+            let confirmPasswordError = if confirmPassword <> newPassword then Some "Confirmation password must match new password" else None
             let changePasswordInteraction, onEnter =
                 match newPasswordError, confirmPasswordError with
                 | None, None -> Clickable onEnter, onEnter
@@ -250,9 +250,9 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
                 | true, None -> Some(IsSuccess, ICON__SUCCESS, helpTSuccess theme [ str "The new password is valid" ])
                 | _ -> None
             let confirmPasswordStatus =
-                match changePasswordModalState.ConfirmPasswordChanged, confirmPasswordError with
-                | true, Some error -> Some(IsDanger, ICON__DANGER, helpTDanger theme [ str error ])
-                | true, None -> Some(IsSuccess, ICON__SUCCESS, helpTSuccess theme [ str "The confirmation password is valid" ])
+                match changePasswordModalState.ConfirmPasswordChanged, confirmPasswordError, newPasswordError with
+                | true, Some error, _ -> Some(IsDanger, ICON__DANGER, helpTDanger theme [ str error ])
+                | true, None, None -> Some(IsSuccess, ICON__SUCCESS, helpTSuccess theme [ str "The confirmation password is valid" ])
                 | _ -> None
             let onDismiss = match changePasswordModalState.MustChangePasswordReason with | Some _ -> None | None -> Some onDismiss
             onDismiss, false, changePasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus

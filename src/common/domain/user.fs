@@ -60,9 +60,6 @@ let validatePassword forSignIn (Password password) =
     else if not forSignIn && password.Length < 6 then Some "Password must be at least 6 characters"
     else if not forSignIn && password.ToLower() = "password" then Some (sprintf "'%s' is not a valid password!" password)
     else None
-let validateConfirmationPassword newPassword confirmationPassword =
-    if newPassword <> confirmationPassword then Some "Confirmation password must match new password"
-    else validatePassword false newPassword
 
 let canAdministerUsers userType =
     match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false
