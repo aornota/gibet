@@ -19,7 +19,7 @@ open Serilog
 (* Enforces unique UserId.
    Enforces actual/expected Rvn/s.
    Does not enforce unique UserName (but cannot sign in with non-unique UserName).
-   Does not enforce any length (&c.) restrictions on UserName or Password - but trims UserName and Password and ensures ImageUrl None if (Some whitespace-only).
+   Does not enforce any length (&c.) restrictions on UserName or Password - but trims UserName and Password and canonicalizes ImageUrl, i.e. None if (Some whitespace-only).
    Does not prevent SignIn/AutoSignIn if PersonaNonGrata. *)
 
 type private Input =

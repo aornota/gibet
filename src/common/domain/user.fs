@@ -69,9 +69,7 @@ let canCreateUser forUserType userType =
     else
         match userType, forUserType with
         | BenevolentDictatorForLife, _ -> true
-        | Administrator, Administrator -> true
-        | Administrator, Pleb -> true
-        | Administrator, PersonaNonGrata -> true
+        | Administrator, Administrator | Administrator, Pleb -> true
         | _ -> false
 let canChangePassword forUserId (userId:UserId, userType) =
     if forUserId <> userId then false
