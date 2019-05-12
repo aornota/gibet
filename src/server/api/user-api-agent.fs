@@ -75,7 +75,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! (userId, mustChangePasswordReason) = repoResult
                     let! user = userDict |> findUserId userId
                     let! _ =
-                        if user.UserType = PersonaNonGrata then Error(ifDebug (sprintf "%s.SignIn -> %A is %A" SOURCE userName PersonaNonGrata) INVALID_CREDENTIALS)
+                        if not (canSignIn user.UserType) then Error(ifDebug (sprintf "%s.SignIn -> canSignIn returned false for %A" SOURCE user.UserType) NOT_ALLOWED)
                         else Ok()
                     let! jwt = toJwt user.UserId user.UserType
                     hub.SendServerIf (sameConnection connectionId) (SignedIn user.UserId)
@@ -100,13 +100,10 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> findUserId userId with
                                 | Ok user ->
                                     if userType <> user.UserType then Error(ifDebug (sprintf "%s.AutoSignIn -> Jwt %A differs from %A" SOURCE userType user.UserType) INVALID_CREDENTIALS)
-                                    else if userType = PersonaNonGrata then Error(ifDebug (sprintf "%s.AutoSignIn -> %A is %A" SOURCE user.UserName PersonaNonGrata) INVALID_CREDENTIALS)
-                                    else
-                                        match toJwt user.UserId user.UserType with
-                                        | Ok jwt ->
-                                            hub.SendServerIf (sameConnection connectionId) (SignedIn user.UserId)
-                                            Ok({ User = user ; Jwt = jwt }, mustChangePasswordReason)
-                                        | Error error -> Error error
+                                    else if not (canSignIn userType) then Error(ifDebug (sprintf "%s.AutoSignIn -> canSignIn returned false for %A" SOURCE userType) NOT_ALLOWED)
+                                    else // note: since tokens can expire, only create for "explicit" sign in (i.e. do *not* recreate for auto-sign in)
+                                        hub.SendServerIf (sameConnection connectionId) (SignedIn user.UserId)
+                                        Ok({ User = user ; Jwt = jwt }, mustChangePasswordReason)
                                 | Error error -> Error error
                             | Error error -> Error error
                     | Error error -> return Error error }
@@ -133,7 +130,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! userId, userType = fromJwt jwt
                     let! _ =
                         if canChangePassword userId (userId, userType) then Ok()
-                        else Error(ifDebug (sprintf "%s.ChangePassword -> canChangePassword for %A (%A) returned false" SOURCE userId userType) UNEXPECTED_ERROR)
+                        else Error(ifDebug (sprintf "%s.ChangePassword -> canChangePassword for %A (%A) returned false" SOURCE userId userType) NOT_ALLOWED)
                     let! _ = validatePassword password
                     return userId}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
@@ -167,7 +164,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! userId, userType = fromJwt jwt
                     let! _ =
                         if canChangeImageUrl userId (userId, userType) then Ok()
-                        else Error(ifDebug (sprintf "%s.ChangeImageUrl -> canChangeImageUrl for %A (%A) returned false" SOURCE userId userType) UNEXPECTED_ERROR)
+                        else Error(ifDebug (sprintf "%s.ChangeImageUrl -> canChangeImageUrl for %A (%A) returned false" SOURCE userId userType) NOT_ALLOWED)
                     return userId}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
@@ -197,7 +194,10 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
             | GetUsers(connectionId, jwt, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake GetUsers error -> %A" jwt) else Ok()
-                    let! _ = fromJwt jwt // all authenticated Users allowed to GetUsers (so no need to check UserType)
+                    let! _, userType = fromJwt jwt
+                    let! _ =
+                        if canGetUsers userType then Ok()
+                        else Error(ifDebug (sprintf "%s.GetUsers -> canGetUsers returned false for %A" SOURCE userType) NOT_ALLOWED)
                     let users = userDict.Values |> List.ofSeq |> List.map (fun user -> user, hub.GetModels() |> signedIn user.UserId)
                     hub.SendServerIf (sameConnection connectionId) HasUsers
                     return users, agentRvn }
@@ -212,7 +212,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! _, byUserType = fromJwt jwt
                     let! _ =
                         if canCreateUser userType byUserType then Ok()
-                        else Error(ifDebug (sprintf "%s.CreateUser -> canCreateUser for %A returned false for %A" SOURCE userType byUserType) UNEXPECTED_ERROR)
+                        else Error(ifDebug (sprintf "%s.CreateUser -> canCreateUser for %A returned false for %A" SOURCE userType byUserType) NOT_ALLOWED)
                     let userNames = userDict.Values |> List.ofSeq |> List.map (fun user -> user.UserName)
                     let! _ = match validateUserName false userName userNames with | Some error -> Error error | None -> Ok()
                     let! _ = validatePassword password
@@ -250,7 +250,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! user = userDict |> findUserId userId
                     let! _ =
                         if canResetPassword (userId, user.UserType) (byUserId, byUserType) then Ok()
-                        else Error(ifDebug (sprintf "%s.ResetPassword -> canResetPassword for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType byUserId byUserType) UNEXPECTED_ERROR)
+                        else Error(ifDebug (sprintf "%s.ResetPassword -> canResetPassword for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType byUserId byUserType) NOT_ALLOWED)
                     let! _ = validatePassword password
                     return byUser}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
@@ -287,7 +287,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! user = userDict |> findUserId userId
                     let! _ =
                         if canChangeUserType (userId, user.UserType) (byUserId, byUserType) then Ok()
-                        else Error(ifDebug (sprintf "%s.ChangeUserType -> canChangeUserType for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType byUserId byUserType) UNEXPECTED_ERROR)
+                        else Error(ifDebug (sprintf "%s.ChangeUserType -> canChangeUserType for %A (%A) returned false for %A (%A)" SOURCE userId user.UserType byUserId byUserType) NOT_ALLOWED)
                     return byUser}
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with

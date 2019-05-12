@@ -21,6 +21,7 @@ open System
 open Fable.React.Helpers
 
 open Fulma
+open Fulma.Extensions.Wikiki
 
 type private HeaderState =
     | Registering
@@ -201,6 +202,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 | _ -> None
             Some onDismiss, false, signInInteration, onEnter, userNameStatus, passwordStatus
     let extra = ifDebug [] [ str " (e.g. " ; bold EXAMPLE_ADMIN_USER_NAME ; str " | " ; bold EXAMPLE_ADMIN_PASSWORD ; str ")" ]
+    let keepMeSignedIn, onChange = signInModalState.KeepMeSignedIn, (fun _ -> dispatch KeepMeSignedInChanged)
     let body = [
         match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.ModalStatus with
         | Some(error, UserName userName), _, _ ->
@@ -230,6 +232,8 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
         yield fieldDefault [
             labelTSmallest theme [ str "Password" ]
             textTPassword theme signInModalState.PasswordKey signInModalState.Password passwordStatus signInModalState.FocusPassword isSigningIn (PasswordChanged >> dispatch) onEnter ]
+        yield fieldGroupedCentred [
+            checkTSmall theme (if keepMeSignedIn then IsSuccess else IsLink) keepMeSignedIn signInModalState.KeepMeSignedInKey keepMeSignedIn "Keep me signed in" false onChange ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink signInInteraction [ str "Sign in" ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 

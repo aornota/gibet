@@ -19,7 +19,7 @@ type private TokenExpiry = {
     InvalidBefore : DateTimeOffset option
     ExpiresAfter : float<hour> option }
 
-let [<Literal>] private CREDENTIALS_EXPIRED = "Credentials expired"
+let [<Literal>] private EXPIRED_CREDENTIALS = "Your cached credentials have expired"
 
 let [<Literal>] private TOKEN_LIFETIME = 24.<hour>
 
@@ -45,12 +45,12 @@ let private expiry = {
 
 let private checkExpiry (tokenCreated:DateTimeOffset) =
     match expiry.InvalidBefore, expiry.ExpiresAfter with
-    | Some invalidBefore, _ when tokenCreated < invalidBefore -> Error (ifDebug (sprintf "Tokens created before %A are not valid" invalidBefore) CREDENTIALS_EXPIRED)
+    | Some invalidBefore, _ when tokenCreated < invalidBefore -> Error (ifDebug (sprintf "Jwt tokens created before %A are not valid" invalidBefore) EXPIRED_CREDENTIALS)
     | _, Some expiresAfter ->
         let age = (DateTimeOffset.UtcNow - tokenCreated).TotalHours * 1.<hour>
         if age > expiresAfter then
             let ago = float(age - expiresAfter)
-            Error (ifDebug (sprintf "Token expired %.2f hour/s ago" ago) CREDENTIALS_EXPIRED)
+            Error (ifDebug (sprintf "Jwt token expired %.2f hour/s ago" ago) EXPIRED_CREDENTIALS)
         else Ok()
     | _ -> Ok()
 
@@ -65,5 +65,5 @@ let fromJwt (jwt) =
             match checkExpiry tokenCreated with
             | Ok _ -> Ok(userId, userType)
             | Error error -> Error error
-        | Error error -> Error error
+        | Error error -> Error (ifDebug error INVALID_CREDENTIALS)
     with | exn -> Error (ifDebug exn.Message INVALID_CREDENTIALS)

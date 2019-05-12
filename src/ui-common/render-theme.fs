@@ -61,6 +61,18 @@ let cardModalT theme head body =
             | None -> ()
             yield Modal.Card.body [ CustomClass themeClass ] body ] ]
 
+let checkT theme size colour hasBackgroundColour (key:Guid) isChecked text disabled onChange =
+    Checkradio.checkbox [
+        yield Checkradio.Id(key.ToString())
+        yield Checkradio.Size size
+        if hasBackgroundColour then yield Checkradio.HasBackgroundColor else ()
+        yield Checkradio.Color(colour |> transformColour theme)
+        yield Checkradio.Checked isChecked
+        yield Checkradio.Disabled disabled
+        yield Checkradio.OnChange onChange
+    ] [ str text ]
+let checkTSmall theme colour hasBackgroundColour key isChecked text disabled onChange = checkT theme IsSmall colour hasBackgroundColour key isChecked text disabled onChange
+
 let footerT theme useAlternativeClass children = Footer.footer [ CustomClass(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] children
 
 let helpT theme colour children = Help.help [ Help.Color(colour |> transformColour theme) ] children
@@ -126,6 +138,8 @@ let paraTMedium theme children = paraT theme TextSize.Is4 IsBlack TextWeight.Nor
 let paraTLarge theme children = paraT theme TextSize.Is3 IsBlack TextWeight.Normal children
 let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Normal children
 let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
+
+// TODO-NMB (cf. checkT): let radioT theme...
 
 let tabsT theme options tabs = Tabs.tabs [ yield Tabs.CustomClass(themeClass theme) ; yield! options ] tabs
 let tabsTSmallDefault theme tabs = tabsT theme [ Tabs.Size IsSmall ] tabs

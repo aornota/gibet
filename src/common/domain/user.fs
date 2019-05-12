@@ -50,33 +50,20 @@ let validatePassword forSignIn (Password password) =
     else if not forSignIn && password.ToLower() = "password" then Some (sprintf "'%s' is not a valid password!" password)
     else None
 
-let canAdministerUsers userType =
-    match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false
-let canCreateUsers userType = canAdministerUsers userType
+let canSignIn userType = match userType with | BenevolentDictatorForLife | Administrator | Pleb -> true | PersonaNonGrata -> false
+let canChangePassword forUserId (userId:UserId, userType) = if forUserId <> userId then false else canSignIn userType
+let canChangeImageUrl forUserId (userId:UserId, userType) = canChangePassword forUserId (userId, userType)
+let canGetUsers userType = canSignIn userType
+let canAdministerUsers userType = match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false
 let canCreateUser forUserType userType =
-    if not (canCreateUsers userType) then false
-    else
-        match userType, forUserType with
-        | BenevolentDictatorForLife, _ -> true
-        | Administrator, Administrator | Administrator, Pleb -> true
-        | _ -> false
-let canChangePassword forUserId (userId:UserId, userType) =
-    if forUserId <> userId then false
-    else
-        match userType with
-        | BenevolentDictatorForLife | Administrator | Pleb -> true
-        | PersonaNonGrata -> false
-let canResetPassword (forUserId, forUserType) (userId:UserId, userType) =
-    if forUserId = userId then false
-    else canCreateUser forUserType userType
-let canChangeUserType (forUserId, forUserType) (userId:UserId, userType) =
-    if forUserId = userId then false
-    else canCreateUser forUserType userType
+    if not (canAdministerUsers userType) then false
+    else match userType, forUserType with | BenevolentDictatorForLife, _ -> true | Administrator, Administrator | Administrator, Pleb -> true | _ -> false
+let canResetPassword (forUserId, forUserType) (userId:UserId, userType) = if forUserId = userId then false else canCreateUser forUserType userType
+let canChangeUserType (forUserId, forUserType) (userId:UserId, userType) = if forUserId = userId then false else canCreateUser forUserType userType
 let canChangeUserTypeTo (forUserId, forUserType) newUserType (userId:UserId, userType) =
     if not (canChangeUserType (forUserId, forUserType) (userId, userType)) then false
     else if forUserType = newUserType then false
     else canCreateUser newUserType userType
-let canChangeImageUrl forUserId (userId:UserId, userType) = canChangePassword forUserId (userId, userType)
 
 let mustChangePasswordBecause mustChangePasswordReason =
     match mustChangePasswordReason with

@@ -46,6 +46,7 @@ type AutoSignInInput =
 type SignInModalInput =
     | UserNameChanged of string
     | PasswordChanged of string
+    | KeepMeSignedInChanged
     | SignIn
     | CancelSignIn
 
@@ -147,6 +148,8 @@ type SignInModalState = {
     PasswordKey : Guid
     Password : string
     PasswordChanged : bool
+    KeepMeSignedInKey : Guid
+    KeepMeSignedIn : bool
     FocusPassword : bool
     AutoSignInError : (string * UserName) option
     ForcedSignOutReason : ForcedSignOutReason option
@@ -181,6 +184,7 @@ type AuthState = {
     AppState : AppState
     ConnectionState : ConnectionState
     AuthUser : AuthUser
+    StaySignedIn : bool
     LastActivity : DateTime
     CurrentPage : Page
     ChatState : Chat.Common.State

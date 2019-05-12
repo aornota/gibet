@@ -15,7 +15,7 @@
         "@babel/polyfill": "^7.4.4",
         "@babel/preset-env": "^7.4.4",
         "@babel/runtime": "^7.4.4",
-        "babel-loader": "^8.0.5",
+        "babel-loader": "^8.0.6",
         "bulma": "^0.7.1",
         "bulma-checkradio": "2.1.0",
         "bulma-pageloader": "2.1.0",

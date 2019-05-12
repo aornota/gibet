@@ -67,7 +67,9 @@ let private preferencesOrDefault state =
         | RegisteringConnection registeringConnectionState -> Some registeringConnectionState.AppState, None, None
         | AutomaticallySigningIn automaticallySigningInState -> Some automaticallySigningInState.AppState, Some automaticallySigningInState.LastUser, None
         | Unauth unauthState -> Some unauthState.AppState, None, Some(UnauthPage unauthState.CurrentPage)
-        | Auth authState -> Some authState.AppState, Some(authState.AuthUser.User.UserName, authState.AuthUser.Jwt), Some authState.CurrentPage
+        | Auth authState ->
+            if authState.StaySignedIn then Some authState.AppState, Some(authState.AuthUser.User.UserName, authState.AuthUser.Jwt), Some authState.CurrentPage
+            else Some authState.AppState, None, Some authState.CurrentPage
     let affinityId, theme =
         match appState with
         | Some appState -> appState.AffinityId, appState.Theme
@@ -126,7 +128,7 @@ let private automaticallySigningInState messages appState connectionState lastUs
     LastUser = lastUser
     LastPage = lastPage }
 
-let private signInModalState userName autoSignInError forcedSignOutReason =
+let private signInModalState userName keepMeSignedIn autoSignInError forcedSignOutReason =
     let userName, focusPassword = match userName with | Some(UserName userName) -> userName, true | None -> String.Empty, false
     {
         UserNameKey = Guid.NewGuid()
@@ -135,6 +137,8 @@ let private signInModalState userName autoSignInError forcedSignOutReason =
         PasswordKey = Guid.NewGuid()
         Password = String.Empty
         PasswordChanged = false
+        KeepMeSignedInKey = Guid.NewGuid()
+        KeepMeSignedIn = keepMeSignedIn
         FocusPassword = focusPassword
         AutoSignInError = autoSignInError
         ForcedSignOutReason = forcedSignOutReason
@@ -143,9 +147,9 @@ let private signInModalState userName autoSignInError forcedSignOutReason =
 let private unauthState messages appState connectionState lastPage autoSignInError forcedSignOutReason showSignInModal : UnauthState * Cmd<Input> =
     let signInModalState =
         match autoSignInError, forcedSignOutReason, showSignInModal with
-        | Some(error, userName), _, _ -> Some(signInModalState (Some userName) (Some(error, userName)) None)
-        | None, Some(forcedSignOutReason, userName), _ -> Some(signInModalState (Some userName) None (Some forcedSignOutReason))
-        | None, None, true -> Some(signInModalState None None None)
+        | Some(error, userName), _, _ -> Some(signInModalState (Some userName) true (Some(error, userName)) None)
+        | None, Some(forcedSignOutReason, userName, keepMeSignedIn), _ -> Some(signInModalState (Some userName) keepMeSignedIn None (Some forcedSignOutReason))
+        | None, None, true -> Some(signInModalState None true None None)
         | None, None, false -> None
     let currentPage = match lastPage with | Some(UnauthPage page) -> page | _ -> About
     let pageTitle = match currentPage with | About -> About.Render.PAGE_TITLE
@@ -172,7 +176,7 @@ let private changeImageUrlModalState imageUrl = {
     ImageUrl = match imageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> String.Empty
     ImageUrlChanged = false
     ModalStatus = None }
-let private authState messages appState connectionState lastPage authUser mustChangePasswordReason =
+let private authState messages appState connectionState lastPage authUser staySignedIn mustChangePasswordReason =
     let changePasswordModalState =
         match mustChangePasswordReason with
         | Some mustChangePasswordReason -> Some(changePasswordModalState (Some mustChangePasswordReason))
@@ -201,6 +205,7 @@ let private authState messages appState connectionState lastPage authUser mustCh
         AppState = appState
         ConnectionState = connectionState
         AuthUser = authUser
+        StaySignedIn = staySignedIn
         LastActivity = DateTime.Now
         CurrentPage = currentPage
         ChatState = chatState
@@ -271,7 +276,7 @@ let private handleOnMouseMove state : State * Cmd<Input> =  // TODO-NMB: Chat ma
 let private handleRemoteUiInput remoteUiInput state =
     let toastImage imageUrl =
         match imageUrl with
-        | Some(ImageUrl imageUrl) -> sprintf "<img src=\"%s\" width=\"48\" height=\"48\" style=\"vertical-align:middle\"><img>&nbsp&nbsp" imageUrl
+        | Some(ImageUrl imageUrl) -> sprintf "<img src=\"%s\" width=\"48\" height=\"48\" style=\"float:left; margin-right: 10px\"><img>" imageUrl
         | None -> String.Empty
     match remoteUiInput, state with
     | Initialized, InitializingConnection(messages, reconnectingState) -> ReadingPreferences(messages, reconnectingState), readPreferencesCmd
@@ -330,7 +335,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
             | UserTypeChanged byUserName ->
                 unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None
-                    (Some((UserTypeChanged byUserName), authState.AuthUser.User.UserName)) false
+                    (Some((UserTypeChanged byUserName), authState.AuthUser.User.UserName, authState.StaySignedIn)) false
         let state = Unauth unauthState
         let state, writePreferencesCmd = state |> writePreferencesOrDefault
         let cmds = Cmd.batch [
@@ -413,7 +418,7 @@ let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:A
     | AutoSignInResult(Ok(authUser, mustChangePasswordReason)) ->
         let authState, cmd =
             authState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState automaticallySigningInState.LastPage
-                authUser mustChangePasswordReason
+                authUser true mustChangePasswordReason
         let state, writePreferencesCmd = Auth { authState with UsersData = Pending } |> writePreferencesOrDefault
         let (UserName userName) = authUser.User.UserName
         let cmds = Cmd.batch [
@@ -446,6 +451,9 @@ let private handleSignInModalInput signInModalInput (unauthState:UnauthState) st
         | PasswordChanged password, _ ->
             let signInModalState = { signInModalState with Password = password ; PasswordChanged = true }
             Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none
+        | KeepMeSignedInChanged, _ ->
+            let signInModalState = { signInModalState with KeepMeSignedIn = not signInModalState.KeepMeSignedIn }
+            Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none
         | SignIn, _ ->
             let userName, password = UserName(signInModalState.UserName.Trim()), Password(signInModalState.Password.Trim())
             let cmd =
@@ -462,7 +470,8 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
             match signInInput with
             | SignInResult(Ok(authUser, mustChangePasswordReason)) ->
                 let authState, cmd =
-                    authState unauthState.Messages unauthState.AppState unauthState.ConnectionState (Some(UnauthPage unauthState.CurrentPage)) authUser mustChangePasswordReason
+                    authState unauthState.Messages unauthState.AppState unauthState.ConnectionState (Some(UnauthPage unauthState.CurrentPage)) authUser signInModalState.KeepMeSignedIn
+                        mustChangePasswordReason
                 let state, writePreferencesCmd = Auth { authState with UsersData = Pending } |> writePreferencesOrDefault
                 let (UserName userName) = authUser.User.UserName
                 let cmds = Cmd.batch [
@@ -619,7 +628,7 @@ let transition input state : State * Cmd<Input> =
         | UnauthInput ShowSignInModal, Unauth unauthState, _ ->
             match unauthState.SignInModalState with
             | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A (%A)" signInModalState state)
-            | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None None None) }, Cmd.none
+            | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None true None None) }, Cmd.none
         | UnauthInput(SignInModalInput signInModalInput), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
         | UnauthInput(SignInInput signInInput), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
         | AuthInput(ShowPage(UnauthPage About)), Auth authState, _ -> // TODO-NMB: Chat maintenance...
