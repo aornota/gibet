@@ -66,7 +66,6 @@ let private hub = {
 let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
     Remoting.createApi()
     |> Remoting.withRouteBuilder Route.builder
-    // TODO-NMB?...|> Remoting.withErrorHandler...
     |> Remoting.fromReader userApiReader
     |> Remoting.buildHttpHandler
 
