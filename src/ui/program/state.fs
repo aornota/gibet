@@ -463,7 +463,7 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
                     writePreferencesCmd ]
                 state, cmds
             | SignInResult(Error error) ->
-                let signInModalState = { signInModalState with ModalStatus = Some(ModalFailed(error, UserName signInModalState.UserName)) }
+                let signInModalState = { signInModalState with FocusPassword = true ; ModalStatus = Some(ModalFailed(error, UserName signInModalState.UserName)) }
                 Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
             | SignInExn exn -> state, UnauthInput(SignInInput(SignInResult(Error exn.Message))) |> Cmd.ofMsg
         | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.ModalStatus is not Pending (%A)" signInInput state)
