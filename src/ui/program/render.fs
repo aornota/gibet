@@ -86,7 +86,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
             [ separator ; paraTStatus (if auto then IsWarning else IsDanger) [ str text ; bold userName ] ]
         | SignedIn(_, authUser) ->
             let (UserName userName) = authUser.User.UserName
-            [ separator ; paraTStatus IsSuccess [ str "Signed in as " ; bold userName ] ]
+            [ separator ; paraTStatus IsInfo [ str "Signed in as " ; bold userName ] ]
         | SigningOut _ -> [ separator ; paraTStatus IsInfo [ str "Signing out... " ; spinner ] ]
     let authUserDropDown =
         match headerData.HeaderState with
