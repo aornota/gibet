@@ -72,6 +72,13 @@ let infoMessageDismissable text = message Info text DateTime.Now true
 let warningMessageDismissable text = message Warning text DateTime.Now true
 let dangerMessageDismissable text = message Danger text DateTime.Now true
 
+let messageDismissable messageType text =
+    match messageType with
+    | Debug -> debugMessageDismissable text
+    | Info -> infoMessageDismissable text
+    | Warning -> warningMessageDismissable text
+    | Danger -> dangerMessageDismissable text
+
 let removeMessage messageId messages = messages |> List.filter (fun message -> message.MessageId <> messageId)
 
 let renderMessage theme source messageType text =

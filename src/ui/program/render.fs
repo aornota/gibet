@@ -21,7 +21,6 @@ open System
 open Fable.React.Helpers
 
 open Fulma
-open Fulma.Extensions.Wikiki
 
 type private HeaderState =
     | Registering
@@ -78,7 +77,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
         let signIn = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (UnauthInput ShowSignInModal) ) [ str "Sign in" ] ]
         match headerData.HeaderState with
         | Registering -> []
-        | NotSignedIn _ -> [ separator ; paraTStatus IsGreyDarker [ str "Not signed in" ] ; signIn ]
+        | NotSignedIn _ -> [ separator ; paraTStatus IsPrimary [ str "Not signed in" ] ; signIn ]
         | SigningIn(_, UserName userName, auto) ->
             let text = if auto then "Automatically signing in as " else "Signing in as "
             [ separator ; paraTStatus IsInfo [ str text ; bold userName ; str "... " ; spinner ] ]
@@ -87,7 +86,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
             [ separator ; paraTStatus (if auto then IsWarning else IsDanger) [ str text ; bold userName ] ]
         | SignedIn(_, authUser) ->
             let (UserName userName) = authUser.User.UserName
-            [ separator ; paraTStatus IsInfo [ str "Signed in as " ; bold userName ] ]
+            [ separator ; paraTStatus IsSuccess [ str "Signed in as " ; bold userName ] ]
         | SigningOut _ -> [ separator ; paraTStatus IsInfo [ str "Signing out... " ; spinner ] ]
     let authUserDropDown =
         match headerData.HeaderState with
@@ -133,7 +132,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
         navbarMenuT theme burgerIsActive [
             navbarStart [
                 ofOption authUserDropDown
-                navbarItem [ tabsTSmallDefault theme pageTabs ]
+                navbarItem [ tabsTSmall theme pageTabs ]
                 ofOption adminDropDown ]
             navbarEnd [
 #if TICK
@@ -223,7 +222,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 contentCentred [ paraTSmaller theme [ str "Unable to sign in as " ; bold userName ] ]
                 paraTSmallest theme [ str error ] ]
             yield br
-        | None, None, _ -> ()
+        | _ -> ()
         yield contentCentred [ paraTSmaller theme [ yield str "Please enter your credentials" ; yield! extra ] ]
         yield fieldDefault [
             labelTSmallest theme [ str "User name" ]
@@ -388,7 +387,7 @@ let render state dispatch =
                     | Some(_, userName), _ -> SignInError(unauthState.ConnectionState, userName, true)
                     | None, Some ModalPending -> SigningIn(unauthState.ConnectionState, UserName signInModalState.UserName, false)
                     | None, Some(ModalFailed _) -> SignInError(unauthState.ConnectionState, UserName signInModalState.UserName, false)
-                    | None, None -> NotSignedIn unauthState.ConnectionState
+                    | _ -> NotSignedIn unauthState.ConnectionState
                 | None -> NotSignedIn unauthState.ConnectionState
             PageData = pageData theme }
         div [] [
@@ -421,7 +420,7 @@ let render state dispatch =
                 let userType = authUser.User.UserType
                 if canAdministerUsers userType then
                     match authState.UserAdminState with
-                    | Some userAdminState -> yield UserAdmin.Render.render theme authUser usersData userAdminState (UserAdminInput >> AuthInput >> dispatch)
+                    | Some userAdminState -> yield UserAdmin.Render.render theme authUser usersData userAdminState ticks (UserAdminInput >> AuthInput >> dispatch)
                     | None -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserAdminState is None" UNEXPECTED_ERROR)
                 else yield renderDangerMessage theme (ifDebug (sprintf "CurrentPage is AuthPage UserAdmin but canAdministerUsers returned false for %A" userType) UNEXPECTED_ERROR)
             yield lazyView renderFooter theme
@@ -433,4 +432,4 @@ let render state dispatch =
                     yield lazyView2 renderChangePasswordModal (theme, authState.AuthUser.User.UserName, changePasswordModalState) (ChangePasswordModalInput >> AuthInput >> dispatch)
                 | None, Some changeImageUrlModalState ->
                     yield lazyView2 renderChangeImageUrlModal (theme, authState.AuthUser, changeImageUrlModalState) (ChangeImageUrlModalInput >> AuthInput >> dispatch)
-                | None, None -> () ]
+                | _ -> () ]

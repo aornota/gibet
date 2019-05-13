@@ -31,8 +31,6 @@ open Thoth.Json
 
 let [<Literal>] private APP_PREFERENCES_KEY = "gibet-ui-app-preferences"
 
-let [<Literal>] private SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
-
 // #region AUTO_SHOW_SIGN_IN_MODAL
 let [<Literal>] private AUTO_SHOW_SIGN_IN_MODAL =
 #if DEBUG
@@ -42,7 +40,7 @@ let [<Literal>] private AUTO_SHOW_SIGN_IN_MODAL =
 #endif
 // #endregion
 
-let [<Literal>] private ACTIVITY_THROTTLE = 15.<second> // note: "ignored" if less than 5.<second>
+let [<Literal>] private ACTIVITY_THROTTLE = 15.<second> // TODO-NMB: Decide what this should be... // note: "ignored" if less than 5.<second>
 
 let private activityThrottle = max ACTIVITY_THROTTLE 5.<second>
 
@@ -234,16 +232,9 @@ let private dismissMessage messageId state = // note: silently ignore unknown me
         AutomaticallySigningIn { automaticallySigningInState with Messages = automaticallySigningInState.Messages |> removeMessage messageId }
     | Unauth unauthState -> Unauth { unauthState with Messages = unauthState.Messages |> removeMessage messageId }
     | Auth authState -> Auth { authState with Messages = authState.Messages |> removeMessage messageId }
-let private addMessage messageType text state =
-    let message =
-        match messageType with
-        | Debug -> debugMessageDismissable text
-        | Info -> infoMessageDismissable text
-        | Warning -> warningMessageDismissable text
-        | Danger -> dangerMessageDismissable text
-    state |> addToMessages message
+let private addMessage messageType text state = state |> addToMessages (messageDismissable messageType text)
 
-let private addDebugError error state = state |> addMessage MessageType.Debug (sprintf "ERROR -> %s" error)
+let private addDebugError error state = state |> addMessage Debug (sprintf "ERROR -> %s" error)
 // #region shouldNeverHappen
 let private shouldNeverHappen error state : State * Cmd<Input> =
 #if DEBUG
@@ -252,8 +243,6 @@ let private shouldNeverHappen error state : State * Cmd<Input> =
     state |> addMessage Danger SOMETHING_HAS_GONE_WRONG, Cmd.none
 #endif
 // #endregion
-
-let private unexpectedInputWhenState input (state:State) = sprintf "Unexpected %A when %A" input state
 
 let private handleOnTick appState state : State * Cmd<Input> = // note: will only be used when TICK is defined (see webpack.config.js)
     match appState with
@@ -659,7 +648,13 @@ let transition input state : State * Cmd<Input> =
                 // TODO-NMB: If page = AuthPage Chat, notify that no longer current?...
                 state, Cmd.batch [ userAdminCmd ; writePreferencesCmd ]
         // TODO-NMB...| AuthInput(ChatInput chatInput), Auth authState ,_ -> state, Cmd.none
-        // TODO-NMB...| AuthInput(UserAdminInput userAdminInput), Auth authState ,_ -> state, Cmd.none
+        | AuthInput(UserAdminInput(UserAdmin.Common.Input.AddMessage message)), Auth _, _ -> state |> addToMessages message, Cmd.none
+        | AuthInput(UserAdminInput userAdminInput), Auth authState ,_ ->
+            match authState.UserAdminState with
+            | Some userAdminState ->
+                let userAdminState, userAdminCmd = userAdminState |> UserAdmin.State.transition authState.AuthUser authState.UsersData userAdminInput
+                Auth { authState with UserAdminState = Some userAdminState }, userAdminCmd |> Cmd.map (UserAdminInput >> AuthInput)
+            | None -> state |> shouldNeverHappen (unexpectedInputWhenState input state)
         | AuthInput ShowChangePasswordModal, Auth authState, _ ->
             match authState.ChangePasswordModalState with
             | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A (%A)" changePasswordModalState state)

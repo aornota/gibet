@@ -17,7 +17,7 @@ let private padStyle padV padH =
         | Some padV, Some padH -> sprintf "%ipx %ipx" padV padH
         | Some padV, None -> sprintf "%ipx 0" padV
         | None, Some padH -> sprintf "0 %ipx" padH
-        | None, None -> "0 0"
+        | _ -> "0 0"
     Style [ Padding padding ]
 
 let div props children = div props children
@@ -27,6 +27,7 @@ let divVerticalSpace height = div [ padStyle (Some(height / 2)) None ] [ str SPA
 let str text = str text
 let bold text = b [] [ str text ]
 let italic text = i [] [ str text ]
+let boldItalic text = b [] [ italic text ]
 let br = br []
 
 let onEnterPressed onEnter =
@@ -104,3 +105,9 @@ let navbarStart children = Navbar.Start.div [] children
 let navbarEnd children = Navbar.End.div [] children
 
 let tab isActive children = Tabs.tab [ Tabs.Tab.IsActive isActive ] children
+
+let thead children = thead [] children
+let tbody children = tbody [] children
+let tr selected children = tr [ if selected then yield ClassName "is-selected" ] children
+let th children = th [] children
+let td children = td [] children

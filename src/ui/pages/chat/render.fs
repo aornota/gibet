@@ -30,5 +30,5 @@ let render theme (authUser:AuthUser) (usersData:RemoteData<UserData list, string
         | NotRequested -> yield renderDangerMessage theme (ifDebug "UserData has not been requested" UNEXPECTED_ERROR)
         | Pending -> yield paraT theme TextSize.Is7 IsDark TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ]
         | Received(users, _) -> // TODO-NMB...
-            yield renderInfoMessage theme "Chat functionality coming soon..."
+            yield renderInfoMessage theme "Chat functionality coming soon..." // yield renderWarningMessage theme "Chat functionality is a work in progress..."
         | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "UserData Failed -> %s" error) UNEXPECTED_ERROR) ] ]
