@@ -32,7 +32,11 @@ let private userTypeRadios theme authUser user selectedUserType disableAll dispa
             match user with
             | Some user -> canChangeUserTypeTo (user.UserId, user.UserType) userType (authUser.User.UserId, authUser.User.UserType), userType = user.UserType
             | None -> canCreateUser userType authUser.User.UserType, false
-        let colour = if selected then IsSuccess else if current then IsLight else IsLink
+        let colour =
+            if selected then
+                if allowed then IsSuccess else IsWarning
+            else if current then IsLight
+            else IsLink
         let hasBackgrounColour = selected || current
         let disabled = disableAll || not allowed
         let onChange = if selected || disabled then ignore else onChange userType
