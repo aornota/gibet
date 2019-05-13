@@ -74,7 +74,7 @@ let private handleCreateUsersModalInput createUsersModalInput (authUser:AuthUser
         | CreateUser, _ ->
             let userName, password = UserName(createUsersModalState.UserName.Trim()), Password(createUsersModalState.Password.Trim())
             let cmd = Cmd.OfAsync.either userApi.createUser (authUser.Jwt, userName, password, createUsersModalState.UserType) CreateUserResult CreateUserExn |> Cmd.map CreateUserInput
-            let createUsersModalState = { createUsersModalState with ModalStatus = Some ModalPending }
+            let createUsersModalState = { createUsersModalState with LastUserNameCreated = None ; ModalStatus = Some ModalPending }
             { state with CreateUsersModalState = Some createUsersModalState }, cmd
         | CancelCreateUsers, _ -> { state with CreateUsersModalState = None }, Cmd.none
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState is None (%A)" createUsersModalInput state)
@@ -85,7 +85,7 @@ let private handleCreateUserInput createUserInput (authUser:AuthUser) (users:Use
         | Some ModalPending ->
             match createUserInput with
             | CreateUserResult(Ok(UserName userName)) ->
-                let toastCmd = sprintf "Add user <strong>%s</strong>" userName |> successToastCmd
+                let toastCmd = sprintf "User <strong>%s</strong> added" userName |> successToastCmd
                 { state with CreateUsersModalState = Some(_createUsersModalState createUsersModalState.UserType (Some(UserName userName))) }, toastCmd
             | CreateUserResult(Error error) ->
                 let createUsersModalState = { createUsersModalState with ModalStatus = Some(ModalFailed error) }

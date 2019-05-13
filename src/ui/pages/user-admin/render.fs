@@ -83,8 +83,7 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
         | _ -> ()
         match createUsersModalState.LastUserNameCreated with
         | Some(UserName userName) ->
-            yield notificationT theme IsInfo None [
-                contentCentred [ paraTSmallest theme [ str "User " ; bold userName ; str " has been added" ] ] ]
+            yield notificationT theme IsInfo None [ contentCentred [ paraTSmaller theme [ str "User " ; bold userName ; str " has been added" ] ] ]
             yield br
         | _ -> ()
         yield contentCentred [ paraTSmaller theme [ str "Please enter the details for the new user" ] ]
