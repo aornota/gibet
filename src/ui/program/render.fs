@@ -180,7 +180,7 @@ let private renderReconnectingModal theme =
 
 let private renderSignInModal (theme, signInModalState:SignInModalState) dispatch =
     let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Sign in" ] ] ]
-    let onDismiss, isSigningIn, signInInteraction, onEnter, userNameStatus, passwordStatus =
+    let onDismiss, signingIn, signInInteraction, onEnter, userNameStatus, passwordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelSignIn), (fun _ -> dispatch SignIn)
         match signInModalState.ModalStatus with
         | Some ModalPending -> None, true, Loading, ignore, None, None
@@ -214,8 +214,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 match forcedSignOutBecause forcedSignOutReason with
                 | because, Some(UserName byUserName) -> [ str (sprintf "You have been signed out because %s by " because) ; bold byUserName ]
                 | because, None -> [ str (sprintf "You have been signed out because %s" because) ]
-            yield notificationT theme IsWarning None [
-                contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold because ] ]
+            yield notificationT theme IsWarning None [ contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold because ] ]
             yield br
         | None, None, Some(ModalFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [
@@ -226,11 +225,11 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
         yield contentCentred [ paraTSmaller theme [ yield str "Please enter your credentials" ; yield! extra ] ]
         yield fieldDefault [
             labelTSmallest theme [ str "User name" ]
-            textTDefault theme signInModalState.UserNameKey signInModalState.UserName userNameStatus ICON__USER (not signInModalState.FocusPassword) isSigningIn
+            textTDefault theme signInModalState.UserNameKey signInModalState.UserName userNameStatus ICON__USER (not signInModalState.FocusPassword) signingIn
                 (UserNameChanged >> dispatch) onEnter ]
         yield fieldDefault [
             labelTSmallest theme [ str "Password" ]
-            textTPassword theme signInModalState.PasswordKey signInModalState.Password passwordStatus signInModalState.FocusPassword isSigningIn (PasswordChanged >> dispatch) onEnter ]
+            textTPassword theme signInModalState.PasswordKey signInModalState.Password passwordStatus signInModalState.FocusPassword signingIn (PasswordChanged >> dispatch) onEnter ]
         yield fieldGroupedCentred [
             checkTSmall theme (if keepMeSignedIn then IsSuccess else IsLink) keepMeSignedIn signInModalState.KeepMeSignedInKey keepMeSignedIn "Keep me signed in" false onChange ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink signInInteraction [ str "Sign in" ] ] ]
@@ -238,14 +237,14 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
 
 let private renderChangePasswordModal (theme, UserName userName, changePasswordModalState:ChangePasswordModalState) dispatch =
     let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Change password for " ; bold userName ] ] ]
-    let onDismiss, isChangingPassword, changePasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
+    let onDismiss, changingPassword, changePasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangePassword), (fun _ -> dispatch ChangePassword)
         match changePasswordModalState.ModalStatus with
         | Some ModalPending -> None, true, Loading, ignore, None, None
         | _ ->
             let newPassword, confirmPassword = Password changePasswordModalState.NewPassword, Password changePasswordModalState.ConfirmPassword
             let newPasswordError = validatePassword false newPassword
-            let confirmPasswordError = if confirmPassword <> newPassword then Some "Confirmation password must match new password" else None
+            let confirmPasswordError = validateConfirmPassword false confirmPassword newPassword
             let changePasswordInteraction, onEnter =
                 match newPasswordError, confirmPasswordError with
                 | None, None -> Clickable onEnter, onEnter
@@ -282,11 +281,11 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
         yield contentCentred [ paraTSmaller theme [ str "Please enter and confirm your new password" ] ]
         yield fieldDefault [
             labelTSmallest theme [ str "New password" ]
-            textTPassword theme changePasswordModalState.NewPasswordKey changePasswordModalState.NewPassword newPasswordStatus true isChangingPassword (NewPasswordChanged >> dispatch)
+            textTPassword theme changePasswordModalState.NewPasswordKey changePasswordModalState.NewPassword newPasswordStatus true changingPassword (NewPasswordChanged >> dispatch)
                 onEnter ]
         yield fieldDefault [
             labelTSmallest theme [ str "Confirm password" ]
-            textTPassword theme changePasswordModalState.ConfirmPasswordKey changePasswordModalState.ConfirmPassword confirmPasswordStatus false isChangingPassword
+            textTPassword theme changePasswordModalState.ConfirmPasswordKey changePasswordModalState.ConfirmPassword confirmPasswordStatus false changingPassword
                 (ConfirmPasswordChanged >> dispatch) onEnter ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink changePasswordInteraction [ str "Change password" ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
@@ -301,7 +300,7 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
         | false, false -> "Change"
         | false, true -> "Remove"
     let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str (sprintf "%s image for " action) ; bold userName ] ] ]
-    let onDismiss, isChangingImageUrl, changeImageUrlInteraction, onEnter, imageUrlStatus =
+    let onDismiss, changingImageUrl, changeImageUrlInteraction, onEnter, imageUrlStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangeImageUrl), (fun _ -> dispatch ChangeImageUrl)
         match changeImageUrlModalState.ModalStatus with
         | Some ModalPending -> None, true, Loading, ignore, None
@@ -326,12 +325,12 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
             yield br
         | _ -> ()
         yield contentCentred [
-            yield paraTSmaller theme [ str (sprintf "Please enter the URL for your image%s" extra) ]
-            yield paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "The selected image should preferably have a 1:1 aspect ratio" ]
-            yield ofOption image ]
+            paraTSmaller theme [ str (sprintf "Please enter the URL for your image%s" extra) ]
+            paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "The selected image should preferably have a 1:1 aspect ratio" ]
+            ofOption image ]
         yield fieldDefault [
             labelTSmallest theme [ str "Image URL" ]
-            textTDefault theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl imageUrlStatus ICON__IMAGE true isChangingImageUrl (ImageUrlChanged >> dispatch)
+            textTDefault theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl imageUrlStatus ICON__IMAGE true changingImageUrl (ImageUrlChanged >> dispatch)
                 ignore ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink changeImageUrlInteraction [ str (sprintf "%s image" buttonAction) ] ] ]
     cardModalT theme (Some(title, onDismiss)) body

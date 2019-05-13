@@ -54,7 +54,8 @@ hr.dark { background-color: var(--dark) }
 .dark .control.has-icons-left .icon, .dark control.has-icons-right .icon { color: var(--darker) }
 /* #endregion */
 
-/* #region overrides for Bulma colours */
+/* #region overrides for Bulma colours (*&c.) */
+.content table td { vertical-align: middle }
 /* Note: Needed to prevent use of background-color/s defined for .footer (&c.) by Bulma. */
 .footer.light, .input.light, .modal-card-body.light, .table.light, .textarea.light { background-color: var(--white) }
 .footer.dark, .input.dark, .modal-card-body.dark, .table.dark, .textarea.dark { background-color: var(--black) }

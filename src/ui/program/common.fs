@@ -16,16 +16,9 @@ open System
 
 type LastUser = UserName * Jwt
 
-type UnauthPage =
-    | About
-
-type AuthPage =
-    | Chat
-    | UserAdmin
-
-type Page =
-    | UnauthPage of UnauthPage
-    | AuthPage of AuthPage
+type UnauthPage = | About
+type AuthPage = | Chat | UserAdmin
+type Page = | UnauthPage of UnauthPage | AuthPage of AuthPage
 
 type Preferences = {
     AffinityId : AffinityId
@@ -49,7 +42,6 @@ type SignInModalInput =
     | KeepMeSignedInChanged
     | SignIn
     | CancelSignIn
-
 type SignInInput =
     | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | SignInExn of exn
@@ -66,7 +58,6 @@ type ChangePasswordModalInput =
     | ConfirmPasswordChanged of string
     | ChangePassword
     | CancelChangePassword
-
 type ChangePasswordInput =
     | ChangePasswordResult of Result<UserName, string>
     | ChangePasswordExn of exn
@@ -75,7 +66,6 @@ type ChangeImageUrlModalInput =
     | ImageUrlChanged of string
     | ChangeImageUrl
     | CancelChangeImageUrl
-
 type ChangeImageUrlInput =
     | ChangeImageUrlResult of Result<UserName * ImageChangeType option, string>
     | ChangeImageUrlExn of exn
@@ -205,7 +195,7 @@ type State =
 let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, _) ->
-        match usersData |> exists user.UserId, shouldExist with
+        match users |> exists user.UserId, shouldExist with
         | true, true ->
             let users =
                 users
@@ -227,7 +217,7 @@ let updateUser user usersRvn (usersData:RemoteData<UserData list, string>) =
 let updateActivity userId (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
-        if usersData |> exists userId then
+        if users |> exists userId then
             let users =
                 users
                 |> List.map (fun (user, signedIn, lastActivity) ->
@@ -239,7 +229,7 @@ let updateActivity userId (usersData:RemoteData<UserData list, string>) =
 let updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
     match usersData with
     | Received(users, rvn) ->
-        if usersData |> exists userId then
+        if users |> exists userId then
             let users =
                 users
                 |> List.map (fun (user, otherSignedIn, lastActivity) ->

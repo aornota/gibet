@@ -14,6 +14,6 @@ type UserApi = {
     changePassword : Jwt * Password * Rvn -> AsyncResult<UserName, string>
     changeImageUrl : Jwt * ImageUrl option * Rvn -> AsyncResult<UserName * ImageChangeType option, string>
     getUsers : ConnectionId * Jwt -> AsyncResult<(User * bool) list * Rvn, string>
-    createUser : Jwt * UserName * Password * UserType * ImageUrl option -> AsyncResult<UserName, string>
+    createUser : Jwt * UserName * Password * UserType -> AsyncResult<UserName, string>
     resetPassword : Jwt * UserId * Password * Rvn -> AsyncResult<UserName, string>
     changeUserType : Jwt * UserId * UserType * Rvn -> AsyncResult<UserName, string> }

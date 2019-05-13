@@ -3,40 +3,77 @@ module Aornota.Gibet.Ui.Pages.UserAdmin.Common
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Ui.Common.Message
-open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Shared
 
-//type CreateUsersModalInput =
+open System
 
-//type CreateUsersInput =
+type CreateUsersModalInput =
+    | UserNameChanged of string
+    | PasswordChanged of string
+    | ConfirmPasswordChanged of string
+    | UserTypeChanged of UserType
+    | CreateUser
+    | CancelCreateUsers
+type CreateUserInput =
+    | CreateUserResult of Result<UserName, string>
+    | CreateUserExn of exn
 
-//type ResetPasswordModalInput =
+type ResetPasswordModalInput =
+    | NewPasswordChanged of string
+    | ConfirmPasswordChanged of string
+    | ResetPassword
+    | CancelResetPassword
+type ResetPasswordInput =
+    | ResetPasswordResult of Result<UserName, string>
+    | ResetPasswordExn of exn
 
-//type ResetPasswordInput =
-
-//type ChangeUserTypeModalInput =
-
-//type ChangeUserTypeInput =
+type ChangeUserTypeModalInput =
+    | NewUserTypeChanged of UserType
+    | ChangeUserType
+    | CancelChangeUserType
+type ChangeUserTypeInput =
+    | ChangeUserTypeResult of Result<UserName, string>
+    | ChangeUserTypeExn of exn
 
 type Input =
     | AddMessage of Message
     | ShowCreateUsersModal
-    //| CreateUsersModalInput
-    //| CreateUsersInput
-    | ShowResetPasswordModal of UserId
-    //| ResetPasswordModalInput
-    //| ResetPasswordInput
-    | ShowChangeUserTypeModal of UserId
-    //| ChangeUserTypeModalInput
-    //| ChangeUserTypeInput
+    | CreateUsersModalInput of CreateUsersModalInput
+    | CreateUserInput of CreateUserInput
+    | ShowResetPasswordModal of UserId * Rvn
+    | ResetPasswordModalInput of ResetPasswordModalInput
+    | ResetPasswordInput of ResetPasswordInput
+    | ShowChangeUserTypeModal of UserId * Rvn
+    | ChangeUserTypeModalInput of ChangeUserTypeModalInput
+    | ChangeUserTypeInput of ChangeUserTypeInput
 
-type CreateUsersModalState = { //
+type CreateUsersModalState = {
+    UserNameKey : Guid
+    UserName : string
+    UserNameChanged : bool
+    PasswordKey : Guid
+    Password : string
+    PasswordChanged : bool
+    ConfirmPasswordKey : Guid
+    ConfirmPassword : string
+    ConfirmPasswordChanged : bool
+    UserType : UserType
+    LastUserNameCreated : UserName option
     ModalStatus : ModalStatus<string> option }
 
-type ResetPasswordModalState = { //
+type ResetPasswordModalState = {
+    ForUser : UserId * Rvn
+    NewPasswordKey : Guid
+    NewPassword : string
+    NewPasswordChanged : bool
+    ConfirmPasswordKey : Guid
+    ConfirmPassword : string
+    ConfirmPasswordChanged : bool
     ModalStatus : ModalStatus<string> option }
 
-type ChangeUserTypeModalState = { //
+type ChangeUserTypeModalState = {
+    ForUser : UserId * Rvn
+    NewUserType : UserType option
     ModalStatus : ModalStatus<string> option }
 
 type State = {

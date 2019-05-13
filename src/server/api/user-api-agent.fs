@@ -34,7 +34,7 @@ type private Input =
     | ChangePassword of Jwt * Password * Rvn * AsyncReplyChannelResult<UserName, string>
     | ChangeImageUrl of Jwt * ImageUrl option * Rvn * AsyncReplyChannelResult<UserName * ImageChangeType option, string>
     | GetUsers of ConnectionId * Jwt * AsyncReplyChannelResult<(User * bool) list * Rvn, string>
-    | CreateUser of Jwt * UserName * Password * UserType * ImageUrl option * AsyncReplyChannelResult<UserName, string>
+    | CreateUser of Jwt * UserName * Password * UserType * AsyncReplyChannelResult<UserName, string>
     | ResetPassword of Jwt * UserId * Password * Rvn * AsyncReplyChannelResult<UserName, string>
     | ChangeUserType of Jwt * UserId * UserType * Rvn * AsyncReplyChannelResult<UserName, string>
 
@@ -206,7 +206,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                 | Error error -> logger.Warning("Unable to get users -> {error}", error)
                 reply.Reply result
                 return! loop (userDict, agentRvn)
-            | CreateUser(jwt, userName, password, userType, imageUrl, reply) ->
+            | CreateUser(jwt, userName, password, userType, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake CreateUser error -> %A" jwt) else Ok()
                     let! _, byUserType = fromJwt jwt
@@ -220,7 +220,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                 let! result = async { // TODO-NMB: Make this less horrible (i.e. rethink how to mix Async<_> and Result<_>)?!...
                     match result with
                     | Ok _ ->
-                        let! repoResult = userRepo.CreateUser(None, userName, password, userType, imageUrl)
+                        let! repoResult = userRepo.CreateUser(None, userName, password, userType, None)
                         return
                             match repoResult with
                             | Ok user ->
@@ -264,7 +264,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
                                     hub.SendServerIf (sameUser userId) (ForceChangePassword byUser.UserName)
-                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn, UserUpdateType.PasswordReset))
+                                    hub.SendClientIf hasUsers (UserUpdated(user, agentRvn, UserUpdateType.PasswordReset))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -332,7 +332,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
     member __.ChangePassword(jwt, password, rvn) = agent.PostAndAsyncReply(fun reply -> ChangePassword(jwt, password, rvn, reply))
     member __.ChangeImageUrl(jwt, imageUrl, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeImageUrl(jwt, imageUrl, rvn, reply))
     member __.GetUsers(connectionId, jwt) = agent.PostAndAsyncReply(fun reply -> GetUsers(connectionId, jwt, reply))
-    member __.CreateUser(jwt, userName, password, userType, imageUrl) = agent.PostAndAsyncReply(fun reply -> CreateUser(jwt, userName, password, userType, imageUrl, reply))
+    member __.CreateUser(jwt, userName, password, userType) = agent.PostAndAsyncReply(fun reply -> CreateUser(jwt, userName, password, userType, reply))
     member __.ResetPassword(jwt, userId, password, rvn) = agent.PostAndAsyncReply(fun reply -> ResetPassword(jwt, userId, password, rvn, reply))
     member __.ChangeUserType(jwt, userId, userType, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeUserType( jwt, userId, userType, rvn, reply))
 

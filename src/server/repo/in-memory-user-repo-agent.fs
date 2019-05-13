@@ -78,10 +78,11 @@ let private updateUser imUser (imUserDict:ImUserDict) =
 let private findUserId userId (imUserDict:ImUserDict) =
     if imUserDict.ContainsKey userId then Ok imUserDict.[userId]
     else Error(ifDebug (sprintf "%s.findUserId -> Unable to find %A" SOURCE userId) UNEXPECTED_ERROR)
-let private findUserName userName error (imUserDict:ImUserDict) =
+let private findUserName userName (imUserDict:ImUserDict) =
     match imUserDict.Values |> List.ofSeq |> List.filter (fun imUser -> imUser.User.UserName = userName) with
     | [ imUser ] -> Ok imUser
-    | _ :: _ | [] -> Error error
+    | _ :: _ -> Error (ifDebug (sprintf "%s.findUserName -> %A not unique" SOURCE userName) INVALID_CREDENTIALS)
+    | [] -> Error (ifDebug (sprintf "%s.findUserName -> %A not found" SOURCE userName) INVALID_CREDENTIALS)
 
 type InMemoryUserRepoAgent(logger:ILogger) =
     let logger = logger |> sourcedLogger SOURCE
@@ -90,7 +91,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
             match! inbox.Receive() with
             | SignIn(userName, password, reply) ->
                 let result = result {
-                    let! imUser = imUserDict |> findUserName userName (ifDebug (sprintf "%s.SignIn -> %A not found" SOURCE userName) INVALID_CREDENTIALS)
+                    let! imUser = imUserDict |> findUserName userName
                     let! _ =
                         if imUser.Hash = hash password imUser.Salt then Ok()
                         else Error(ifDebug (sprintf "%s.SignIn -> Invalid password for %A" SOURCE userName) INVALID_CREDENTIALS)

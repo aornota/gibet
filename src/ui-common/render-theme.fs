@@ -139,7 +139,17 @@ let paraTLarge theme children = paraT theme TextSize.Is3 IsBlack TextWeight.Norm
 let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Normal children
 let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
 
-// TODO-NMB (cf. checkT): let radioT theme...
+let radioInlineT theme size colour hasBackgroundColour (key:Guid) isChecked text disabled onChange =
+    Checkradio.radioInline [
+        yield Checkradio.Id(key.ToString())
+        yield Checkradio.Size size
+        if hasBackgroundColour then yield Checkradio.HasBackgroundColor
+        yield Checkradio.Color(colour |> transformColour theme)
+        yield Checkradio.Checked isChecked
+        yield Checkradio.Disabled disabled
+        yield Checkradio.OnChange onChange
+    ] [ text ]
+let radioInlineTSmall theme colour hasBackgroundColour key isChecked text disabled onChange = radioInlineT theme IsSmall colour hasBackgroundColour key isChecked text disabled onChange
 
 let tableT theme useAlternativeClass bordered narrow striped fullWidth children =
     Table.table [
@@ -156,13 +166,16 @@ let tabsTSmall theme tabs = tabsT theme [ Tabs.Size IsSmall ] tabs
 
 let tagT theme size colour rounded onDismiss children =
     Tag.tag [
-        yield Tag.Size size
+        match size with
+        | Some IsLarge -> yield Tag.Size IsLarge
+        | Some IsMedium -> yield Tag.Size IsMedium
+        | _ -> ()
         yield Tag.Color(colour |> transformColour theme)
         if rounded then yield Tag.CustomClass "is-rounded"
     ] [
         yield! children
         match onDismiss with | Some onDismiss -> yield delete onDismiss | None -> () ]
-let tagTSmall theme colour children = tagT theme IsSmall colour false None children
+let tagTSmall theme colour children = tagT theme None colour false None children
 
 let textT theme (key:Guid) text status password iconLeft autoFocus disabled (onChange:string -> unit) onEnter =
     let colour, iconRight, help =

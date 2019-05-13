@@ -5,7 +5,6 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
-open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.Message
@@ -294,7 +293,7 @@ let private handleRemoteUiInput remoteUiInput state =
         | Some error -> state |> shouldNeverHappen error
         | None ->
             let toastCmd =
-                match usersData |> findUser userId with
+                match usersData |> findUserRD userId with
                 | Some(user, _, _) ->
                     let (UserName userName) = user.UserName
                     sprintf "%s<strong>%s</strong> has signed in" (toastImage user.ImageUrl) userName |> infoToastCmd
@@ -307,7 +306,7 @@ let private handleRemoteUiInput remoteUiInput state =
         | Some error -> state |> shouldNeverHappen error
         | None ->
             let toastCmd =
-                match usersData |> findUser userId with
+                match usersData |> findUserRD userId with
                 | Some(user, _, _) ->
                     let (UserName userName) = user.UserName
                     sprintf "%s<strong>%s</strong> has signed out" (toastImage user.ImageUrl) userName |> infoToastCmd
@@ -338,7 +337,7 @@ let private handleRemoteUiInput remoteUiInput state =
             match mustChangePasswordBecause mustChangePasswordReason with
             | because, Some(UserName byUserName) -> sprintf "%s by <strong>%s</strong>" because byUserName
             | because, None -> because
-        let toastCmd = sprintf "You must change your password becaus e%s" because |> warningToastCmd
+        let toastCmd = sprintf "You must change your password because %s" because |> warningToastCmd
         let changePasswordModalState =
             match authState.ChangePasswordModalState with
             | Some changePasswordModalState ->
@@ -487,21 +486,12 @@ let private handleChangePasswordModalInput changePasswordModalInput (authState:A
             let changePasswordModalState = { changePasswordModalState with ConfirmPassword = confirmPassword ; ConfirmPasswordChanged = true }
             Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none
         | ChangePassword, _ ->
-            (* Note that although we could use authState.AuthUser.User.Rvn (rather than take this get-user-from-UsersData approach) - because authState.AuthUser.User *will* be updated
-               when handling RemoteUiInput(UserUpdated _) - we will need to follow this alternative approach to ascertaining the current Rvn for uesrApi.resetPassword &c. *)
-            // TODO-NMB: Switch to using authState.AuthUser.User.Rvn (cf. handling of ChangeImageUrlModalInput ChangeImageUrl below)?...
-            match authState.UsersData |> findUser authState.AuthUser.User.UserId with
-            | Some(user, _, _) ->
-                let password = Password(changePasswordModalState.NewPassword.Trim())
-                let cmd =
-                    Cmd.OfAsync.either userApi.changePassword (authState.AuthUser.Jwt, password, user.Rvn) ChangePasswordResult ChangePasswordExn
-                    |> Cmd.map (ChangePasswordInput >> AuthInput)
-                let changePasswordModalState = { changePasswordModalState with ModalStatus = Some ModalPending }
-                Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, cmd
-            | None ->
-                let changePasswordModalState = { changePasswordModalState with ModalStatus = Some (ModalFailed UNEXPECTED_ERROR) }
-                let state = Auth { authState with ChangePasswordModalState = Some changePasswordModalState }
-                state |> shouldNeverHappen (sprintf "Unexpected ChangePassword when %A not found in authState.UsersData (%A)" authState.AuthUser.User.UserId state)
+            let password = Password(changePasswordModalState.NewPassword.Trim())
+            let cmd =
+                Cmd.OfAsync.either userApi.changePassword (authState.AuthUser.Jwt, password, authState.AuthUser.User.Rvn) ChangePasswordResult ChangePasswordExn
+                |> Cmd.map (ChangePasswordInput >> AuthInput)
+            let changePasswordModalState = { changePasswordModalState with ModalStatus = Some ModalPending }
+            Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, cmd
         | CancelChangePassword, _ -> Auth { authState with ChangePasswordModalState = None }, Cmd.none
     | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordModalInput state)
 let private handleChangePasswordInput changePasswordInput (authState:AuthState) state =
@@ -528,9 +518,7 @@ let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:A
             let changeImageUrlModalState = { changeImageUrlModalState with ImageUrl = imageUrl ; ImageUrlChanged = true }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none
         | ChangeImageUrl, _ ->
-            // Note that we *do* use authState.AuthUser.User.Rvn here (cf. handling of ChangePasswordModalInput ChangePassword above).
-            let imageUrl = changeImageUrlModalState.ImageUrl
-            let imageUrl = if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
+            let imageUrl = if String.IsNullOrWhiteSpace changeImageUrlModalState.ImageUrl then None else Some(ImageUrl changeImageUrlModalState.ImageUrl)
             let cmd =
                 Cmd.OfAsync.either userApi.changeImageUrl (authState.AuthUser.Jwt, imageUrl, authState.AuthUser.User.Rvn) ChangeImageUrlResult ChangeImageUrlExn
                 |> Cmd.map (ChangeImageUrlInput >> AuthInput)
@@ -657,13 +645,13 @@ let transition input state : State * Cmd<Input> =
             | None -> state |> shouldNeverHappen (unexpectedInputWhenState input state)
         | AuthInput ShowChangePasswordModal, Auth authState, _ ->
             match authState.ChangePasswordModalState with
-            | Some changePasswordModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is %A (%A)" changePasswordModalState state)
+            | Some _ -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is not None (%A)" state)
             | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
         | AuthInput(ChangePasswordModalInput changePasswordModalInput), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
         | AuthInput(ChangePasswordInput changePasswordInput), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
         | AuthInput ShowChangeImageUrlModal, Auth authState, _ ->
             match authState.ChangeImageUrlModalState with
-            | Some changeImageUrlModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is %A (%A)" changeImageUrlModalState state)
+            | Some _ -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is not None (%A)" state)
             | None -> Auth { authState with ChangeImageUrlModalState = Some(changeImageUrlModalState authState.AuthUser.User.ImageUrl) }, Cmd.none
         | AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
         | AuthInput(ChangeImageUrlInput changeImageUrlInput), Auth authState, _ -> state |> handleChangeImageUrlInput changeImageUrlInput authState
