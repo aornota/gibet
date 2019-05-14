@@ -7,7 +7,7 @@ open Aornota.Gibet.Ui.Common.TimestampHelper
 
 open System
 
-open Fable.React
+module RctH = Fable.React.Helpers
 
 open Fulma
 
@@ -39,15 +39,15 @@ let private render theme source dispatch message =
 #else
                 dateAndTimeText message.Timestamp
 #endif
-            Some(levelRight [ levelItem [ contentRight [ paraT theme TextSize.Is7 textColour TextWeight.Normal [ str timestamp ] ] ] ])
+            Some(levelRight [ levelItem [ contentTRightSmallest theme (Some textColour) [ str timestamp ] ] ])
         else None
     [
         divVerticalSpace 10
         notificationT theme colour onDismiss [
             level true [
-                levelLeft [ levelItem [ contentLeft [ paraT theme TextSize.Is7 textColour TextWeight.Bold [ str sourceAndType ] ] ] ]
-                ofOption timestamp ]
-            contentLeft [ paraT theme TextSize.Is7 textColour TextWeight.Normal [ str message.Text ] ] ]
+                levelLeft [ levelItem [ contentTLeftSmallest theme (Some textColour) [ strong sourceAndType ] ] ]
+                RctH.ofOption timestamp ]
+            contentTLeftSmallest theme (Some textColour) [ str message.Text ] ]
     ]
 // #endregion
 

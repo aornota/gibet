@@ -7,8 +7,7 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.LazyViewOrHMR
 open Aornota.Gibet.Ui.Common.Message
-open Aornota.Gibet.Ui.Common.Render.Shared
-open Aornota.Gibet.Ui.Common.Render.Theme
+open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Common.TimestampHelper
 open Aornota.Gibet.Ui.Common.Tooltip
@@ -39,8 +38,8 @@ type private HeaderData = {
     HeaderState : HeaderState
     PageData : HeaderPage list }
 
-let private pageData theme dispatch state = // TODO-NMB: Chat "unseen count"?...
-    let tab text isActive input = tab isActive [ paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch input) [ str text ] ] ]
+let private pageData dispatch state = // TODO-NMB: Chat "unseen count"?...
+    let tab text isActive input = tab isActive [ linkInternal (fun _ -> dispatch input) [ str text ] ]
     match state with
     | InitializingConnection _ | ReadingPreferences _ | RegisteringConnection _ | AutomaticallySigningIn _ -> []
     | Unauth unauthState ->
@@ -50,7 +49,7 @@ let private pageData theme dispatch state = // TODO-NMB: Chat "unseen count"?...
     | Auth authState ->
         [
             Tab(tab About.Render.PAGE_TITLE (authState.CurrentPage = UnauthPage About) (AuthInput(ShowPage(UnauthPage About))))
-            Tab(Chat.Render.renderTab theme (authState.CurrentPage = AuthPage Chat) authState.ChatState (fun _ -> dispatch (AuthInput(ShowPage(AuthPage Chat)))))
+            Tab(Chat.Render.renderTab (authState.CurrentPage = AuthPage Chat) authState.ChatState (fun _ -> dispatch (AuthInput(ShowPage(AuthPage Chat)))))
             UserAdminDropdown(authState.CurrentPage = AuthPage UserAdmin)
         ]
 
@@ -58,11 +57,10 @@ let private pageData theme dispatch state = // TODO-NMB: Chat "unseen count"?...
 let private renderHeader (headerData, _:int<tick>) dispatch =
     let theme, burgerIsActive = headerData.AppState.Theme, headerData.AppState.NavbarBurgerIsActive
     let spinner = iconSmaller ICON__SPINNER_PULSE
-    let paraTStatus colour = paraT theme TextSize.Is7 colour TextWeight.Normal
     // #region serverStatus
     let serverStatus =
         match headerData.HeaderState with
-        | Registering -> Some(navbarItem [ paraTStatus IsGreyDark [ str "Registering connection... " ; spinner ] ])
+        | Registering -> Some(navbarItem [ paraTSmallest theme IsGreyDarker [ str "Registering connection... " ; spinner ] ])
         | NotSignedIn connectionState | SigningIn(connectionState, _, _) | SignInError(connectionState, _, _) | SignedIn(connectionState, _) | SigningOut connectionState ->
             let timestampText =
 #if TICK
@@ -70,24 +68,24 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
 #else
                 sprintf "on %s" (connectionState.ServerStarted.LocalDateTime |> dateAndTimeText)
 #endif
-            Some(navbarItem [ paraTStatus IsGreyDark [ str (sprintf "Server started %s" timestampText) ] ])
+            Some(navbarItem [ paraTSmallest theme IsGreyDarker [ str (sprintf "Server started %s" timestampText) ] ])
     // #endregion
     let statusItems =
-        let separator = paraT theme TextSize.Is7 IsBlack TextWeight.SemiBold [ str "|" ]
-        let signIn = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (UnauthInput ShowSignInModal) ) [ str "Sign in" ] ]
+        let separator = paraTSmallest theme IsGreyDarker [ str "|" ]
+        let signIn = paraSmallest [ linkInternal (fun _ -> dispatch (UnauthInput ShowSignInModal) ) [ str "Sign in" ] ]
         match headerData.HeaderState with
         | Registering -> []
-        | NotSignedIn _ -> [ separator ; paraTStatus IsPrimary [ str "Not signed in" ] ; signIn ]
+        | NotSignedIn _ -> [ separator ; paraTSmallest theme IsPrimary [ str "Not signed in" ] ; signIn ]
         | SigningIn(_, UserName userName, auto) ->
             let text = if auto then "Automatically signing in as " else "Signing in as "
-            [ separator ; paraTStatus IsInfo [ str text ; bold userName ; str "... " ; spinner ] ]
+            [ separator ; paraTSmallest theme IsInfo [ str text ; strong userName ; str "... " ; spinner ] ]
         | SignInError(_, UserName userName, auto) ->
             let text = if auto then "Unable to automatically sign in as " else "Unable to sign in as "
-            [ separator ; paraTStatus (if auto then IsWarning else IsDanger) [ str text ; bold userName ] ]
+            [ separator ; paraTSmallest theme (if auto then IsWarning else IsDanger) [ str text ; strong userName ] ]
         | SignedIn(_, authUser) ->
             let (UserName userName) = authUser.User.UserName
-            [ separator ; paraTStatus IsSuccess [ str "Signed in as " ; bold userName ] ]
-        | SigningOut _ -> [ separator ; paraTStatus IsInfo [ str "Signing out... " ; spinner ] ]
+            [ separator ; paraTSmallest theme IsSuccess [ str "Signed in as " ; strong userName ] ]
+        | SigningOut _ -> [ separator ; paraTSmallest theme IsInfo [ str "Signing out... " ; spinner ] ]
     let authUserDropDown =
         match headerData.HeaderState with
         | SignedIn(_, authUser) ->
@@ -95,10 +93,10 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 match authUser.User.ImageUrl with
                 | Some(ImageUrl imageUrl) -> image imageUrl Image.Is24x24, false
                 | None -> iconSmaller ICON__USER, true
-            let changePassword = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthInput ShowChangePasswordModal)) [ str "Change password" ] ]
-            let changeImageUrl = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthInput ShowChangeImageUrlModal)) [
+            let changePassword = paraSmallest [ linkInternal (fun _ -> dispatch (AuthInput ShowChangePasswordModal)) [ str "Change password" ] ]
+            let changeImageUrl = paraSmallest [ linkInternal (fun _ -> dispatch (AuthInput ShowChangeImageUrlModal)) [
                     str (sprintf "%s image" (if currentlyNone then "Choose" else "Change (or remove)"))] ]
-            let signOut = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (SignOut |> AuthInput) ) [ str "Sign out" ] ]
+            let signOut = paraSmallest [ linkInternal (fun _ -> dispatch (SignOut |> AuthInput) ) [ str "Sign out" ] ]
             Some(navbarDropDownT theme image [
                 let userId, userType = authUser.User.UserId, authUser.User.UserType
                 match canChangePassword userId (userId, userType) with
@@ -113,7 +111,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
     let adminDropDown =
         match headerData.HeaderState with
         | SignedIn(_, authUser) ->
-            let showUserAdminPage = paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (AuthInput(ShowPage(AuthPage UserAdmin))) ) [ str "User administration" ] ]
+            let showUserAdminPage = paraSmallest [ linkInternal (fun _ -> dispatch (AuthInput(ShowPage(AuthPage UserAdmin))) ) [ str "User administration" ] ]
             match canAdministerUsers authUser.User.UserType with
             | true ->
                 let userAdminIsActive = headerData.PageData |> List.exists (fun page -> match page with | UserAdminDropdown true -> true | _ -> false)
@@ -125,7 +123,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
     navbarT theme IsLight [
         navbarBrand [
             yield navbarItem [ image "gibet-24x24.png" Image.Is24x24 ]
-            yield navbarItem [ paraT theme TextSize.Is7 IsBlack TextWeight.Bold [ str GIBET ] ]
+            yield navbarItem [ paraTSmallest theme IsBlackTer [ strong GIBET ] ]
             yield ofOption serverStatus
             yield! statusItems |> List.map (fun element -> navbarItem [ element ])
             yield navbarBurger (fun _ -> dispatch ToggleNavbarBurger) burgerIsActive ]
@@ -136,50 +134,49 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 ofOption adminDropDown ]
             navbarEnd [
 #if TICK
-                navbarItem [ paraT theme TextSize.Is7 IsGreyDarker TextWeight.Normal [ str (DateTimeOffset.UtcNow.LocalDateTime.ToString("HH:mm:ss")) ] ]
+                navbarItem [ paraTSmallest theme IsGreyDarker [ str (DateTimeOffset.UtcNow.LocalDateTime.ToString("HH:mm:ss")) ] ]
 #endif
-                navbarItem [ buttonT theme (Some IsSmall) IsDark toggleThemeInteraction false false (Some toggleThemeTooltip) [ iconSmall ICON__THEME ] ] ] ] ]
+                navbarItem [ buttonTSmallTooltip theme IsDark toggleThemeInteraction toggleThemeTooltip [ iconSmall ICON__THEME ] ] ] ] ]
 // #endregion
 
 let private renderFooter theme =
-    let credits =
-        paraTSmallest theme [
-            linkTNewWindow theme "https://github.com/aornota/gibet/" [ str "Written" ]
-            str " in "
-            linkTNewWindow theme "http://fsharp.org/" [ str "F#"]
-            str " using "
-            linkTNewWindow theme "http://fable.io/" [ str "Fable"]
-            str ", "
-            linkTNewWindow theme "https://elmish.github.io/" [ str "Elmish"]
-            str ", "
-            linkTNewWindow theme "https://github.com/Fulma/Fulma/" [ str "Fulma"]
-            str " / "
-            linkTNewWindow theme "https://bulma.io/" [ str "Bulma"]
-            str ", "
-            linkTNewWindow theme "https://github.com/Zaid-Ajaj/Fable.Remoting/" [ str "Fable.Remoting"]
-            str ", "
-            linkTNewWindow theme "https://github.com/Nhowka/Elmish.Bridge/" [ str "Elmish.Bridge"]
-            str ", "
-            linkTNewWindow theme "https://github.com/giraffe-fsharp/Giraffe/" [ str "Giraffe"]
-            str " and "
-            linkTNewWindow theme "https://docs.microsoft.com/en-us/aspnet/core/" [ str "ASP.NET Core"]
-            str ". Developed in "
-            linkTNewWindow theme "https://code.visualstudio.com/" [ str "Visual Studio Code"]
-            str " using "
-            linkTNewWindow theme "http://ionide.io/docs/" [ str "Ionide-fsharp"]
-            str ". Best viewed with "
-            linkTNewWindow theme "https://www.google.com/chrome/" [ str "Chrome"]
-            str ". Not especially mobile-friendly." ]
-    footerT theme true [ contentCentred [ credits ] ]
+    let credits = [
+        linkNewWindow "https://github.com/aornota/gibet/" [ str "Written" ]
+        str " in "
+        linkNewWindow "http://fsharp.org/" [ str "F#"]
+        str " using "
+        linkNewWindow "http://fable.io/" [ str "Fable"]
+        str ", "
+        linkNewWindow "https://elmish.github.io/" [ str "Elmish"]
+        str ", "
+        linkNewWindow "https://github.com/Fulma/Fulma/" [ str "Fulma"]
+        str " / "
+        linkNewWindow "https://bulma.io/" [ str "Bulma"]
+        str ", "
+        linkNewWindow "https://github.com/Zaid-Ajaj/Fable.Remoting/" [ str "Fable.Remoting"]
+        str ", "
+        linkNewWindow "https://github.com/Nhowka/Elmish.Bridge/" [ str "Elmish.Bridge"]
+        str ", "
+        linkNewWindow "https://github.com/giraffe-fsharp/Giraffe/" [ str "Giraffe"]
+        str " and "
+        linkNewWindow "https://docs.microsoft.com/en-us/aspnet/core/" [ str "ASP.NET Core"]
+        str ". Developed in "
+        linkNewWindow "https://code.visualstudio.com/" [ str "Visual Studio Code"]
+        str " using "
+        linkNewWindow "http://ionide.io/docs/" [ str "Ionide-fsharp"]
+        str ". Best viewed with "
+        linkNewWindow "https://www.google.com/chrome/" [ str "Chrome"]
+        str ". Not especially mobile-friendly." ]
+    footerT theme true [ contentCentredSmallest credits ]
 
 let private renderReconnectingModal theme =
-    cardModalT theme None [ contentCentred [
-        notificationT theme IsDanger None [ paraTSmaller theme [ bold "The connection to the server has been lost" ] ]
+    cardModalT theme None [ contentCentredSmaller [
+        notificationT theme IsDanger None [ strong "The connection to the server has been lost" ]
         br
-        paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Attempting to reconnect... " ; iconSmaller ICON__SPINNER_PULSE ] ] ]
+        paraTSmaller theme IsInfo [ strong "Attempting to reconnect... " ; iconSmaller ICON__SPINNER_PULSE ] ] ]
 
 let private renderSignInModal (theme, signInModalState:SignInModalState) dispatch =
-    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Sign in" ] ] ]
+    let title = [ contentCentred None [ paraSmall [ str "Sign in" ] ] ]
     let onDismiss, signingIn, signInInteraction, onEnter, userNameStatus, passwordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelSignIn), (fun _ -> dispatch SignIn)
         match signInModalState.ModalStatus with
@@ -200,35 +197,35 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 | true, Some error -> Some(IsWarning, ICON__WARNING, helpTWarning theme [ str error ])
                 | _ -> None
             Some onDismiss, false, signInInteration, onEnter, userNameStatus, passwordStatus
-    let extra = ifDebug [] [ str " (e.g. " ; bold EXAMPLE_ADMIN_USER_NAME ; str " | " ; bold EXAMPLE_ADMIN_PASSWORD ; str ")" ]
+    let extra = ifDebug [] [ str " (e.g. " ; strong EXAMPLE_ADMIN_USER_NAME ; str " | " ; strongEm EXAMPLE_ADMIN_PASSWORD ; str ")" ]
     let keepMeSignedIn, onChange = signInModalState.KeepMeSignedIn, (fun _ -> dispatch KeepMeSignedInChanged)
     let body = [
         match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.ModalStatus with
         | Some(error, UserName userName), _, _ ->
             yield notificationT theme IsWarning None [
-                contentCentred [ paraTSmaller theme [ str "Unable to automatically sign in as " ; bold userName ] ]
-                paraTSmallest theme [ str error ] ]
+                contentCentredSmaller [ str "Unable to automatically sign in as " ; strong userName ]
+                contentLeftSmallest [ str error ] ]
             yield br
         | None, Some forcedSignOutReason, _ ->
             let because =
                 match forcedSignOutBecause forcedSignOutReason with
-                | because, Some(UserName byUserName) -> [ str (sprintf "You have been signed out because %s by " because) ; bold byUserName ]
+                | because, Some(UserName byUserName) -> [ str (sprintf "You have been signed out because %s by " because) ; strong byUserName ]
                 | because, None -> [ str (sprintf "You have been signed out because %s" because) ]
-            yield notificationT theme IsWarning None [ contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold because ] ]
+            yield notificationT theme IsWarning None [ contentCentred None [ paraSmaller because ] ]
             yield br
         | None, None, Some(ModalFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to sign in as " ; bold userName ] ]
-                paraTSmallest theme [ str error ] ]
+                contentCentredSmaller [ str "Unable to sign in as " ; strong userName ]
+                contentLeftSmallest [ str error ] ]
             yield br
         | _ -> ()
-        yield contentCentred [ paraTSmaller theme [ yield str "Please enter your credentials" ; yield! extra ] ]
+        yield contentCentredSmaller [ yield str "Please enter your credentials" ; yield! extra ]
         yield fieldDefault [
-            labelTSmallest theme [ str "User name" ]
+            labelSmallest [ str "User name" ]
             textTDefault theme signInModalState.UserNameKey signInModalState.UserName userNameStatus ICON__USER (not signInModalState.FocusPassword) signingIn
                 (UserNameChanged >> dispatch) onEnter ]
         yield fieldDefault [
-            labelTSmallest theme [ str "Password" ]
+            labelSmallest [ str "Password" ]
             textTPassword theme signInModalState.PasswordKey signInModalState.Password passwordStatus signInModalState.FocusPassword signingIn (PasswordChanged >> dispatch) onEnter ]
         yield fieldGroupedCentred [
             checkTSmall theme (if keepMeSignedIn then IsSuccess else IsLink) keepMeSignedIn signInModalState.KeepMeSignedInKey keepMeSignedIn "Keep me signed in" false onChange ]
@@ -236,7 +233,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
     cardModalT theme (Some(title, onDismiss)) body
 
 let private renderChangePasswordModal (theme, UserName userName, changePasswordModalState:ChangePasswordModalState) dispatch =
-    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Change password for " ; bold userName ] ] ]
+    let title = [ contentCentred None [ paraSmall [ str "Change password for " ; strong userName ] ] ]
     let onDismiss, changingPassword, changePasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangePassword), (fun _ -> dispatch ChangePassword)
         match changePasswordModalState.ModalStatus with
@@ -266,25 +263,25 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
         | Some mustChangePasswordReason ->
             let because =
                 match mustChangePasswordBecause mustChangePasswordReason with
-                | because, Some(UserName byUserName) -> [ str (sprintf "You must change your password because %s by " because) ; bold byUserName ]
+                | because, Some(UserName byUserName) -> [ str (sprintf "You must change your password because %s by " because) ; strong byUserName ]
                 | because, None -> [ str (sprintf "You must change your password because %s" because) ]
-            yield notificationT theme IsWarning None [ contentCentred [ paraT theme TextSize.Is6 IsBlack TextWeight.SemiBold because ] ]
+            yield notificationT theme IsWarning None [ contentCentred None [ paraSmaller because ] ]
             yield br
         | None -> ()
         match changePasswordModalState.ModalStatus with
         | Some(ModalFailed error) ->
             yield notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to change password for " ; bold userName ] ]
-                paraTSmallest theme [ str error ] ]
+                contentCentredSmaller [ str "Unable to change password for " ; strong userName ]
+                contentLeftSmallest [ str error ] ]
             yield br
         | _ -> ()
-        yield contentCentred [ paraTSmaller theme [ str "Please enter and confirm your new password" ] ]
+        yield contentCentredSmaller [ str "Please enter and confirm your new password" ]
         yield fieldDefault [
-            labelTSmallest theme [ str "New password" ]
+            labelSmallest [ str "New password" ]
             textTPassword theme changePasswordModalState.NewPasswordKey changePasswordModalState.NewPassword newPasswordStatus true changingPassword (NewPasswordChanged >> dispatch)
                 onEnter ]
         yield fieldDefault [
-            labelTSmallest theme [ str "Confirm password" ]
+            labelSmallest [ str "Confirm password" ]
             textTPassword theme changePasswordModalState.ConfirmPasswordKey changePasswordModalState.ConfirmPassword confirmPasswordStatus false changingPassword
                 (ConfirmPasswordChanged >> dispatch) onEnter ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink changePasswordInteraction [ str "Change password" ] ] ]
@@ -299,7 +296,7 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
         | true, _ -> "Choose"
         | false, false -> "Change"
         | false, true -> "Remove"
-    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str (sprintf "%s image for " action) ; bold userName ] ] ]
+    let title = [ contentCentred None [ paraSmall [ str (sprintf "%s image for " action) ; strong userName ] ] ]
     let onDismiss, changingImageUrl, changeImageUrlInteraction, onEnter, imageUrlStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangeImageUrl), (fun _ -> dispatch ChangeImageUrl)
         match changeImageUrlModalState.ModalStatus with
@@ -312,7 +309,7 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
             let imageUrlStatus =
                 match hasChanged, currentlyNone, String.IsNullOrWhiteSpace imageUrl with
                 | true, true, _ | true, false, false -> Some(IsInfo, ICON__INFO, helpTInfo theme [ str "Please check the image preview above" ])
-                | true, false, true -> Some(IsWarning, ICON__WARNING, helpTWarning theme [ str "The image will be removed for " ; bold userName ])
+                | true, false, true -> Some(IsWarning, ICON__WARNING, helpTWarning theme [ str "The image will be removed for " ; strong userName ])
                 | _ -> None
             Some onDismiss, false, changeImageUrlInteraction, onEnter, imageUrlStatus
     let image = if String.IsNullOrWhiteSpace imageUrl then None else Some(fieldGroupedCentred [ image imageUrl Image.Is128x128 ])
@@ -320,60 +317,57 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
         match changeImageUrlModalState.ModalStatus with
         | Some(ModalFailed error) ->
             yield notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to change image for " ; bold userName ] ]
-                paraTSmallest theme [ str error ] ]
+                contentCentredSmaller [ str "Unable to change image for " ; strong userName ]
+                contentLeftSmallest [ str error ] ]
             yield br
         | _ -> ()
-        yield contentCentred [
-            paraTSmaller theme [ str (sprintf "Please enter the URL for your image%s" extra) ]
-            paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "The selected image should preferably have a 1:1 aspect ratio" ]
+        yield contentCentred None [
+            paraSmaller [ str (sprintf "Please enter the URL for your image%s" extra) ]
+            paraTSmallest theme IsPrimary [ str "The selected image should preferably have a 1:1 aspect ratio" ]
             ofOption image ]
         yield fieldDefault [
-            labelTSmallest theme [ str "Image URL" ]
+            labelSmallest [ str "Image URL" ]
             textTDefault theme changeImageUrlModalState.ImageUrlKey changeImageUrlModalState.ImageUrl imageUrlStatus ICON__IMAGE true changingImageUrl (ImageUrlChanged >> dispatch)
                 ignore ]
         yield fieldGroupedCentred [ buttonTSmall theme IsLink changeImageUrlInteraction [ str (sprintf "%s image" buttonAction) ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
 let private renderSigningOutModal theme =
-    cardModalT theme None [ contentCentred [ paraT theme TextSize.Is6 IsInfo TextWeight.Normal [ bold "Signing out... " ; iconSmall ICON__SPINNER_PULSE ] ] ]
+    cardModalT theme None [ contentTCentred theme (Some smaller) (Some IsInfo) [ strong "Signing out... " ; iconSmall ICON__SPINNER_PULSE ] ]
 
 let render state dispatch =
     let lazyRenderMessages theme messages ticks = [
         divVerticalSpace 25
         lazyView2 renderMessages (theme, GIBET, messages, ticks) (DismissMessage >> dispatch) ]
-    let divSpinner theme colour =
-        div [] [ containerFluid [ contentCentred [
-            paraT theme TextSize.Is7 colour TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ]
-            divVerticalSpace 15 ] ] ]
+    let spinner theme colour = contentTCentred theme None (Some colour) [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
     let state, reconnecting =
         match state with
         | InitializingConnection (_, Some reconnectingState) | ReadingPreferences (_, Some reconnectingState) -> reconnectingState, true
         | _ -> state, false
-    let pageData theme = state |> pageData theme dispatch
+    let pageData = state |> pageData dispatch
     match state with
-    | InitializingConnection _ | ReadingPreferences _ -> pageLoaderT Light IsLink // note: messages (if any) not rendered
+    | InitializingConnection _ | ReadingPreferences _ -> pageLoaderT Light IsLink // note: Messages (if any) not rendered
     | RegisteringConnection registeringConnectionState ->
         let theme, ticks = registeringConnectionState.AppState.Theme, registeringConnectionState.AppState.Ticks
         let headerData = {
             AppState = registeringConnectionState.AppState
             HeaderState = Registering
-            PageData = pageData theme }
-        div [] [
+            PageData = pageData }
+        divDefault [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield! lazyRenderMessages theme registeringConnectionState.Messages ticks
-            yield divSpinner theme IsLink
+            yield spinner theme IsLink
             yield lazyView renderFooter theme ]
     | AutomaticallySigningIn automaticallySigningInState ->
         let theme, ticks = automaticallySigningInState.AppState.Theme, automaticallySigningInState.AppState.Ticks
         let headerData = {
             AppState = automaticallySigningInState.AppState
             HeaderState = SigningIn(automaticallySigningInState.ConnectionState, fst automaticallySigningInState.LastUser, true)
-            PageData = pageData theme }
-        div [] [
+            PageData = pageData }
+        divDefault [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield! lazyRenderMessages theme automaticallySigningInState.Messages ticks
-            yield divSpinner theme IsInfo
+            yield spinner theme IsInfo
             yield lazyView renderFooter theme ]
     | Unauth unauthState ->
         let theme, ticks = unauthState.AppState.Theme, unauthState.AppState.Ticks
@@ -388,13 +382,14 @@ let render state dispatch =
                     | None, Some(ModalFailed _) -> SignInError(unauthState.ConnectionState, UserName signInModalState.UserName, false)
                     | _ -> NotSignedIn unauthState.ConnectionState
                 | None -> NotSignedIn unauthState.ConnectionState
-            PageData = pageData theme }
-        div [] [
+            PageData = pageData }
+        divDefault [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield! lazyRenderMessages theme unauthState.Messages ticks
             match unauthState.CurrentPage with
             | About -> yield About.Render.render theme
             yield lazyView renderFooter theme
+            // Note: Render Modals last so will appear "on top" of any CurrentPage ones.
             if reconnecting then yield lazyView renderReconnectingModal theme
             else
                 match unauthState.SignInModalState with
@@ -408,8 +403,8 @@ let render state dispatch =
             HeaderState =
                 if authState.SigningOut then SigningOut authState.ConnectionState
                 else SignedIn(authState.ConnectionState, authState.AuthUser)
-            PageData = pageData theme }
-        div [] [
+            PageData = pageData }
+        divDefault [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield! lazyRenderMessages theme authState.Messages ticks
             match authState.CurrentPage with
@@ -423,6 +418,7 @@ let render state dispatch =
                     | None -> yield renderDangerMessage theme (ifDebug "CurrentPage is AuthPage UserAdmin but UserAdminState is None" UNEXPECTED_ERROR)
                 else yield renderDangerMessage theme (ifDebug (sprintf "CurrentPage is AuthPage UserAdmin but canAdministerUsers returned false for %A" userType) UNEXPECTED_ERROR)
             yield lazyView renderFooter theme
+            // Note: Render Modals last so will appear "on top" of any CurrentPage ones.
             if reconnecting then yield lazyView renderReconnectingModal theme
             else if authState.SigningOut then yield lazyView renderSigningOutModal theme
             else

@@ -3,8 +3,7 @@ module Aornota.Gibet.Ui.User.Shared
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.RemoteData
-open Aornota.Gibet.Ui.Common.Render.Shared
-open Aornota.Gibet.Ui.Common.Render.Theme
+open Aornota.Gibet.Ui.Common.Render
 
 open System
 
@@ -45,7 +44,7 @@ let tagTUserSmall theme (user, signedIn, lastActivity) authUserId = tagTUser the
 
 let userTypeElement userType =
     match userType with
-    | BenevolentDictatorForLife -> boldItalic "Benevolent dictator"
-    | Administrator -> bold "Administrator"
+    | BenevolentDictatorForLife -> strongEm "Benevolent dictator"
+    | Administrator -> strong "Administrator"
     | Pleb -> str "User"
-    | UserType.PersonaNonGrata -> italic "Persona non grata"
+    | UserType.PersonaNonGrata -> em "Persona non grata"

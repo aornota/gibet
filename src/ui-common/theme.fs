@@ -16,16 +16,16 @@ let transformColour theme colour =
     | Light, _ -> colour
     | Dark, IsBlack -> IsWhite
     | Dark, IsBlackBis -> IsWhiteBis
-    | Dark, IsBlackTer -> IsBlackTer
+    | Dark, IsBlackTer -> IsWhiteTer
     | Dark, IsDark -> IsLight
-    | Dark, IsLight -> IsDark
-    | Dark, IsWhite -> IsBlack
-    | Dark, IsWhiteBis -> IsBlackBis
-    | Dark, IsWhiteTer -> IsBlackTer
-    | Dark, IsGreyDark -> IsGreyLight
     | Dark, IsGreyDarker -> IsGreyLighter
+    | Dark, IsGreyDark -> IsGreyLight
     | Dark, IsGreyLight -> IsGreyDark
     | Dark, IsGreyLighter -> IsGreyDarker
+    | Dark, IsLight -> IsDark
+    | Dark, IsWhite -> IsBlack
+    | Dark, IsWhiteTer -> IsBlackTer
+    | Dark, IsWhiteBis -> IsBlackBis
     | Dark, _ -> colour
 
 let colourText colour = // TODO-NMB: Not all of these supported by bulma-tooltip?...

@@ -7,8 +7,7 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.LazyViewOrHMR
 open Aornota.Gibet.Ui.Common.RemoteData
-open Aornota.Gibet.Ui.Common.Render.Shared
-open Aornota.Gibet.Ui.Common.Render.Theme
+open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Pages.UserAdmin.Common
 open Aornota.Gibet.Ui.Shared
 open Aornota.Gibet.Ui.User.Shared
@@ -43,7 +42,7 @@ let private userTypeRadios theme authUser user selectedUserType disableAll dispa
         radioInlineTSmall theme colour hasBackgrounColour key selected (userTypeElement userType) disabled onChange)
 
 let private renderCreateUsersModal (theme, authUser, users:UserData list, createUsersModalState:CreateUsersModalState) dispatch =
-    let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Add user/s" ] ] ]
+    let title = [ contentCentred None [ paraSmall [ str "Add user/s" ] ] ]
     let onDismiss, creatingUser, addUserInteraction, onEnter, userNameStatus, passwordStatus, confirmPasswordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelCreateUsers), (fun _ -> dispatch CreateUser)
         match createUsersModalState.ModalStatus with
@@ -77,24 +76,24 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
         match createUsersModalState.ModalStatus with
         | Some(ModalFailed error) ->
             yield notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to add user " ; bold createUsersModalState.UserName ] ]
-                paraTSmallest theme [ str error ] ]
+                contentCentredSmaller [ str "Unable to add user " ; strong createUsersModalState.UserName ]
+                contentLeftSmallest [ str error ] ]
             yield br
         | _ -> ()
         match createUsersModalState.LastUserNameCreated with
         | Some(UserName userName) ->
-            yield notificationT theme IsInfo None [ contentCentred [ paraTSmaller theme [ str "User " ; bold userName ; str " has been added" ] ] ]
+            yield notificationT theme IsInfo None [ contentCentredSmaller [ str "User " ; strong userName ; str " has been added" ] ]
             yield br
         | _ -> ()
-        yield contentCentred [ paraTSmaller theme [ str "Please enter the details for the new user" ] ]
+        yield contentCentredSmaller [ str "Please enter the details for the new user" ]
         yield fieldDefault [
-            labelTSmallest theme [ str "User name" ]
+            labelSmallest [ str "User name" ]
             textTDefault theme createUsersModalState.UserNameKey createUsersModalState.UserName userNameStatus ICON__USER true creatingUser (UserNameChanged >> dispatch) onEnter ]
         yield fieldDefault [
-            labelTSmallest theme [ str "Password" ]
+            labelSmallest [ str "Password" ]
             textTPassword theme createUsersModalState.PasswordKey createUsersModalState.Password passwordStatus false creatingUser (PasswordChanged >> dispatch) onEnter ]
         yield fieldDefault [
-            labelTSmallest theme [ str "Confirm password" ]
+            labelSmallest [ str "Confirm password" ]
             textTPassword theme createUsersModalState.ConfirmPasswordKey createUsersModalState.ConfirmPassword confirmPasswordStatus false creatingUser
                 (CreateUsersModalInput.ConfirmPasswordChanged >> dispatch) onEnter ]
         yield fieldGroupedCentred [ yield! userTypeRadios theme authUser None (Some createUsersModalState.UserType) creatingUser (UserTypeChanged >> dispatch) ]
@@ -108,7 +107,7 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
         match users |> findUser userId with
         | Some(user, _, _) ->
             let (UserName userName) = user.UserName
-            let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Reset password for " ; bold userName ] ] ]
+            let title = [ contentCentred None [ paraSmall [ str "Reset password for " ; strong userName ] ] ]
             let onDismiss, resettingPassword, resetPasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
                 let onEnter = (fun _ -> dispatch ResetPassword)
                 match resetPasswordModalState.ModalStatus with
@@ -134,31 +133,31 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
                     Some onDismiss, false, resetPasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus
             let body = [
                 if user.Rvn <> rvn then
-                    yield notificationT theme IsWarning None [ contentCentred [ paraTSmaller theme [ bold userName ; str " has been modified by another user" ] ] ]
+                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another user" ] ]
                     yield br
                 match resetPasswordModalState.ModalStatus with
                 | Some(ModalFailed error) ->
                     yield notificationT theme IsDanger None [
-                        contentCentred [ paraTSmaller theme [ str "Unable to reset password for " ; bold userName ] ]
-                        paraTSmallest theme [ str error ] ]
+                        contentCentredSmaller [ str "Unable to reset password for " ; strong userName ]
+                        contentLeftSmallest [ str error ] ]
                     yield br
                 | _ -> ()
-                yield contentCentred [ paraTSmaller theme [ str "Please enter and confirm the new password for " ; bold userName ] ]
+                yield contentCentredSmaller [ str "Please enter and confirm the new password for " ; strong userName ]
                 yield fieldDefault [
-                    labelTSmallest theme [ str "New password" ]
+                    labelSmallest [ str "New password" ]
                     textTPassword theme resetPasswordModalState.NewPasswordKey resetPasswordModalState.NewPassword newPasswordStatus true resettingPassword
                         (NewPasswordChanged >> dispatch) onEnter ]
                 yield fieldDefault [
-                    labelTSmallest theme [ str "Confirm password" ]
+                    labelSmallest [ str "Confirm password" ]
                     textTPassword theme resetPasswordModalState.ConfirmPasswordKey resetPasswordModalState.ConfirmPassword confirmPasswordStatus false resettingPassword
                         (ConfirmPasswordChanged >> dispatch) onEnter ]
                 yield fieldGroupedCentred [ buttonTSmall theme IsLink resetPasswordInteraction [ str "Reset password" ] ] ]
             title, onDismiss, body
         | None -> // should never happen
-            let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Reset password" ] ] ]
+            let title = [ contentCentred None [ paraSmall [ str "Reset password" ] ] ]
             let body = [ notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to reset password" ] ]
-                contentLeft [ paraTSmallest theme [ str (ifDebug (sprintf "%A not found in users (%A)" userId users) UNEXPECTED_ERROR) ] ] ] ]
+                contentCentredSmaller [str "Unable to reset password" ]
+                contentLeftSmallest [ str (ifDebug (sprintf "%A not found in users (%A)" userId users) UNEXPECTED_ERROR) ] ] ]
             title, Some onDismiss, body
     cardModalT theme (Some(title, onDismiss)) body
 
@@ -169,7 +168,7 @@ let private renderChangeUserTypeModal (theme, authUser, users:UserData list, cha
         match users |> findUser userId with
         | Some(user, _, _) ->
             let (UserName userName) = user.UserName
-            let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Change type for " ; bold userName ] ] ]
+            let title = [ contentCentred None [ paraSmall [ str "Change type for " ; strong userName ] ] ]
             let onDismiss, changingUserType, changeUserTypeInteraction =
                 match changeUserTypeModalState.ModalStatus with
                 | Some ModalPending -> None, true, Loading
@@ -181,26 +180,26 @@ let private renderChangeUserTypeModal (theme, authUser, users:UserData list, cha
                     Some onDismiss, false, changeUserTypeInteraction
             let body = [
                 if user.Rvn <> rvn then
-                    yield notificationT theme IsWarning None [ contentCentred [ paraTSmaller theme [ bold userName ; str " has been modified by another user" ] ] ]
+                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another user" ] ]
                     yield br
                 match changeUserTypeModalState.ModalStatus with
                 | Some(ModalFailed error) ->
                     yield notificationT theme IsDanger None [
-                        contentCentred [ paraTSmaller theme [ str "Unable to change user type for " ; bold userName ] ]
-                        paraTSmallest theme [ str error ] ]
+                        contentCentredSmaller [ str "Unable to change user type for " ; strong userName ]
+                        contentLeftSmallest [ str error ] ]
                     yield br
                 | _ -> ()
-                yield contentCentred [
-                    paraTSmaller theme [ str "Please choose the new type for " ; bold userName ]
-                    paraT theme TextSize.Is7 IsPrimary TextWeight.Normal [ str "Current type is " ; userTypeElement user.UserType ] ]
+                yield contentCentred None [
+                    paraSmaller [ str "Please choose the new type for " ; strong userName ]
+                    paraTSmallest theme IsPrimary [ strong "Current type is " ; userTypeElement user.UserType ] ]
                 yield fieldGroupedCentred [ yield! userTypeRadios theme authUser (Some user) changeUserTypeModalState.NewUserType changingUserType (NewUserTypeChanged >> dispatch) ]
                 yield fieldGroupedCentred [ buttonTSmall theme IsLink changeUserTypeInteraction [ str "Change type" ] ] ]
             title, onDismiss, body
         | None -> // should never happen
-            let title = [ contentCentred [ paraT theme TextSize.Is5 IsBlack TextWeight.SemiBold [ str "Change type" ] ] ]
+            let title = [ contentCentred None [ paraSmall [ str "Change type" ] ] ]
             let body = [ notificationT theme IsDanger None [
-                contentCentred [ paraTSmaller theme [ str "Unable to change type" ] ]
-                contentLeft [ paraTSmallest theme [ str (ifDebug (sprintf "%A not found in users (%A)" userId users) UNEXPECTED_ERROR) ] ] ] ]
+                contentCentredSmaller [ str "Unable to change type" ]
+                contentLeftSmallest [ str (ifDebug (sprintf "%A not found in users (%A)" userId users) UNEXPECTED_ERROR) ] ] ]
             title, Some onDismiss, body
     cardModalT theme (Some(title, onDismiss)) body
 
@@ -208,18 +207,18 @@ let private renderUsers (theme, authUser, users:UserData list, _:int<tick>) disp
     if users.Length > 0 then
         let resetPassword (userId, userType, rvn) =
             if canResetPassword (userId, userType) (authUser.User.UserId, authUser.User.UserType) then
-                Some(contentRight [ paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowResetPasswordModal(userId, rvn))) [ str "Reset password" ] ] ])
+                Some(contentRightSmallest [ linkInternal (fun _ -> dispatch (ShowResetPasswordModal(userId, rvn))) [ str "Reset password" ] ])
             else None
         let changeUserType (userId, userType, rvn) =
             if canChangeUserType (userId, userType) (authUser.User.UserId, authUser.User.UserType) then
-                Some(contentRight [ paraTSmallest theme [ linkTInternal theme (fun _ -> dispatch (ShowChangeUserTypeModal(userId, rvn))) [ str "Change type" ] ] ])
+                Some(contentRightSmallest [ linkInternal (fun _ -> dispatch (ShowChangeUserTypeModal(userId, rvn))) [ str "Change type" ] ])
             else None
         let userRow (user, signedIn, lastActivity) =
             let imageUrl = match user.ImageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> "blank-48x48.png"
             tr false [
                 td [ image imageUrl Image.Is48x48 ]
-                td [ paraTSmallest theme [ tagTUserSmall theme (user, signedIn, lastActivity) authUser.User.UserId ] ]
-                td [ contentCentred [ paraTSmallest theme [ userTypeElement user.UserType ] ] ]
+                td [ tagTUserSmall theme (user, signedIn, lastActivity) authUser.User.UserId ]
+                td [ contentCentredSmallest [ userTypeElement user.UserType ] ]
                 td [ ofOption (changeUserType (user.UserId, user.UserType, user.Rvn)) ]
                 td [ ofOption (resetPassword (user.UserId, user.UserType, user.Rvn)) ] ]
         let userRows =
@@ -230,36 +229,36 @@ let private renderUsers (theme, authUser, users:UserData list, _:int<tick>) disp
         tableTDefault theme false [
             thead [ tr false [
                 th []
-                th [ paraTSmallest theme [ bold "User name" ] ]
-                th [ contentCentred [ paraTSmallest theme [ bold "Type" ] ] ]
+                th [ contentLeftSmallest [ strong "User name" ] ]
+                th [ contentCentredSmallest [ strong "Type" ] ]
                 th []
                 th [] ] ]
             tbody [ yield! userRows ] ]
-    else div [] [ notificationT theme IsWarning None [ paraTSmaller theme [ str "There are no users!" ] ] ; divVerticalSpace 10 ] // should never happen
+    else renderWarningMessage theme "There are no users!"
 
 let private createUsers theme authUser dispatch =
-    if canAdministerUsers authUser.User.UserType then Some(paraTSmaller theme [ linkTInternal theme (fun _ -> dispatch ShowCreateUsersModal) [ str "Add user/s" ] ])
+    if canAdministerUsers authUser.User.UserType then Some(paraSmaller [ linkInternal (fun _ -> dispatch ShowCreateUsersModal) [ str "Add user/s" ] ])
     else None // should never happen
 
-let render theme authUser usersData state ticks dispatch = // TODO-NMB: parentHasModal?...
-    div [] [ columnsDefault [
-        yield contentCentred [
-            paraT theme TextSize.Is5 IsBlack TextWeight.Bold [ str "User administration" ]
-            hr theme false ]
+let render theme authUser usersData state ticks dispatch =
+    divDefault [
+        // Note: Render Modals (if any) first so will not be affected by contentCentred.
         match usersData with
-        | NotRequested -> yield contentCentred [ renderDangerMessage theme (ifDebug "UsersData has not been requested" UNEXPECTED_ERROR) ]
-        | Pending -> yield contentCentred [ paraT theme TextSize.Is7 IsDark TextWeight.Normal [ iconLarger ICON__SPINNER_PULSE ] ]
         | Received(users, _) ->
-            yield contentCentred [
-                ofOption (createUsers theme authUser dispatch)
-                lazyView2 renderUsers (theme, authUser, users, ticks) dispatch
-                divVerticalSpace 5 ]
             match state.CreateUsersModalState, state.ResetPasswordModalState, state.ChangeUserTypeModalState with
-            | Some createUsersModalState, _, _ ->
-                yield lazyView2 renderCreateUsersModal (theme, authUser, users, createUsersModalState) (CreateUsersModalInput >> dispatch)
-            | _, Some resetPasswordModalState, _ ->
-                yield lazyView2 renderResetPasswordModal (theme, authUser, users, resetPasswordModalState) (ResetPasswordModalInput >> dispatch)
-            | _, _, Some changeUserTypeModalState ->
-                yield lazyView2 renderChangeUserTypeModal (theme, authUser, users, changeUserTypeModalState) (ChangeUserTypeModalInput >> dispatch)
+            | Some createUsersModalState, _, _ -> yield lazyView2 renderCreateUsersModal (theme, authUser, users, createUsersModalState) (CreateUsersModalInput >> dispatch)
+            | _, Some resetPasswordModalState, _ -> yield lazyView2 renderResetPasswordModal (theme, authUser, users, resetPasswordModalState) (ResetPasswordModalInput >> dispatch)
+            | _, _, Some changeUserTypeModalState -> yield lazyView2 renderChangeUserTypeModal (theme, authUser, users, changeUserTypeModalState) (ChangeUserTypeModalInput >> dispatch)
             | _ -> ()
-        | Failed error -> yield contentCentred [ renderDangerMessage theme (ifDebug (sprintf "UsersData Failed -> %s" error) UNEXPECTED_ERROR) ] ] ]
+        | _ -> ()
+        yield columnsDefault [ contentCentred None [
+            yield paraSmall [ strong "User administration" ]
+            yield hrT theme false
+            match usersData with
+            | NotRequested -> yield contentCentred None [ renderDangerMessage theme (ifDebug "UsersData has not been requested" UNEXPECTED_ERROR) ]
+            | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
+            | Received(users, _) ->
+                yield ofOption (createUsers theme authUser dispatch)
+                yield lazyView2 renderUsers (theme, authUser, users, ticks) dispatch
+            | Failed error -> yield contentCentred None [ renderDangerMessage theme (ifDebug (sprintf "UsersData Failed -> %s" error) UNEXPECTED_ERROR) ] ] ]
+        yield divVerticalSpace 5 ]

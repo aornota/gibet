@@ -1,7 +1,8 @@
+[<AutoOpen>]
 module Aornota.Gibet.Ui.Common.Render.Theme
 
 open Aornota.Gibet.Ui.Common.Icon
-open Aornota.Gibet.Ui.Common.Render.Shared
+open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Common.Theme
 open Aornota.Gibet.Ui.Common.Tooltip
 
@@ -10,16 +11,12 @@ open System
 open Browser.Types
 
 open Fable.Core.JsInterop
-open Fable.React
+module RctH = Fable.React.Helpers
 open Fable.React.Props
+module RctS = Fable.React.Standard
 
 open Fulma
 open Fulma.Extensions.Wikiki
-
-type private LinkType =
-    | Internal of (MouseEvent -> unit)
-    | NewWindow of string
-    | DownloadFile of url : string * fileName : string
 
 type ButtonInteraction =
     | Clickable of (MouseEvent -> unit)
@@ -27,9 +24,9 @@ type ButtonInteraction =
     | Static
     | NotEnabled
 
-let private delete onClick = Delete.delete [ Delete.OnClick onClick ] []
+let private colourM textColour = Modifier.TextColor textColour
 
-let buttonT theme size colour interaction outlined inverted tooltip children =
+let buttonT theme size colour interaction tooltip children =
     let tooltip = tooltip |> Option.map (fun tooltip -> { tooltip with TooltipColour = tooltip.TooltipColour |> transformColour theme })
     Button.button [
         match size with | Some size -> yield Button.Size size | None -> ()
@@ -39,14 +36,13 @@ let buttonT theme size colour interaction outlined inverted tooltip children =
         | Loading -> yield Button.IsLoading true
         | Static -> yield Button.IsStatic true
         | NotEnabled -> ()
-        if outlined then yield Button.IsOutlined
-        if inverted then yield Button.IsInverted
         match tooltip with | Some tooltip -> yield Button.CustomClass(tooltipClass tooltip) | None -> ()
         yield Button.Props [
             yield Disabled (match interaction with | NotEnabled -> true | _ -> false)
             match tooltip with | Some tooltip -> yield tooltipProps tooltip | None -> () ]
     ] children
-let buttonTSmall theme colour interaction children = buttonT theme (Some IsSmall) colour interaction false false None children
+let buttonTSmall theme colour interaction children = buttonT theme (Some IsSmall) colour interaction None children
+let buttonTSmallTooltip theme colour interaction tooltip children = buttonT theme (Some IsSmall) colour interaction (Some tooltip) children
 
 let cardModalT theme head body =
     let themeClass = themeClass theme
@@ -73,6 +69,19 @@ let checkT theme size colour hasBackgroundColour (key:Guid) isChecked text disab
     ] [ str text ]
 let checkTSmall theme colour hasBackgroundColour key isChecked text disabled onChange = checkT theme IsSmall colour hasBackgroundColour key isChecked text disabled onChange
 
+let contentT theme textAlignment textSize textColour children =
+    Content.content [ Content.Modifiers [
+        yield alignmentM textAlignment
+        match textSize with | Some textSize -> yield sizeM textSize | None -> ()
+        match textColour with | Some textColour -> yield colourM (textColour |> transformColour theme) | None -> ()
+    ] ] children
+let contentTLeft theme textSize textColour children = contentT theme left textSize textColour children
+let contentTLeftSmallest theme textColour children = contentT theme left (Some smallest) textColour children
+let contentTCentred theme textSize textColour children = contentT theme centred textSize textColour children
+let contentTCentredSmallest theme textColour children = contentT theme centred (Some smallest) textColour children
+let contentTRight theme textSize textColour children = contentT theme right textSize textColour children
+let contentTRightSmallest theme textColour children = contentT theme right (Some smallest) textColour children
+
 let footerT theme useAlternativeClass children = Footer.footer [ CustomClass(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] children
 
 let helpT theme colour children = Help.help [ Help.Color(colour |> transformColour theme) ] children
@@ -81,30 +90,7 @@ let helpTSuccess theme children = helpT theme IsSuccess children
 let helpTWarning theme children = helpT theme IsWarning children
 let helpTDanger theme children = helpT theme IsDanger children
 
-let hr theme useAlternativeClass = hr [ ClassName(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ]
-
-let labelT theme size colour weight children = Label.label [ Label.Modifiers [ sizeM size ; colourM (colour |> transformColour theme) ; weightM weight ] ] children
-let labelTSmallest theme children = labelT theme TextSize.Is7 IsBlack TextWeight.Normal children
-
-let private linkT theme linkType children =
-    let customClasses = [
-        yield themeClass theme
-        match linkType with | Internal _ | DownloadFile _ -> yield "internal" | NewWindow _ -> yield "external" ]
-    let customClass = match customClasses with | _ :: _ -> Some(String.concat SPACE customClasses) | [] -> None
-    a [
-        match customClass with | Some customClass -> yield ClassName customClass :> IHTMLProp | None -> ()
-        match linkType with
-        | Internal onClick -> yield OnClick onClick
-        | NewWindow url ->
-            yield Href url
-            yield Target "_blank"
-        | DownloadFile(url, fileName) ->
-            yield Href url
-            yield Download fileName
-    ] children
-let linkTInternal theme onClick children = linkT theme (Internal onClick) children
-let linkTNewWindow theme url children = linkT theme (NewWindow url) children
-let linkTDownloadFile theme (url, fileName) children = linkT theme (DownloadFile(url, fileName)) children
+let hrT theme useAlternativeClass = RctS.hr [ ClassName(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ]
 
 let navbarT theme colour children =
     Navbar.navbar [
@@ -130,14 +116,14 @@ let notificationT theme colour onDismiss children =
 
 let pageLoaderT theme colour = PageLoader.pageLoader [ PageLoader.Color(colour |> transformColour theme) ; PageLoader.IsActive true ] []
 
-let paraT theme size colour weight children = Text.p [ Modifiers [ sizeM size ; colourM (colour |> transformColour theme) ; weightM weight ] ] children
-let paraTSmallest theme children = paraT theme TextSize.Is7 IsBlack TextWeight.Normal children
-let paraTSmaller theme children = paraT theme TextSize.Is6 IsBlack TextWeight.Normal children
-let paraTSmall theme children = paraT theme TextSize.Is5 IsBlack TextWeight.Normal children
-let paraTMedium theme children = paraT theme TextSize.Is4 IsBlack TextWeight.Normal children
-let paraTLarge theme children = paraT theme TextSize.Is3 IsBlack TextWeight.Normal children
-let paraTLarger theme children = paraT theme TextSize.Is2 IsBlack TextWeight.Normal children
-let paraTLargest theme children = paraT theme TextSize.Is1 IsBlack TextWeight.Normal children
+let paraT theme size colour children = Text.p [ Modifiers [ sizeM size ; colourM (colour |> transformColour theme) ] ] children
+let paraTSmallest theme colour children = paraT theme smallest colour children
+let paraTSmaller theme colour children = paraT theme smaller colour children
+let paraTSmall theme colour children = paraT theme small colour children
+let paraTMedium theme colour children = paraT theme medium colour children
+let paraTLarge theme colour children = paraT theme large colour children
+let paraTLarger theme colour children = paraT theme larger colour children
+let paraTLargest theme colour children = paraT theme largest colour children
 
 let radioInlineT theme size colour hasBackgroundColour (key:Guid) isChecked text disabled onChange =
     Checkradio.radioInline [
@@ -200,6 +186,6 @@ let textT theme (key:Guid) text status password iconLeft autoFocus disabled (onC
                 onEnterPressed onEnter ] ]
         match iconLeft with | Some iconLeft -> yield iconSmallerLeft iconLeft | None -> ()
         match iconRight with | Some iconRight -> yield iconSmallerRight iconRight | None -> ()
-        yield ofOption help ]
+        yield RctH.ofOption help ]
 let textTDefault theme key text status iconLeft autoFocus disabled onChange onEnter = textT theme key text status false (Some iconLeft) autoFocus disabled onChange onEnter
 let textTPassword theme key text status autoFocus disabled onChange onEnter = textT theme key text status true (Some ICON__PASSWORD) autoFocus disabled onChange onEnter

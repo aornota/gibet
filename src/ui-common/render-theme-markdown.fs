@@ -20,7 +20,7 @@ let private contentFromMarkdown theme alignment inNotification (Markdown markdow
         yield MARKDOWN_CLASS
         if inNotification then yield sprintf "%s-in-notification" themeClass else yield themeClass ]
     let customClass = match customClasses with | _ :: _ -> Some(ClassName(String.concat SPACE customClasses)) | [] -> None
-    content alignment [ div [
+    content alignment None [ div [
         match customClass with | Some customClass -> yield customClass | None -> ()
         yield DangerouslySetInnerHTML { __html = Globals.marked.parse markdown } ] [] ]
 
