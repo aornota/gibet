@@ -217,13 +217,12 @@ let private renderUsers (theme, authUser, users:UserData list, _:int<tick>) disp
             let imageUrl = match user.ImageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> "blank-48x48.png"
             tr false [
                 td [ image imageUrl Image.Is48x48 ]
-                td [ tagTUserSmall theme (user, signedIn, lastActivity) authUser.User.UserId ]
+                td [ tagTUserSmall theme authUser.User.UserId (user, signedIn, lastActivity) ]
                 td [ contentCentredSmallest [ userTypeElement user.UserType ] ]
                 td [ ofOption (changeUserType (user.UserId, user.UserType, user.Rvn)) ]
                 td [ ofOption (resetPassword (user.UserId, user.UserType, user.Rvn)) ] ]
         let userRows =
             users
-            //|> List.sortBy (fun (user, _, _) -> (match user.UserType with | BenevolentDictatorForLife -> 1 | Administrator -> 2 | Pleb -> 3 | PersonaNonGrata -> 4), user.UserName)
             |> List.sortBy (fun (user, _, _) -> user.UserType, user.UserName)
             |> List.map userRow
         tableTDefault theme false [
@@ -255,10 +254,10 @@ let render theme authUser usersData state ticks dispatch =
             yield paraSmall [ strong "User administration" ]
             yield hrT theme false
             match usersData with
-            | NotRequested -> yield contentCentred None [ renderDangerMessage theme (ifDebug "UsersData has not been requested" UNEXPECTED_ERROR) ]
+            | NotRequested -> yield renderDangerMessage theme (ifDebug "Users RemoteData has not been requested" UNEXPECTED_ERROR)
             | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
             | Received(users, _) ->
                 yield ofOption (createUsers theme authUser dispatch)
                 yield lazyView2 renderUsers (theme, authUser, users, ticks) dispatch
-            | Failed error -> yield contentCentred None [ renderDangerMessage theme (ifDebug (sprintf "UsersData Failed -> %s" error) UNEXPECTED_ERROR) ] ] ]
-        yield divVerticalSpace 5 ]
+            | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "Users RemoveData Failed -> %s" error) UNEXPECTED_ERROR)
+            yield divVerticalSpace 5 ] ] ]

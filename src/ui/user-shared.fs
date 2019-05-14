@@ -30,17 +30,17 @@ let (|Self|RecentlyActive|SignedIn|NotSignedIn|PersonaNonGrata|) (user, signedIn
             if recentlyActive then RecentlyActive else SignedIn
         else NotSignedIn
 
-let tagTUser theme size (user, signedIn, lastActivity) authUserId =
+let tagTUser theme size authUserId (user, signedIn, lastActivity) =
     let colour =
-        match (user, signedIn, lastActivity, authUserId) with
+        match user, signedIn, lastActivity, authUserId with
         | Self -> IsLink
         | RecentlyActive -> IsSuccess
         | SignedIn -> IsPrimary
         | NotSignedIn -> IsDark
         | PersonaNonGrata -> IsLight
     let (UserName userName) = user.UserName
-    tagT theme size colour false None [ str userName ]
-let tagTUserSmall theme (user, signedIn, lastActivity) authUserId = tagTUser theme None (user, signedIn, lastActivity) authUserId
+    tagT theme size colour false None [ strong userName ]
+let tagTUserSmall theme authUserId (user, signedIn, lastActivity) = tagTUser theme None authUserId (user, signedIn, lastActivity)
 
 let userTypeElement userType =
     match userType with

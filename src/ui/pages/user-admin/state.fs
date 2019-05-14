@@ -181,7 +181,7 @@ let initialize (_:AuthUser) : State * Cmd<Input> =
         ChangeUserTypeModalState = None }
     state, Cmd.none
 
-let transition authUser usersData input state =
+let transition authUser (usersData:RemoteData<UserData list, string>) input state =
     match input, usersData with
     // Note: AddMessage will have been handled by Program.State.transition.
     | ShowCreateUsersModal, Received _ ->

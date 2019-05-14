@@ -6,8 +6,8 @@ type ModalStatus<'a> =
     | ModalPending
     | ModalFailed of 'a
 
-// (α | β | γ | δ | ε | ζ) | η | θ | ι | κ | λ | μ | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
-let [<Literal>] GIBET = "gibet (ζ)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
+// (α | β | γ | δ | ε | ζ | η) | θ | ι | κ | λ | μ | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
+let [<Literal>] GIBET = "gibet (η)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
 
 let [<Literal>] SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."
 
