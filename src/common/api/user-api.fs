@@ -5,8 +5,6 @@ open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
 
-let [<Literal>] NOT_ALLOWED = "\"I'm sorry Dave, I'm afraid I can't do that\""
-
 type UserApi = {
     signIn : ConnectionId * UserName * Password -> AsyncResult<AuthUser * MustChangePasswordReason option, string>
     autoSignIn : ConnectionId * Jwt -> AsyncResult<AuthUser * MustChangePasswordReason option, string>

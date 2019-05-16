@@ -63,7 +63,7 @@ let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTe
     let hughRvn = incrementRvn hughRvn
     let! _ = userApi.SignOut(connectionId, authUser.Jwt)
     let! authUser, _ = userApi.AutoSignIn(connectionId, authUser.Jwt)
-    let! _ = userApi.CreateUser(authUser.Jwt, satan, satanPassword, PersonaNonGrata, None)
+    let! _ = userApi.CreateUser(authUser.Jwt, satan, satanPassword, PersonaNonGrata)
     logger.Information("...user Api tested")
     // #endregion
     return () }

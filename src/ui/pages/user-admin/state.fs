@@ -15,17 +15,9 @@ open System
 
 open Elmish
 
-let private addMessageCmd messageType text = AddMessage(messageDismissable messageType text) |> Cmd.ofMsg
-
-let private addDebugErrorCmd error = addMessageCmd Debug (sprintf "ERROR -> %s" error)
-// #region shouldNeverHappenCmd
-let private shouldNeverHappenCmd error =
-#if DEBUG
-    addDebugErrorCmd (shouldNeverHappen error)
-#else
-    addMessageCmd Danger SOMETHING_HAS_GONE_WRONG
-#endif
-// #endregion
+let private addMessageCmd messageType text = addMessageCmd messageType text (AddMessage >> Cmd.ofMsg)
+let private addDebugErrorCmd error = addDebugErrorCmd error (AddMessage >> Cmd.ofMsg)
+let private shouldNeverHappenCmd error = shouldNeverHappenCmd error (AddMessage >> Cmd.ofMsg)
 
 let private _createUsersModalState userType lastUserNameCreated = {
     UserNameKey = Guid.NewGuid()
@@ -39,7 +31,7 @@ let private _createUsersModalState userType lastUserNameCreated = {
     ConfirmPasswordChanged = false
     UserType = userType
     LastUserNameCreated = lastUserNameCreated
-    ModalStatus = None }
+    CreateUserApiStatus = None }
 let private resetPasswordModalState forUser = {
     ForUser = forUser
     NewPasswordKey = Guid.NewGuid()
@@ -48,17 +40,17 @@ let private resetPasswordModalState forUser = {
     ConfirmPasswordKey = Guid.NewGuid()
     ConfirmPassword = String.Empty
     ConfirmPasswordChanged = false
-    ModalStatus = None }
+    ResetPasswordApiStatus = None }
 let private changeUserTypeModalState forUser = {
     ForUser = forUser
     NewUserType = None
-    ModalStatus = None }
+    ChangeUserTypeApiStatus = None }
 
 let private handleCreateUsersModalInput createUsersModalInput (authUser:AuthUser) (users:UserData list) state =
     match state.CreateUsersModalState with
     | Some createUsersModalState ->
-        match createUsersModalInput, createUsersModalState.ModalStatus with
-        | _, Some ModalPending -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState.ModalStatus is Pending (%A)" createUsersModalInput state)
+        match createUsersModalInput, createUsersModalState.CreateUserApiStatus with
+        | _, Some ApiPending -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState.CreateUserApiStatus is Pending (%A)" createUsersModalInput state)
         | UserNameChanged userName, _ ->
             let createUsersModalState = { createUsersModalState with UserName = userName ; UserNameChanged = true }
             { state with CreateUsersModalState = Some createUsersModalState }, Cmd.none
@@ -74,31 +66,31 @@ let private handleCreateUsersModalInput createUsersModalInput (authUser:AuthUser
         | CreateUser, _ ->
             let userName, password = UserName(createUsersModalState.UserName.Trim()), Password(createUsersModalState.Password.Trim())
             let cmd = Cmd.OfAsync.either userApi.createUser (authUser.Jwt, userName, password, createUsersModalState.UserType) CreateUserResult CreateUserExn |> Cmd.map CreateUserInput
-            let createUsersModalState = { createUsersModalState with LastUserNameCreated = None ; ModalStatus = Some ModalPending }
+            let createUsersModalState = { createUsersModalState with LastUserNameCreated = None ; CreateUserApiStatus = Some ApiPending }
             { state with CreateUsersModalState = Some createUsersModalState }, cmd
         | CancelCreateUsers, _ -> { state with CreateUsersModalState = None }, Cmd.none
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState is None (%A)" createUsersModalInput state)
 let private handleCreateUserInput createUserInput (authUser:AuthUser) (users:UserData list) state =
     match state.CreateUsersModalState with
     | Some createUsersModalState ->
-        match createUsersModalState.ModalStatus with
-        | Some ModalPending ->
+        match createUsersModalState.CreateUserApiStatus with
+        | Some ApiPending ->
             match createUserInput with
             | CreateUserResult(Ok(UserName userName)) ->
                 let toastCmd = sprintf "User <strong>%s</strong> added" userName |> successToastCmd
                 { state with CreateUsersModalState = Some(_createUsersModalState createUsersModalState.UserType (Some(UserName userName))) }, toastCmd
             | CreateUserResult(Error error) ->
-                let createUsersModalState = { createUsersModalState with ModalStatus = Some(ModalFailed error) }
+                let createUsersModalState = { createUsersModalState with CreateUserApiStatus = Some(ApiFailed error) }
                 { state with CreateUsersModalState = Some createUsersModalState }, Cmd.none // no need for toast (since error will be displayed on CreateUsersModal)
             | CreateUserExn exn -> state, CreateUserInput(CreateUserResult(Error exn.Message)) |> Cmd.ofMsg
-        | _ -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState.ModalStatus is not Pending (%A)" createUserInput state)
+        | _ -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState.CreateUserApiStatus is not Pending (%A)" createUserInput state)
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when CreateUsersModalState is None (%A)" createUserInput state)
 
 let private handleResetPasswordModalInput resetPasswordModalInput (authUser:AuthUser) (users:UserData list) state =
     match state.ResetPasswordModalState with
     | Some resetPasswordModalState ->
-        match resetPasswordModalInput, resetPasswordModalState.ModalStatus with
-        | _, Some ModalPending -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ResetPasswordModalState.ModalStatus is Pending (%A)" resetPasswordModalInput state)
+        match resetPasswordModalInput, resetPasswordModalState.ResetPasswordApiStatus with
+        | _, Some ApiPending -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ResetPasswordModalState.ResetPasswordApiStatus is Pending (%A)" resetPasswordModalInput state)
         | NewPasswordChanged newPassword, _ ->
             let resetPasswordModalState = { resetPasswordModalState with NewPassword = newPassword ; NewPasswordChanged = true }
             { state with ResetPasswordModalState = Some resetPasswordModalState }, Cmd.none
@@ -111,10 +103,10 @@ let private handleResetPasswordModalInput resetPasswordModalInput (authUser:Auth
             | Some(user, _, _) ->
                 let password = Password(resetPasswordModalState.NewPassword.Trim())
                 let cmd = Cmd.OfAsync.either userApi.resetPassword (authUser.Jwt, userId, password, user.Rvn) ResetPasswordResult ResetPasswordExn |> Cmd.map ResetPasswordInput
-                let resetPasswordModalState = { resetPasswordModalState with ModalStatus = Some ModalPending }
+                let resetPasswordModalState = { resetPasswordModalState with ResetPasswordApiStatus = Some ApiPending }
                 { state with ResetPasswordModalState = Some resetPasswordModalState }, cmd
             | None ->
-                let resetPasswordModalState = { resetPasswordModalState with ModalStatus = Some (ModalFailed UNEXPECTED_ERROR) }
+                let resetPasswordModalState = { resetPasswordModalState with ResetPasswordApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
                 let state = { state with ResetPasswordModalState = Some resetPasswordModalState }
                 state, shouldNeverHappenCmd (sprintf "Unexpected ResetPassword when %A not found in users (%A)" userId state)
         | CancelResetPassword, _ -> { state with ResetPasswordModalState = None }, Cmd.none
@@ -122,23 +114,23 @@ let private handleResetPasswordModalInput resetPasswordModalInput (authUser:Auth
 let private handleResetPasswordInput resetPasswordInput (authUser:AuthUser) (users:UserData list) state =
     match state.ResetPasswordModalState with
     | Some resetPasswordModalState ->
-        match resetPasswordModalState.ModalStatus with
-        | Some ModalPending ->
+        match resetPasswordModalState.ResetPasswordApiStatus with
+        | Some ApiPending ->
             match resetPasswordInput with
             | ResetPasswordResult(Ok(UserName userName)) ->
                 { state with ResetPasswordModalState = None }, sprintf "Password reset for <strong>%s</strong>" userName |> successToastCmd
             | ResetPasswordResult(Error error) ->
-                let resetPasswordModalState = { resetPasswordModalState with ModalStatus = Some(ModalFailed error) }
+                let resetPasswordModalState = { resetPasswordModalState with ResetPasswordApiStatus = Some(ApiFailed error) }
                 { state with ResetPasswordModalState = Some resetPasswordModalState }, Cmd.none // no need for toast (since error will be displayed on ResetPasswordModal)
             | ResetPasswordExn exn -> state, ResetPasswordInput(ResetPasswordResult(Error exn.Message)) |> Cmd.ofMsg
-        | _ -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ResetPasswordModalState.ModalStatus is not Pending (%A)" resetPasswordInput state)
+        | _ -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ResetPasswordModalState.ResetPasswordApiStatus is not Pending (%A)" resetPasswordInput state)
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ResetPasswordModalState is None (%A)" resetPasswordInput state)
 
 let private handleChangeUserTypeModalInput changeUserTypeModalInput (authUser:AuthUser) (users:UserData list) state =
     match state.ChangeUserTypeModalState with
     | Some changeUserTypeModalState ->
-        match changeUserTypeModalInput, changeUserTypeModalState.ModalStatus with
-        | _, Some ModalPending -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ChangeUserTypeModalState.ModalStatus is Pending (%A)" changeUserTypeModalInput state)
+        match changeUserTypeModalInput, changeUserTypeModalState.ChangeUserTypeApiStatus with
+        | _, Some ApiPending -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ChangeUserTypeModalState.ChangeUserTypeApiStatus is Pending (%A)" changeUserTypeModalInput state)
         | NewUserTypeChanged newUserType, _ ->
             let changeUserTypeModalState = { changeUserTypeModalState with NewUserType = Some newUserType }
             { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, Cmd.none
@@ -147,14 +139,14 @@ let private handleChangeUserTypeModalInput changeUserTypeModalInput (authUser:Au
             match users |> findUser userId, changeUserTypeModalState.NewUserType with
             | Some(user, _, _), Some newUserType ->
                 let cmd = Cmd.OfAsync.either userApi.changeUserType (authUser.Jwt, userId, newUserType, user.Rvn) ChangeUserTypeResult ChangeUserTypeExn |> Cmd.map ChangeUserTypeInput
-                let changeUserTypeModalState = { changeUserTypeModalState with ModalStatus = Some ModalPending }
+                let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some ApiPending }
                 { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, cmd
             | Some _, None ->
-                let changeUserTypeModalState = { changeUserTypeModalState with ModalStatus = Some (ModalFailed UNEXPECTED_ERROR) }
+                let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
                 let state = { state with ChangeUserTypeModalState = Some changeUserTypeModalState }
                 state, shouldNeverHappenCmd (sprintf "Unexpected ChangeUserType when NewUserType is None (%A)" state)
             | None, _ ->
-                let changeUserTypeModalState = { changeUserTypeModalState with ModalStatus = Some (ModalFailed UNEXPECTED_ERROR) }
+                let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
                 let state = { state with ChangeUserTypeModalState = Some changeUserTypeModalState }
                 state, shouldNeverHappenCmd (sprintf "Unexpected ChangeUserType when %A not found in users (%A)" userId state)
         | CancelChangeUserType, _ -> { state with ChangeUserTypeModalState = None }, Cmd.none
@@ -162,16 +154,16 @@ let private handleChangeUserTypeModalInput changeUserTypeModalInput (authUser:Au
 let private handleChangeUserTypeInput changeUserTypeInput (authUser:AuthUser) (users:UserData list) state =
     match state.ChangeUserTypeModalState with
     | Some changeUserTypeModalState ->
-        match changeUserTypeModalState.ModalStatus with
-        | Some ModalPending ->
+        match changeUserTypeModalState.ChangeUserTypeApiStatus with
+        | Some ApiPending ->
             match changeUserTypeInput with
             | ChangeUserTypeResult(Ok(UserName userName)) ->
                 { state with ChangeUserTypeModalState = None }, sprintf "Type changed for <strong>%s</strong>" userName |> successToastCmd
             | ChangeUserTypeResult(Error error) ->
-                let changeUserTypeModalState = { changeUserTypeModalState with ModalStatus = Some(ModalFailed error) }
+                let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some(ApiFailed error) }
                 { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, Cmd.none // no need for toast (since error will be displayed on ChangeUserTypeModal)
             | ChangeUserTypeExn exn -> state, ChangeUserTypeInput(ChangeUserTypeResult(Error exn.Message)) |> Cmd.ofMsg
-        | _ -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ChangeUserTypeModalState.ModalStatus is not Pending (%A)" changeUserTypeInput state)
+        | _ -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ChangeUserTypeModalState.ChangeUserTypeApiStatus is not Pending (%A)" changeUserTypeInput state)
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ChangeUserTypeModalState is None (%A)" changeUserTypeInput state)
 
 let initialize (_:AuthUser) : State * Cmd<Input> =

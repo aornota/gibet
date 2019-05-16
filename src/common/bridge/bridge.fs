@@ -1,8 +1,10 @@
 module Aornota.Gibet.Common.Bridge
 
 open Aornota.Gibet.Common.Domain.Affinity
+open Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.UnitsOfMeasure
 
 open System
 
@@ -14,9 +16,13 @@ type UserUpdateType =
     | PasswordReset
     | UserTypeChanged
 
+type RemoteChatInput =
+    | ChatMessageReceived of ChatMessage * int * float<second> * count : int * chatMessagesRvn : Rvn
+    | ChatMessagesExpired of ChatMessageId list * count : int * chatMessagesRvn : Rvn
+
 type RemoteUiInput =
     | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)
-    | Registered of ConnectionId * serverStarted : DateTimeOffset
+    | Registered of ConnectionId * sinceServerStarted : float<second>
     | UserActivity of UserId
     | UserSignedIn of UserId
     | UserSignedOut of UserId
@@ -24,7 +30,7 @@ type RemoteUiInput =
     | ForceUserChangePassword of byUserName : UserName
     | UserUpdated of User * usersRvn : Rvn * UserUpdateType
     | UserAdded of User * usersRvn : Rvn
-    // TODO-NMB: More?...
+    | RemoteChatInput of RemoteChatInput
     | UnexpectedServerInput of string
 
 type RemoteServerInput =
@@ -37,6 +43,6 @@ type RemoteServerInput =
     | ForceSignOut of ForcedSignOutReason
     | ForceChangePassword of byUserName : UserName
     | HasUsers
-    // TODO-NMB: More?...
+    | HasChatMessages
 
 let [<Literal>] BRIDGE_ENDPOINT = "/bridge"

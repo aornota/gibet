@@ -45,8 +45,8 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
     let title = [ contentCentred None [ paraSmall [ str "Add user/s" ] ] ]
     let onDismiss, creatingUser, addUserInteraction, onEnter, userNameStatus, passwordStatus, confirmPasswordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelCreateUsers), (fun _ -> dispatch CreateUser)
-        match createUsersModalState.ModalStatus with
-        | Some ModalPending -> None, true, Loading, ignore, None, None, None
+        match createUsersModalState.CreateUserApiStatus with
+        | Some ApiPending -> None, true, Loading, ignore, None, None, None
         | _ ->
             let password, confirmPassword = Password createUsersModalState.Password, Password createUsersModalState.ConfirmPassword
             let userNameError = validateUserName false (UserName createUsersModalState.UserName) (users |> List.map (fun (user, _, _) -> user.UserName))
@@ -73,8 +73,8 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
                 | _ -> None
             Some onDismiss, false, addUserInteraction, onEnter, userNameStatus, passwordStatus, confirmPasswordStatus
     let body = [
-        match createUsersModalState.ModalStatus with
-        | Some(ModalFailed error) ->
+        match createUsersModalState.CreateUserApiStatus with
+        | Some(ApiFailed error) ->
             yield notificationT theme IsDanger None [
                 contentCentredSmaller [ str "Unable to add user " ; strong createUsersModalState.UserName ]
                 contentLeftSmallest [ str error ] ]
@@ -110,8 +110,8 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
             let title = [ contentCentred None [ paraSmall [ str "Reset password for " ; strong userName ] ] ]
             let onDismiss, resettingPassword, resetPasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
                 let onEnter = (fun _ -> dispatch ResetPassword)
-                match resetPasswordModalState.ModalStatus with
-                | Some ModalPending -> None, true, Loading, ignore, None, None
+                match resetPasswordModalState.ResetPasswordApiStatus with
+                | Some ApiPending -> None, true, Loading, ignore, None, None
                 | _ ->
                     let newPassword, confirmPassword = Password resetPasswordModalState.NewPassword, Password resetPasswordModalState.ConfirmPassword
                     let newPasswordError = validatePassword false newPassword
@@ -135,8 +135,8 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
                 if user.Rvn <> rvn then
                     yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another user" ] ]
                     yield br
-                match resetPasswordModalState.ModalStatus with
-                | Some(ModalFailed error) ->
+                match resetPasswordModalState.ResetPasswordApiStatus with
+                | Some(ApiFailed error) ->
                     yield notificationT theme IsDanger None [
                         contentCentredSmaller [ str "Unable to reset password for " ; strong userName ]
                         contentLeftSmallest [ str error ] ]
@@ -170,8 +170,8 @@ let private renderChangeUserTypeModal (theme, authUser, users:UserData list, cha
             let (UserName userName) = user.UserName
             let title = [ contentCentred None [ paraSmall [ str "Change type for " ; strong userName ] ] ]
             let onDismiss, changingUserType, changeUserTypeInteraction =
-                match changeUserTypeModalState.ModalStatus with
-                | Some ModalPending -> None, true, Loading
+                match changeUserTypeModalState.ChangeUserTypeApiStatus with
+                | Some ApiPending -> None, true, Loading
                 | _ ->
                     let changeUserTypeInteraction =
                         match changeUserTypeModalState.NewUserType with
@@ -182,8 +182,8 @@ let private renderChangeUserTypeModal (theme, authUser, users:UserData list, cha
                 if user.Rvn <> rvn then
                     yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another user" ] ]
                     yield br
-                match changeUserTypeModalState.ModalStatus with
-                | Some(ModalFailed error) ->
+                match changeUserTypeModalState.ChangeUserTypeApiStatus with
+                | Some(ApiFailed error) ->
                     yield notificationT theme IsDanger None [
                         contentCentredSmaller [ str "Unable to change user type for " ; strong userName ]
                         contentLeftSmallest [ str error ] ]
@@ -254,7 +254,6 @@ let render theme authUser usersData state ticks dispatch =
             yield paraSmall [ strong "User administration" ]
             yield hrT theme false
             match usersData with
-            | NotRequested -> yield renderDangerMessage theme (ifDebug "Users RemoteData has not been requested" UNEXPECTED_ERROR)
             | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
             | Received(users, _) ->
                 yield ofOption (createUsers theme authUser dispatch)

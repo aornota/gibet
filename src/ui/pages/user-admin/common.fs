@@ -36,7 +36,7 @@ type ChangeUserTypeInput =
     | ChangeUserTypeExn of exn
 
 type Input =
-    | AddMessage of Message
+    | AddMessage of Message // note: handled by Program.State.transition
     | ShowCreateUsersModal
     | CreateUsersModalInput of CreateUsersModalInput
     | CreateUserInput of CreateUserInput
@@ -59,7 +59,7 @@ type CreateUsersModalState = {
     ConfirmPasswordChanged : bool
     UserType : UserType
     LastUserNameCreated : UserName option
-    ModalStatus : ModalStatus<string> option }
+    CreateUserApiStatus : ApiStatus<string> option }
 
 type ResetPasswordModalState = {
     ForUser : UserId * Rvn
@@ -69,12 +69,12 @@ type ResetPasswordModalState = {
     ConfirmPasswordKey : Guid
     ConfirmPassword : string
     ConfirmPasswordChanged : bool
-    ModalStatus : ModalStatus<string> option }
+    ResetPasswordApiStatus : ApiStatus<string> option }
 
 type ChangeUserTypeModalState = {
     ForUser : UserId * Rvn
     NewUserType : UserType option
-    ModalStatus : ModalStatus<string> option }
+    ChangeUserTypeApiStatus : ApiStatus<string> option }
 
 type State = {
     CreateUsersModalState : CreateUsersModalState option

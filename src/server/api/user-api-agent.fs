@@ -63,7 +63,7 @@ let private validatePassword password = match validatePassword false password wi
 type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:ILogger) =
     let logger = logger |> sourcedLogger SOURCE
     let agent = MailboxProcessor<_>.Start(fun inbox ->
-        let rec loop(userDict:UserDict, agentRvn:Rvn) = async {
+        let rec loop (userDict:UserDict, agentRvn) = async {
             let! input = inbox.Receive ()
             (* TEMP-NMB...
             do! ifDebugSleepAsync 250 1000 *)
@@ -75,7 +75,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     let! (userId, mustChangePasswordReason) = repoResult
                     let! user = userDict |> findUserId userId
                     let! _ =
-                        if not (canSignIn user.UserType) then Error(ifDebug (sprintf "%s.SignIn -> canSignIn returned false for %A" SOURCE user.UserType) NOT_ALLOWED)
+                        if not (canSignIn user.UserType) then Error(ifDebug (sprintf "%s.SignIn -> canSignIn returned false for %A" SOURCE user.UserType) INVALID_CREDENTIALS)
                         else Ok()
                     let! jwt = toJwt user.UserId user.UserType
                     hub.SendServerIf (sameConnection connectionId) (SignedIn user.UserId)
@@ -100,7 +100,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> findUserId userId with
                                 | Ok user ->
                                     if userType <> user.UserType then Error(ifDebug (sprintf "%s.AutoSignIn -> Jwt %A differs from %A" SOURCE userType user.UserType) INVALID_CREDENTIALS)
-                                    else if not (canSignIn userType) then Error(ifDebug (sprintf "%s.AutoSignIn -> canSignIn returned false for %A" SOURCE userType) NOT_ALLOWED)
+                                    else if not (canSignIn userType) then Error(ifDebug (sprintf "%s.AutoSignIn -> canSignIn returned false for %A" SOURCE userType) INVALID_CREDENTIALS)
                                     else // note: since tokens can expire, only create for "explicit" sign in (i.e. do *not* recreate for auto-sign in)
                                         hub.SendServerIf (sameConnection connectionId) (SignedIn user.UserId)
                                         Ok({ User = user ; Jwt = jwt }, mustChangePasswordReason)
@@ -202,7 +202,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     hub.SendServerIf (sameConnection connectionId) HasUsers
                     return users, agentRvn }
                 match result with
-                | Ok (users, agentRvn) -> logger.Debug("Got {count} user/s (UserApiAgent {agentRvn})", users.Length, agentRvn)
+                | Ok (users, agentRvn) -> logger.Debug("Got {length} user/s (UserApiAgent {agentRvn})", users.Length, agentRvn)
                 | Error error -> logger.Warning("Unable to get users -> {error}", error)
                 reply.Reply result
                 return! loop (userDict, agentRvn)
@@ -320,7 +320,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
         match userRepo.GetUsers() |> Async.RunSynchronously with
         | Ok users ->
             if users.Length > 0 then
-                logger.Information("{count} users in IUserRepo", users.Length)
+                logger.Information("{length} users in IUserRepo", users.Length)
                 users |> List.iter (fun user -> userDict.Add(user.UserId, user))
             else logger.Warning("No users in IUserRepo")
         | Error error -> logger.Warning("Unable to get users from IUserRepo -> {error}", error)

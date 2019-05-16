@@ -55,7 +55,7 @@ let private checkExpiry (tokenCreated:DateTimeOffset) =
     | _ -> Ok()
 
 let toJwt userId userType =
-    try let jwt = encode(Json(Encode.Auto.toString<UserId * UserType * DateTimeOffset>(4, (userId, userType, DateTimeOffset.UtcNow))))
+    try let jwt = encode(Json(Encode.Auto.toString<UserId * UserType * DateTimeOffset>(SPACE_COUNT, (userId, userType, DateTimeOffset.UtcNow))))
         Ok jwt
     with | exn -> Error (ifDebug exn.Message UNEXPECTED_ERROR)
 let fromJwt (jwt) =

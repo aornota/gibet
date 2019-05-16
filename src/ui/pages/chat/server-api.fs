@@ -1,11 +1,11 @@
 module Aornota.Gibet.Ui.Pages.Chat.ServerApi
 
 open Aornota.Gibet.Common.Api
-// TODO-NMB...open Aornota.Gibet.Common.Api.ChatApi
+open Aornota.Gibet.Common.Api.ChatApi
 
 open Fable.Remoting.Client
 
-(* TODO-NMB...let chatApi =
+let chatApi =
     Remoting.createApi()
     |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.buildProxy<ChatApi> *)
+    |> Remoting.buildProxy<ChatApi>

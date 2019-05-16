@@ -149,7 +149,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
             | GetUsers reply ->
                 let result : Result<User list, string> = Ok(imUserDict.Values |> List.ofSeq |> List.map (fun imUser -> imUser.User))
                 match result with
-                | Ok users -> logger.Debug("Got {count} user/s", users.Length)
+                | Ok users -> logger.Debug("Got {length} user/s", users.Length)
                 | Error error -> logger.Warning("Unable to get users -> {error}", error)
                 reply.Reply result
                 return! loop imUserDict

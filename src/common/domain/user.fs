@@ -32,6 +32,8 @@ type AuthUser = {
 
 let [<Literal>] private SPACE = " "
 
+let [<Literal>] NOT_ALLOWED = "\"I'm sorry Dave, I'm afraid I can't do that\""
+
 let [<Literal>] EXAMPLE_ADMIN_USER_NAME = "ann ewity"
 let [<Literal>] EXAMPLE_ADMIN_PASSWORD = "ann"
 
@@ -47,7 +49,7 @@ let validatePassword forSignIn (Password password) =
     else if password.EndsWith(SPACE) then Some "Password must not end with a space"
     else if String.IsNullOrWhiteSpace password then Some "Password must not be blank"
     else if not forSignIn && password.Length < 6 then Some "Password must be at least 6 characters"
-    else if not forSignIn && password.ToLower() = "password" then Some (sprintf "'%s' is not a valid password!" password)
+    else if not forSignIn && password.ToLower() = "password" then Some(sprintf "'%s' is not a valid password!" password)
     else None
 let validateConfirmPassword forCreateUser (password:Password) confirmPassword =
     if confirmPassword <> password then
@@ -69,6 +71,9 @@ let canChangeUserTypeTo (forUserId, forUserType) newUserType (userId:UserId, use
     if not (canChangeUserType (forUserId, forUserType) (userId, userType)) then false
     else if forUserType = newUserType then false
     else canCreateUser newUserType userType
+
+let canGetChatMessages userType = canSignIn userType
+let canSendChatMessage userType = canSignIn userType
 
 let mustChangePasswordBecause mustChangePasswordReason =
     match mustChangePasswordReason with

@@ -38,7 +38,7 @@ type private HeaderData = {
     HeaderState : HeaderState
     PageData : HeaderPage list }
 
-let private pageData dispatch state = // TODO-NMB: Chat "unseen count"?...
+let private pageData dispatch state =
     let tab text isActive input = tab isActive [ linkInternal (fun _ -> dispatch input) [ str text ] ]
     match state with
     | InitializingConnection _ | ReadingPreferences _ | RegisteringConnection _ | AutomaticallySigningIn _ -> []
@@ -49,7 +49,7 @@ let private pageData dispatch state = // TODO-NMB: Chat "unseen count"?...
     | Auth authState ->
         [
             Tab(tab About.Render.PAGE_TITLE (authState.CurrentPage = UnauthPage About) (AuthInput(ShowPage(UnauthPage About))))
-            Tab(Chat.Render.renderTab (authState.CurrentPage = AuthPage Chat) authState.ChatState (fun _ -> dispatch (AuthInput(ShowPage(AuthPage Chat)))))
+            Tab(authState.ChatState |> Chat.Render.renderTab (authState.CurrentPage = AuthPage Chat) (fun _ -> dispatch (AuthInput(ShowPage(AuthPage Chat)))))
             UserAdminDropdown(authState.CurrentPage = AuthPage UserAdmin)
         ]
 
@@ -179,8 +179,8 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
     let title = [ contentCentred None [ paraSmall [ str "Sign in" ] ] ]
     let onDismiss, signingIn, signInInteraction, onEnter, userNameStatus, passwordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelSignIn), (fun _ -> dispatch SignIn)
-        match signInModalState.ModalStatus with
-        | Some ModalPending -> None, true, Loading, ignore, None, None
+        match signInModalState.SignInApiStatus with
+        | Some ApiPending -> None, true, Loading, ignore, None, None
         | _ ->
             let userNameError = validateUserName true (UserName signInModalState.UserName) []
             let passwordError = validatePassword true (Password signInModalState.Password)
@@ -200,7 +200,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
     let extra = ifDebug [] [ str " (e.g. " ; strong EXAMPLE_ADMIN_USER_NAME ; str " | " ; strongEm EXAMPLE_ADMIN_PASSWORD ; str ")" ]
     let keepMeSignedIn, onChange = signInModalState.KeepMeSignedIn, (fun _ -> dispatch KeepMeSignedInChanged)
     let body = [
-        match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.ModalStatus with
+        match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.SignInApiStatus with
         | Some(error, UserName userName), _, _ ->
             yield notificationT theme IsWarning None [
                 contentCentredSmaller [ str "Unable to automatically sign in as " ; strong userName ]
@@ -213,7 +213,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 | because, None -> [ str (sprintf "You have been signed out because %s" because) ]
             yield notificationT theme IsWarning None [ contentCentred None [ paraSmaller because ] ]
             yield br
-        | None, None, Some(ModalFailed(error, UserName userName)) ->
+        | None, None, Some(ApiFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [
                 contentCentredSmaller [ str "Unable to sign in as " ; strong userName ]
                 contentLeftSmallest [ str error ] ]
@@ -236,8 +236,8 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
     let title = [ contentCentred None [ paraSmall [ str "Change password for " ; strong userName ] ] ]
     let onDismiss, changingPassword, changePasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangePassword), (fun _ -> dispatch ChangePassword)
-        match changePasswordModalState.ModalStatus with
-        | Some ModalPending -> None, true, Loading, ignore, None, None
+        match changePasswordModalState.ChangePasswordApiStatus with
+        | Some ApiPending -> None, true, Loading, ignore, None, None
         | _ ->
             let newPassword, confirmPassword = Password changePasswordModalState.NewPassword, Password changePasswordModalState.ConfirmPassword
             let newPasswordError = validatePassword false newPassword
@@ -268,8 +268,8 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
             yield notificationT theme IsWarning None [ contentCentred None [ paraSmaller because ] ]
             yield br
         | None -> ()
-        match changePasswordModalState.ModalStatus with
-        | Some(ModalFailed error) ->
+        match changePasswordModalState.ChangePasswordApiStatus with
+        | Some(ApiFailed error) ->
             yield notificationT theme IsDanger None [
                 contentCentredSmaller [ str "Unable to change password for " ; strong userName ]
                 contentLeftSmallest [ str error ] ]
@@ -299,8 +299,8 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
     let title = [ contentCentred None [ paraSmall [ str (sprintf "%s image for " action) ; strong userName ] ] ]
     let onDismiss, changingImageUrl, changeImageUrlInteraction, onEnter, imageUrlStatus =
         let onDismiss, onEnter = (fun _ -> dispatch CancelChangeImageUrl), (fun _ -> dispatch ChangeImageUrl)
-        match changeImageUrlModalState.ModalStatus with
-        | Some ModalPending -> None, true, Loading, ignore, None
+        match changeImageUrlModalState.ChangeImageUrlApiStatus with
+        | Some ApiPending -> None, true, Loading, ignore, None
         | _ ->
             let hasChanged = (if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)) <> currentImageUrl
             let changeImageUrlInteraction, onEnter =
@@ -314,8 +314,8 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
             Some onDismiss, false, changeImageUrlInteraction, onEnter, imageUrlStatus
     let image = if String.IsNullOrWhiteSpace imageUrl then None else Some(fieldGroupedCentred [ image imageUrl Image.Is128x128 ])
     let body = [
-        match changeImageUrlModalState.ModalStatus with
-        | Some(ModalFailed error) ->
+        match changeImageUrlModalState.ChangeImageUrlApiStatus with
+        | Some(ApiFailed error) ->
             yield notificationT theme IsDanger None [
                 contentCentredSmaller [ str "Unable to change image for " ; strong userName ]
                 contentLeftSmallest [ str error ] ]
@@ -376,10 +376,10 @@ let render state dispatch =
             HeaderState =
                 match unauthState.SignInModalState with
                 | Some signInModalState ->
-                    match signInModalState.AutoSignInError, signInModalState.ModalStatus with
+                    match signInModalState.AutoSignInError, signInModalState.SignInApiStatus with
                     | Some(_, userName), _ -> SignInError(unauthState.ConnectionState, userName, true)
-                    | None, Some ModalPending -> SigningIn(unauthState.ConnectionState, UserName signInModalState.UserName, false)
-                    | None, Some(ModalFailed _) -> SignInError(unauthState.ConnectionState, UserName signInModalState.UserName, false)
+                    | None, Some ApiPending -> SigningIn(unauthState.ConnectionState, UserName signInModalState.UserName, false)
+                    | None, Some(ApiFailed _) -> SignInError(unauthState.ConnectionState, UserName signInModalState.UserName, false)
                     | _ -> NotSignedIn unauthState.ConnectionState
                 | None -> NotSignedIn unauthState.ConnectionState
             PageData = pageData }

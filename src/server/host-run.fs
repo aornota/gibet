@@ -2,6 +2,7 @@ module Aornota.Gibet.Server.Host.Run
 
 open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Bridge
+open Aornota.Gibet.Server.Api.ChatApiAgent
 open Aornota.Gibet.Server.Api.UserApiAgent
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Server.Bridge.HubState
@@ -68,12 +69,13 @@ let private userApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not su
     |> Remoting.withRouteBuilder Route.builder
     |> Remoting.fromReader userApiReader
     |> Remoting.buildHttpHandler
+let private chatApi : HttpFunc -> Http.HttpContext -> HttpFuncResult = // not sure why type annotation is necessary
+    Remoting.createApi()
+    |> Remoting.withRouteBuilder Route.builder
+    |> Remoting.fromReader chatApiReader
+    |> Remoting.buildHttpHandler
 
-let private webAppWithLogging =
-    choose [
-        bridge
-        userApi
-    ] |> SerilogAdapter.Enable
+let private webAppWithLogging = choose [ bridge ; userApi ; chatApi ] |> SerilogAdapter.Enable
 
 let private userRepo = InMemoryUserRepoAgent.InMemoryUserRepoAgent(Log.Logger) :> IUserRepo
 //#if DEBUG
@@ -92,6 +94,7 @@ let private configureServices(services:IServiceCollection) =
     services.AddSingleton(hub) |> ignore
     services.AddSingleton(userRepo) |> ignore
     services.AddSingleton<UserApiAgent, UserApiAgent>() |> ignore
+    services.AddSingleton<ChatApiAgent, ChatApiAgent>() |> ignore
     services.AddGiraffe() |> ignore
 
 let private host =

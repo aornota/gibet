@@ -12,10 +12,14 @@ type ConnectionState = {
     ConnectionId : ConnectionId
     AffinityId : AffinityId }
 
-type HubState = // TODO-NMB: Subscription/s (i.e. hasXyz : bool) for Unauth?...
+type Subscriptions = {
+    HasUsers : bool
+    HasChatMessages : bool }
+
+type HubState =
     | NotRegistered
     | Unauth of ConnectionState
-    | Auth of ConnectionState * UserId * hasUsers : bool
+    | Auth of ConnectionState * UserId * Subscriptions
 
 let signedIn userId hubStates =
     hubStates
@@ -48,11 +52,17 @@ let differentUserHasUsers userId hubState =
     match hubState with
     | NotRegistered -> false
     | Unauth _ -> false
-    | Auth(_, otherUserId, true) -> otherUserId <> userId
+    | Auth(_, otherUserId, subscriptions) when subscriptions.HasUsers -> otherUserId <> userId
     | Auth _ -> false
 let hasUsers hubState =
     match hubState with
     | NotRegistered -> false
     | Unauth _ -> false
-    | Auth(_, _, true) -> true
+    | Auth(_, _, subscriptions) when subscriptions.HasUsers -> true
+    | Auth _ -> false
+let hasChatMessages hubState =
+    match hubState with
+    | NotRegistered -> false
+    | Unauth _ -> false
+    | Auth(_, _, subscriptions) when subscriptions.HasChatMessages -> true
     | Auth _ -> false

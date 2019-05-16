@@ -143,7 +143,7 @@ type SignInModalState = {
     FocusPassword : bool
     AutoSignInError : (string * UserName) option
     ForcedSignOutReason : ForcedSignOutReason option
-    ModalStatus : ModalStatus<string * UserName> option }
+    SignInApiStatus : ApiStatus<string * UserName> option }
 
 type UnauthState = {
     Messages : Message list
@@ -161,13 +161,13 @@ type ChangePasswordModalState = {
     ConfirmPassword : string
     ConfirmPasswordChanged : bool
     MustChangePasswordReason : MustChangePasswordReason option
-    ModalStatus : ModalStatus<string> option }
+    ChangePasswordApiStatus : ApiStatus<string> option }
 
 type ChangeImageUrlModalState = {
     ImageUrlKey : Guid
     ImageUrl : string
     ImageUrlChanged : bool
-    ModalStatus : ModalStatus<string> option }
+    ChangeImageUrlApiStatus : ApiStatus<string> option }
 
 type AuthState = {
     Messages : Message list
@@ -203,8 +203,8 @@ let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<User
                     if otherUser.UserId = user.UserId then user, signedIn, lastActivity
                     else otherUser, signedIn, lastActivity)
             Received(users, usersRvn), None
-        | true, false -> usersData, Some (sprintf "addOrUpdateUser: %A already exists" user.UserId)
-        | false, true -> usersData, Some (sprintf "addOrUpdateUser: %A not found" user.UserId)
+        | true, false -> usersData, Some(sprintf "addOrUpdateUser: %A already exists" user.UserId)
+        | false, true -> usersData, Some(sprintf "addOrUpdateUser: %A not found" user.UserId)
         | false, false ->
             let users = (user, false, None) :: users
             Received(users, usersRvn), None
@@ -224,7 +224,7 @@ let updateActivity userId (usersData:RemoteData<UserData list, string>) =
                     if user.UserId = userId then user, signedIn, Some DateTimeOffset.UtcNow
                     else user, signedIn, lastActivity)
             Received(users, rvn), None
-        else usersData, Some (sprintf "updateActivity: %A not found" userId)
+        else usersData, Some(sprintf "updateActivity: %A not found" userId)
     | _ -> usersData, Some "updateActivity: not Received"
 let updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
     match usersData with
@@ -236,5 +236,5 @@ let updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>)
                     if user.UserId = userId then user, signedIn, lastActivity
                     else user, otherSignedIn, lastActivity)
             Received(users, rvn), None
-        else usersData, Some (sprintf "updateSignedIn: %A not found" userId)
+        else usersData, Some(sprintf "updateSignedIn: %A not found" userId)
     | _ -> usersData, Some "updateSignIn: not Received"

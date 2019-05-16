@@ -2,6 +2,7 @@ module Aornota.Gibet.Server.Bridge.State
 
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Server.Bridge.HubState
 open Aornota.Gibet.Server.Logger
@@ -37,14 +38,15 @@ let private handleRemoteServerInput clientDispatch input state =
         let connectionState = {
             ConnectionId = connectionId |> Option.defaultValue (ConnectionId.Create())
             AffinityId = affinityId }
-        clientDispatch (Registered(connectionState.ConnectionId, serverStarted))
+        let sinceServerStarted = (DateTimeOffset.UtcNow - serverStarted).TotalSeconds * 1.<second>
+        clientDispatch (Registered(connectionState.ConnectionId, sinceServerStarted))
         Unauth connectionState
     | Activity, Auth(connectionState, userId, hasUsers) -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         hub.SendClientIf (differentUserHasUsers userId) (UserActivity userId)
         Auth(connectionState, userId, hasUsers)
     | SignedIn userId, Unauth connectionState ->
         hub.SendClientIf (differentUserHasUsers userId) (UserSignedIn userId)
-        Auth(connectionState, userId, false)
+        Auth(connectionState, userId, { HasUsers = false ; HasChatMessages = false })
     | SignedOut, Auth(connectionState, userId, _) ->
         hub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut SelfSameAffinityDifferentConnection)
         sendIfNotSignedIn userId connectionState.ConnectionId
@@ -56,8 +58,8 @@ let private handleRemoteServerInput clientDispatch input state =
     | ForceChangePassword byUserName, Auth(connectionState, userId, hasUsers) ->
         clientDispatch (ForceUserChangePassword byUserName)
         Auth(connectionState, userId, hasUsers)
-    | HasUsers, Auth(connectionState, userId, false) -> Auth(connectionState, userId, true)
-    // TODO-NMB: More RemoteServerInput?...
+    | HasUsers, Auth(connectionState, userId, subscriptions) when not subscriptions.HasUsers -> Auth(connectionState, userId, { subscriptions with HasUsers = true })
+    | HasChatMessages, Auth(connectionState, userId, subscriptions) when not subscriptions.HasChatMessages -> Auth(connectionState, userId, { subscriptions with HasChatMessages = true })
     | _ -> state |> handleUnexpectedInput clientDispatch (RemoteServerInput input)
 
 let private handleDisconnected clientDispatch state =
