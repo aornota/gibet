@@ -16,12 +16,16 @@ type LastTimestampSeenInput =
     | WriteLastTimestampSeenOk of unit
     | WriteLastTimestampSeenExn of exn
 
-type GetChatMessagesInput =
+type GetChatMessagesApiInput =
     | GetChatMessagesResult of Result<(ChatMessage * int * float<second>) list * int * Rvn, string>
     | GetChatMessagesExn of exn
 
-type SendChatMessageInput =
-    | SendChatMessageResult of Result<ChatMessageId, string>
+type MoreChatMessagesApiInput =
+    | MoreChatMessagesResult of Result<(ChatMessage * int * float<second>) list * Rvn, string>
+    | MoreChatMessagesExn of exn
+
+type SendChatMessageApiInput =
+    | SendChatMessageResult of Result<unit, string>
     | SendChatMessageExn of exn
 
 type Input =
@@ -32,27 +36,36 @@ type Input =
     | UpdateIsCurrentPage of bool
     | ActivityWhenCurrentPage
     | ShowMarkdownSyntaxModal
+    | CloseMarkdownSyntaxModal
     | NewChatMessageChanged of string
     | SendChatMessage
-    | DismissChatMessage of ChatMessageId
-    | MoreChatMessages
-    | GetChatMessagesInput of GetChatMessagesInput
-    | MoreChatMessagesInput of GetChatMessagesInput // intentionally also uses GetChatMessagesInput
-    | SendChatMessageInput of SendChatMessageInput
+    | RemoveChatMessage of ChatMessageId
+    | MoreChatMessages of belowOrdinal : int
+    | GetChatMessagesApiInput of GetChatMessagesApiInput
+    | MoreChatMessagesApiInput of MoreChatMessagesApiInput
+    | SendChatMessageApiInput of SendChatMessageApiInput
 
 type PageState = { IsCurrentPage : bool }
+
+type ChatMessageStatus = | MessageReceived of ordinal : int | MessageExpired
+
+type ChatMessageData = ChatMessage * DateTimeOffset * ChatMessageStatus
 
 type ReadyState = {
     LatestTimestampSeen : DateTimeOffset option
     UnseenCount : int
     UnseenTaggedCount : int
+    ShowingMarkdownSyntaxModal : bool
     NewChatMessageKey : Guid
     NewChatMessage : string
     NewChatMessageChanged : bool
     SendChatMessageApiStatus : ApiStatus<string> option
     MoreChatMessagesApiStatus : ApiStatus<string> option
-    ChatMessagesData : RemoteData<(ChatMessage * int * DateTimeOffset * bool) list * int * Rvn, string> }
+    ChatMessagesData : RemoteData<ChatMessageData list * int, string> }
 
 type State =
     | ReadingLastTimestampSeen of PageState
     | Ready of PageState * ReadyState
+
+// TODO-NMB: Should this be here?...
+let tryFindChatMessage chatMessageId (chatMessages:ChatMessageData list) = chatMessages |> List.tryFind (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)

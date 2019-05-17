@@ -5,6 +5,7 @@ open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
+open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.Message
@@ -80,8 +81,6 @@ let private preferencesOrDefault state =
 let private writePreferencesOrDefault state =
     let preferences = state |> preferencesOrDefault
     state, writePreferencesCmd preferences
-
-let private getUsersCmd connectionId jwt = Cmd.OfAsync.either userApi.getUsers (connectionId, jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersInput >> AuthInput)
 
 let private themeOrDefault state =
     match state with
@@ -193,8 +192,9 @@ let private authState messages appState connectionState lastPage authUser staySi
         | AuthPage UserAdmin -> UserAdmin.Render.PAGE_TITLE
     setTitle pageTitle
     Bridge.Send RemoteServerInput.Activity
+    let getUsersCmd = Cmd.OfAsync.either userApi.getUsers (connectionState.ConnectionId, authUser.Jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersApiInput >> AuthInput)
     let cmds = Cmd.batch [
-        getUsersCmd connectionState.ConnectionId authUser.Jwt
+        getUsersCmd
         chatCmd |> Cmd.map (ChatInput >> AuthInput)
         userAdminCmd |> Cmd.map (UserAdminInput >> AuthInput) ]
     let authState = {
@@ -221,7 +221,7 @@ let private addToMessages message state =
     | AutomaticallySigningIn automaticallySigningInState -> AutomaticallySigningIn { automaticallySigningInState with Messages = message :: automaticallySigningInState.Messages }
     | Unauth unauthState -> Unauth { unauthState with Messages = message :: unauthState.Messages }
     | Auth authState -> Auth { authState with Messages = message :: authState.Messages }
-let private dismissMessage messageId state = // note: silently ignore unknown messageId
+let private removeMessage messageId state = // note: silently ignore unknown messageId
     match state with
     | InitializingConnection(messages, reconnectingState) -> InitializingConnection(messages |> removeMessage messageId, reconnectingState)
     | ReadingPreferences(messages, reconnectingState) -> ReadingPreferences(messages |> removeMessage messageId, reconnectingState)
@@ -243,6 +243,56 @@ let private shouldNeverHappen error state : State * Cmd<Input> =
 #endif
 // #endregion
 
+let private userExists userId (users:UserData list) = users |> List.exists (fun (user, _, _) -> user.UserId = userId)
+
+let private tryFindUser userId (usersData:RemoteData<UserData list, string>) = match usersData with | Received(users, _) -> users |> tryFindUser userId | _ -> None
+let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
+    match usersData with
+    | Received(users, currentUsersRvn) ->
+        match validateNextRvn currentUsersRvn usersRvn with
+        | Some error -> Error(sprintf "addOrUpdateUser: %s" error)
+        | None ->
+            match users |> userExists user.UserId, shouldExist with
+            | true, true ->
+                let users =
+                    users
+                    |> List.map (fun (otherUser, signedIn, lastActivity) ->
+                        if otherUser.UserId = user.UserId then user, signedIn, lastActivity
+                        else otherUser, signedIn, lastActivity)
+                Ok(Received(users, usersRvn))
+            | true, false -> Error(sprintf "addOrUpdateUser: %A already exists" user.UserId)
+            | false, true -> Error(sprintf "addOrUpdateUser: %A not found" user.UserId)
+            | false, false ->
+                let users = (user, false, None) :: users
+                Ok(Received(users, usersRvn))
+    | _ -> Error "addOrUpdateUser: not Received"
+let private addUser user usersRvn usersData = usersData |> addOrUpdateUser user usersRvn false
+let private updateUser user usersRvn usersData = usersData |> addOrUpdateUser user usersRvn true
+let private updateActivity userId (usersData:RemoteData<UserData list, string>) =
+    match usersData with
+    | Received(users, rvn) ->
+        if users |> userExists userId then
+            let users =
+                users
+                |> List.map (fun (user, signedIn, lastActivity) ->
+                    if user.UserId = userId then user, signedIn, Some DateTimeOffset.UtcNow
+                    else user, signedIn, lastActivity)
+            Ok(Received(users, rvn))
+        else Error(sprintf "updateActivity: %A not found" userId)
+    | _ -> Error "updateActivity: not Received"
+let private updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
+    match usersData with
+    | Received(users, rvn) ->
+        if users |> userExists userId then
+            let users =
+                users
+                |> List.map (fun (user, otherSignedIn, lastActivity) ->
+                    if user.UserId = userId then user, signedIn, lastActivity
+                    else user, otherSignedIn, lastActivity)
+            Ok(Received(users, rvn))
+        else Error(sprintf "updateSignedIn: %A not found" userId)
+    | _ -> Error "updateSignIn: not Received"
+
 let private handleOnTick appState state : State * Cmd<Input> = // note: will only be used when TICK is defined (see webpack.config.js)
     match appState with
     | Some appState -> state |> updateAppState { appState with Ticks = appState.Ticks + 1<tick> }, Cmd.none
@@ -257,7 +307,8 @@ let private handleOnMouseMove state : State * Cmd<Input> = // note: will only be
                 Bridge.Send RemoteServerInput.Activity
                 let chatState, chatCmd =
                     if authState.CurrentPage = AuthPage Chat then
-                        let chatState, chatCmd = authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser Chat.Common.ActivityWhenCurrentPage
+                        let chatState, chatCmd =
+                            authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData Chat.Common.ActivityWhenCurrentPage
                         setTitle (chatState |> Chat.Render.pageTitle)
                         chatState, chatCmd |> Cmd.map (ChatInput >> AuthInput)
                     else authState.ChatState, Cmd.none
@@ -277,7 +328,7 @@ let private handleRemoteUiInput remoteUiInput state =
         let connectionState = { ConnectionId = connectionId ; ServerStarted = DateTimeOffset.UtcNow.AddSeconds(float -sinceServerStarted) }
         match registeringConnectionState.LastUser with
         | Some(userName, jwt) ->
-            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInInput
+            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInApiInput
             AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.Messages registeringConnectionState.AppState connectionState (userName, jwt)
                 registeringConnectionState.LastPage), cmd
         | None ->
@@ -286,37 +337,33 @@ let private handleRemoteUiInput remoteUiInput state =
             let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
             state, Cmd.batch [ cmd ; writePreferencesCmd ]
     | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        let usersData, error = authState.UsersData |> updateActivity userId
-        let state = Auth { authState with UsersData = usersData }
-        match error with
-        | Some error -> state |> shouldNeverHappen error
-        | None -> state, Cmd.none
+        match authState.UsersData |> updateActivity userId with
+        | Ok usersData -> Auth { authState with UsersData = usersData }, Cmd.none
+        | Error error -> state |> shouldNeverHappen error
     | UserSignedIn userId, Auth authState ->
-        let usersData, error = authState.UsersData |> updateSignedIn userId true
-        let state = Auth { authState with UsersData = usersData }
-        match error with
-        | Some error -> state |> shouldNeverHappen error
-        | None ->
+        match authState.UsersData |> updateSignedIn userId true with
+        | Ok usersData ->
+            let state = Auth { authState with UsersData = usersData }
             let toastCmd =
-                match usersData |> findUserRD userId with
+                match usersData |> tryFindUser userId with
                 | Some(user, _, _) ->
                     let (UserName userName) = user.UserName
                     sprintf "%s<strong>%s</strong> has signed in" (toastImage user.ImageUrl) userName |> infoToastCmd
                 | None -> Cmd.none
             state, toastCmd
+        | Error error -> state |> shouldNeverHappen error
     | UserSignedOut userId, Auth authState ->
-        let usersData, error = authState.UsersData |> updateSignedIn userId false
-        let state = Auth { authState with UsersData = usersData }
-        match error with
-        | Some error -> state |> shouldNeverHappen error
-        | None ->
+        match authState.UsersData |> updateSignedIn userId false with
+        | Ok usersData ->
+            let state = Auth { authState with UsersData = usersData }
             let toastCmd =
-                match usersData |> findUserRD userId with
+                match usersData |> tryFindUser userId with
                 | Some(user, _, _) ->
                     let (UserName userName) = user.UserName
                     sprintf "%s<strong>%s</strong> has signed out" (toastImage user.ImageUrl) userName |> infoToastCmd
                 | None -> Cmd.none
             state, toastCmd
+        | Error error -> state |> shouldNeverHappen error
     | ForceUserSignOut forcedSignOutReason, Auth authState ->
         let toastCmd, because =
             match forcedSignOutBecause forcedSignOutReason with
@@ -352,19 +399,20 @@ let private handleRemoteUiInput remoteUiInput state =
     | UserUpdated(user, usersRvn, userUpdateType), Auth authState ->
         let authUser = authState.AuthUser
         let authUser = if user.UserId = authUser.User.UserId then { authUser with User = user } else authUser
-        let usersData, error = authState.UsersData |> updateUser user usersRvn
-        let state = Auth { authState with AuthUser = authUser ; UsersData = usersData }
-        match error with
-        | Some error -> state |> shouldNeverHappen error
-        | None -> state, ifDebug (sprintf "%A updated (%A) -> UsersData now %A" user.UserId userUpdateType usersRvn |> infoToastCmd) Cmd.none
+        match authState.UsersData |> updateUser user usersRvn with
+        | Ok usersData ->
+            let state = Auth { authState with AuthUser = authUser ; UsersData = usersData }
+            state, ifDebug (sprintf "%A updated (%A) -> UsersData now %A" user.UserId userUpdateType usersRvn |> infoToastCmd) Cmd.none
+        | Error error -> state |> shouldNeverHappen error
     | UserAdded(user, usersRvn), Auth authState ->
-        let usersData, error = authState.UsersData |> addUser user usersRvn
-        let state = Auth { authState with UsersData = usersData }
-        match error with
-        | Some error -> state |> shouldNeverHappen error
-        | None -> state, ifDebug (sprintf "%A added -> UsersData now %A" user.UserId usersRvn |> infoToastCmd) Cmd.none
+        match authState.UsersData |> addUser user usersRvn with
+        | Ok usersData ->
+            let state = Auth { authState with UsersData = usersData }
+            state, ifDebug (sprintf "%A added -> UsersData now %A" user.UserId usersRvn |> infoToastCmd) Cmd.none
+        | Error error -> state |> shouldNeverHappen error
     | RemoteChatInput remoteChatInput, Auth authState ->
-        let chatState, chatCmd = authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser (Chat.Common.RemoteChatInput remoteChatInput)
+        let chatState, chatCmd =
+            authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData (Chat.Common.RemoteChatInput remoteChatInput)
         Auth { authState with ChatState = chatState }, chatCmd |> Cmd.map (ChatInput >> AuthInput)
     | UnexpectedServerInput error, _ -> state |> shouldNeverHappen error
     | _ -> state |> shouldNeverHappen (unexpectedInputWhenState remoteUiInput state)
@@ -406,8 +454,8 @@ let private handlePreferencesInput preferencesInput state =
     | WritePreferencesExn exn, _ -> state |> addDebugError (sprintf "WritePreferencesExn -> %s" exn.Message), Cmd.none
     | _ -> state |> shouldNeverHappen (unexpectedInputWhenState preferencesInput state)
 
-let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:AutomaticallySigningInState) state =
-    match autoSignInInput with
+let private handleAutoSignInApiInput autoSignInApiInput (automaticallySigningInState:AutomaticallySigningInState) state =
+    match autoSignInApiInput with
     | AutoSignInResult(Ok(authUser, mustChangePasswordReason)) ->
         let authState, cmd =
             authState automaticallySigningInState.Messages automaticallySigningInState.AppState automaticallySigningInState.ConnectionState automaticallySigningInState.LastPage
@@ -431,13 +479,13 @@ let private handleAutoSignInInput autoSignInInput (automaticallySigningInState:A
             sprintf "Unable to automatically sign in as <strong>%s</strong>" userName |> warningToastCmd
             writePreferencesCmd ]
         state, cmds
-    | AutoSignInExn exn -> state, AutoSignInInput(AutoSignInResult(Error exn.Message)) |> Cmd.ofMsg
+    | AutoSignInExn exn -> state, AutoSignInApiInput(AutoSignInResult(Error exn.Message)) |> Cmd.ofMsg
 
 let private handleSignInModalInput signInModalInput (unauthState:UnauthState) state =
     match unauthState.SignInModalState with
     | Some signInModalState ->
         match signInModalInput, signInModalState.SignInApiStatus with
-        | _, Some ApiPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.SignInApiStatus is Pending (%A)" signInModalInput state)
+        | _, Some ApiPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.SignInApiStatus is Pending (%A)" signInModalInput unauthState)
         | UserNameChanged userName, _ ->
             let signInModalState = { signInModalState with UserName = userName ; UserNameChanged = true }
             Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none
@@ -450,17 +498,17 @@ let private handleSignInModalInput signInModalInput (unauthState:UnauthState) st
         | SignIn, _ ->
             let userName, password = UserName(signInModalState.UserName.Trim()), Password(signInModalState.Password.Trim())
             let cmd =
-                Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map (SignInInput >> UnauthInput)
+                Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map (SignInApiInput >> UnauthInput)
             let signInModalState = { signInModalState with AutoSignInError = None ; ForcedSignOutReason = None ; SignInApiStatus = Some ApiPending }
             Unauth { unauthState with SignInModalState = Some signInModalState }, cmd
-        | CancelSignIn, _ -> Unauth { unauthState with SignInModalState = None }, Cmd.none
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState is None (%A)" signInModalInput state)
-let private handleSignInInput signInInput (unauthState:UnauthState) state =
+        | CloseSignInModal, _ -> Unauth { unauthState with SignInModalState = None }, Cmd.none
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState is None (%A)" signInModalInput unauthState)
+let private handleSignInApiInput signInApiInput (unauthState:UnauthState) state =
     match unauthState.SignInModalState with
     | Some signInModalState ->
         match signInModalState.SignInApiStatus with
         | Some ApiPending ->
-            match signInInput with
+            match signInApiInput with
             | SignInResult(Ok(authUser, mustChangePasswordReason)) ->
                 let authState, cmd =
                     authState unauthState.Messages unauthState.AppState unauthState.ConnectionState (Some(UnauthPage unauthState.CurrentPage)) authUser signInModalState.KeepMeSignedIn
@@ -475,15 +523,16 @@ let private handleSignInInput signInInput (unauthState:UnauthState) state =
             | SignInResult(Error error) ->
                 let signInModalState = { signInModalState with FocusPassword = true ; SignInApiStatus = Some(ApiFailed(error, UserName signInModalState.UserName)) }
                 Unauth { unauthState with SignInModalState = Some signInModalState }, Cmd.none // no need for toast (since error will be displayed on SignInModal)
-            | SignInExn exn -> state, UnauthInput(SignInInput(SignInResult(Error exn.Message))) |> Cmd.ofMsg
-        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.SignInApiStatus is not Pending (%A)" signInInput state)
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState is None (%A)" signInInput state)
+            | SignInExn exn -> state, UnauthInput(SignInApiInput(SignInResult(Error exn.Message))) |> Cmd.ofMsg
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState.SignInApiStatus is not Pending (%A)" signInApiInput unauthState)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when SignInModalState is None (%A)" signInApiInput unauthState)
 
 let private handleChangePasswordModalInput changePasswordModalInput (authState:AuthState) state =
     match authState.ChangePasswordModalState with
     | Some changePasswordModalState ->
         match changePasswordModalInput, changePasswordModalState.ChangePasswordApiStatus with
-        | _, Some ApiPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState.ChangePasswordApiStatus is Pending (%A)" changePasswordModalInput state)
+        | _, Some ApiPending ->
+            state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState.ChangePasswordApiStatus is Pending (%A)" changePasswordModalInput authState)
         | NewPasswordChanged newPassword, _ ->
             let changePasswordModalState = { changePasswordModalState with NewPassword = newPassword ; NewPasswordChanged = true }
             Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none
@@ -494,31 +543,32 @@ let private handleChangePasswordModalInput changePasswordModalInput (authState:A
             let password = Password(changePasswordModalState.NewPassword.Trim())
             let cmd =
                 Cmd.OfAsync.either userApi.changePassword (authState.AuthUser.Jwt, password, authState.AuthUser.User.Rvn) ChangePasswordResult ChangePasswordExn
-                |> Cmd.map (ChangePasswordInput >> AuthInput)
+                |> Cmd.map (ChangePasswordApiInput >> AuthInput)
             let changePasswordModalState = { changePasswordModalState with ChangePasswordApiStatus = Some ApiPending }
             Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, cmd
-        | CancelChangePassword, _ -> Auth { authState with ChangePasswordModalState = None }, Cmd.none
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordModalInput state)
-let private handleChangePasswordInput changePasswordInput (authState:AuthState) state =
+        | CloseChangePasswordModal, _ -> Auth { authState with ChangePasswordModalState = None }, Cmd.none
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordModalInput authState)
+let private handleChangePasswordApiInput changePasswordApiInput (authState:AuthState) state =
     match authState.ChangePasswordModalState with
     | Some changePasswordModalState ->
         match changePasswordModalState.ChangePasswordApiStatus with
         | Some ApiPending ->
-            match changePasswordInput with
+            match changePasswordApiInput with
             | ChangePasswordResult(Ok(UserName userName)) ->
                 Auth { authState with ChangePasswordModalState = None }, sprintf "Password changed for <strong>%s</strong>" userName |> successToastCmd
             | ChangePasswordResult(Error error) ->
                 let changePasswordModalState = { changePasswordModalState with ChangePasswordApiStatus = Some(ApiFailed error) }
                 Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, Cmd.none // no need for toast (since error will be displayed on ChangePasswordModal)
-            | ChangePasswordExn exn -> state, AuthInput(ChangePasswordInput(ChangePasswordResult(Error exn.Message))) |> Cmd.ofMsg
-        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState.ChangePasswordApiStatus is not Pending (%A)" changePasswordInput state)
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordInput state)
+            | ChangePasswordExn exn -> state, AuthInput(ChangePasswordApiInput(ChangePasswordResult(Error exn.Message))) |> Cmd.ofMsg
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState.ChangePasswordApiStatus is not Pending (%A)" changePasswordApiInput authState)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangePasswordModalState is None (%A)" changePasswordApiInput authState)
 
 let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:AuthState) state =
     match authState.ChangeImageUrlModalState with
     | Some changeImageUrlModalState ->
         match changeImageUrlModalInput, changeImageUrlModalState.ChangeImageUrlApiStatus with
-        | _, Some ApiPending -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangeImageUrlModalState.ChangeImageUrlApiStatus is Pending (%A)" changeImageUrlModalInput state)
+        | _, Some ApiPending ->
+            state |> shouldNeverHappen (sprintf "Unexpected %A when ChangeImageUrlModalState.ChangeImageUrlApiStatus is Pending (%A)" changeImageUrlModalInput authState)
         | ImageUrlChanged imageUrl, _ ->
             let changeImageUrlModalState = { changeImageUrlModalState with ImageUrl = imageUrl ; ImageUrlChanged = true }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none
@@ -526,49 +576,54 @@ let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:A
             let imageUrl = if String.IsNullOrWhiteSpace changeImageUrlModalState.ImageUrl then None else Some(ImageUrl changeImageUrlModalState.ImageUrl)
             let cmd =
                 Cmd.OfAsync.either userApi.changeImageUrl (authState.AuthUser.Jwt, imageUrl, authState.AuthUser.User.Rvn) ChangeImageUrlResult ChangeImageUrlExn
-                |> Cmd.map (ChangeImageUrlInput >> AuthInput)
+                |> Cmd.map (ChangeImageUrlApiInput >> AuthInput)
             let changeImageUrlModalState = { changeImageUrlModalState with ChangeImageUrlApiStatus = Some ApiPending }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, cmd
-        | CancelChangeImageUrl, _ -> Auth { authState with ChangeImageUrlModalState = None }, Cmd.none
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangeImageUrlModalState is None (%A)" changeImageUrlModalInput state)
-let private handleChangeImageUrlInput changeImageUrlInput (authState:AuthState) state =
+        | CloseChangeImageUrlModal, _ -> Auth { authState with ChangeImageUrlModalState = None }, Cmd.none
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when ChangeImageUrlModalState is None (%A)" changeImageUrlModalInput authState)
+let private handleChangeImageUrlApiInput changeImageUrlApiInput (authState:AuthState) state =
     match authState.ChangeImageUrlModalState with
     | Some changeImageUrlModalState ->
         match changeImageUrlModalState.ChangeImageUrlApiStatus with
         | Some ApiPending ->
-            match changeImageUrlInput with
+            match changeImageUrlApiInput with
             | ChangeImageUrlResult(Ok(UserName userName, imageChangeType)) ->
                 Auth { authState with ChangeImageUrlModalState = None }, sprintf "Image %s for <strong>%s</strong>" (changeType imageChangeType) userName |> successToastCmd
             | ChangeImageUrlResult(Error error) ->
                 let changeImageUrlModalState = { changeImageUrlModalState with ChangeImageUrlApiStatus = Some(ApiFailed error) }
                 Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none // no need for toast (since error will be displayed on ChangeImageUrlModal)
-            | ChangeImageUrlExn exn -> state, AuthInput(ChangeImageUrlInput(ChangeImageUrlResult(Error exn.Message))) |> Cmd.ofMsg
-        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when changeImageUrlModalState.ChangeImageUrlApiStatus is not Pending (%A)" changeImageUrlInput state)
-    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when changeImageUrlModalState is None (%A)" changeImageUrlInput state)
+            | ChangeImageUrlExn exn -> state, AuthInput(ChangeImageUrlApiInput(ChangeImageUrlResult(Error exn.Message))) |> Cmd.ofMsg
+        | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when changeImageUrlModalState.ChangeImageUrlApiStatus is not Pending (%A)" changeImageUrlApiInput authState)
+    | None -> state |> shouldNeverHappen (sprintf "Unexpected %A when changeImageUrlModalState is None (%A)" changeImageUrlApiInput authState)
 
-let private handleSignOutInput signOutInput (authState:AuthState) state =
-    match signOutInput with
-    | SignOutResult(Ok _) ->
-        let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
-        let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
-        let cmds = Cmd.batch [
-            cmd
-            "You have signed out" |> successToastCmd
-            writePreferencesCmd ]
-        state, cmds
-    | SignOutResult(Error error) -> state |> addDebugError (sprintf "SignOutResult error -> %s" error), AuthInput(SignOutInput(SignOutResult(Ok()))) |> Cmd.ofMsg
-    | SignOutExn exn -> state, AuthInput(SignOutInput(SignOutResult(Error exn.Message))) |> Cmd.ofMsg
+let private handleSignOutApiInput signOutApiInput (authState:AuthState) state =
+    if authState.SigningOut then
+        match signOutApiInput with
+        | SignOutResult(Ok _) ->
+            let unauthState, cmd = unauthState authState.Messages authState.AppState authState.ConnectionState (Some authState.CurrentPage) None None false
+            let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
+            let cmds = Cmd.batch [
+                cmd
+                "You have signed out" |> successToastCmd
+                writePreferencesCmd ]
+            state, cmds
+        | SignOutResult(Error error) -> state |> addDebugError (sprintf "SignOutResult error -> %s" error), AuthInput(SignOutApiInput(SignOutResult(Ok()))) |> Cmd.ofMsg
+        | SignOutExn exn -> state, AuthInput(SignOutApiInput(SignOutResult(Error exn.Message))) |> Cmd.ofMsg
+    else state |> shouldNeverHappen (sprintf "Unexpected %A when not SigningOut (%A)" signOutApiInput authState)
 
-let private handleGetUsersInput getUsersInput (authState:AuthState) state =
-    match getUsersInput with
-    | GetUsersResult(Ok(users, usersRvn)) ->
-        let users = users |> List.map (fun (user, signedIn) -> user, signedIn, None)
-        Auth { authState with UsersData = Received(users, usersRvn) }, ifDebug (sprintf "Got %i users -> UsersData %A" users.Length usersRvn |> infoToastCmd) Cmd.none
-    | GetUsersResult(Error error) -> Auth { authState with UsersData = Failed error }, ifDebug (sprintf "GetUsersResult error -> %s" error |> errorToastCmd) Cmd.none
-    | GetUsersExn exn -> state, AuthInput(GetUsersInput(GetUsersResult(Error exn.Message))) |> Cmd.ofMsg
+let private handleGetUsersApiInput getUsersApiInput (authState:AuthState) state =
+    match authState.UsersData with
+    | Pending ->
+        match getUsersApiInput with
+        | GetUsersResult(Ok(users, usersRvn)) ->
+            let users = users |> List.map (fun (user, signedIn) -> user, signedIn, None)
+            Auth { authState with UsersData = Received(users, usersRvn) }, ifDebug (sprintf "Got %i user/s -> UsersData %A" users.Length usersRvn |> infoToastCmd) Cmd.none
+        | GetUsersResult(Error error) -> Auth { authState with UsersData = Failed error }, ifDebug (sprintf "GetUsersResult error -> %s" error |> errorToastCmd) Cmd.none
+        | GetUsersExn exn -> state, AuthInput(GetUsersApiInput(GetUsersResult(Error exn.Message))) |> Cmd.ofMsg
+    | _ -> state |> shouldNeverHappen (sprintf "Unexpected %A when UsersData is not Pending (%A)" getUsersApiInput authState)
 
-let private updateChatIsCurrentPage isCurrentPage connectionId authUser chatState =
-    let chatState, chatCmd = chatState |> Chat.State.transition connectionId authUser (Chat.Common.UpdateIsCurrentPage isCurrentPage)
+let private updateChatIsCurrentPage isCurrentPage connectionId authUser usersData chatState =
+    let chatState, chatCmd = chatState |> Chat.State.transition connectionId authUser usersData (Chat.Common.UpdateIsCurrentPage isCurrentPage)
     if isCurrentPage then setTitle (chatState |> Chat.Render.pageTitle)
     chatState, chatCmd |> Cmd.map (ChatInput >> AuthInput)
 
@@ -599,7 +654,7 @@ let transition input state =
         | OnTick, _, _ -> state |> handleOnTick appState
         | OnMouseMove, _, _ -> state |> handleOnMouseMove
         | AddMessage message, _, _ -> state |> addToMessages message, Cmd.none
-        | DismissMessage messageId, _, _ -> state |> dismissMessage messageId, Cmd.none
+        | DismissMessage messageId, _, _ -> state |> removeMessage messageId, Cmd.none
         | RemoteUiInput remoteUiInput, _, _ -> state |> handleRemoteUiInput remoteUiInput
         | Disconnected, _, _ -> state |> handleDisconnected
         | PreferencesInput preferencesInput, _, _ -> state |> handlePreferencesInput preferencesInput
@@ -610,21 +665,21 @@ let transition input state =
         | ToggleNavbarBurger, _, (Some appState, _) ->
             let appState = { appState with NavbarBurgerIsActive = not appState.NavbarBurgerIsActive }
             state |> updateAppState appState |> writePreferencesOrDefault
-        | AutoSignInInput autoSignInInput, AutomaticallySigningIn automaticallySigningInState, _ -> state |> handleAutoSignInInput autoSignInInput automaticallySigningInState
+        | AutoSignInApiInput autoSignInApiInput, AutomaticallySigningIn automaticallySigningInState, _ -> state |> handleAutoSignInApiInput autoSignInApiInput automaticallySigningInState
         | UnauthInput(ShowUnauthPage About), Unauth unauthState, _ -> match unauthState.CurrentPage with | About -> state, Cmd.none
         | UnauthInput ShowSignInModal, Unauth unauthState, _ ->
             match unauthState.SignInModalState with
             | Some signInModalState -> state |> shouldNeverHappen (sprintf "Unexpected ShowSignInModal when SignInModalState is %A (%A)" signInModalState state)
             | None -> Unauth { unauthState with SignInModalState = Some(signInModalState None true None None) }, Cmd.none
         | UnauthInput(SignInModalInput signInModalInput), Unauth unauthState, _ -> state |> handleSignInModalInput signInModalInput unauthState
-        | UnauthInput(SignInInput signInInput), Unauth unauthState, _ -> state |> handleSignInInput signInInput unauthState
+        | UnauthInput(SignInApiInput signInApiInput), Unauth unauthState, _ -> state |> handleSignInApiInput signInApiInput unauthState
         | AuthInput(ShowPage(UnauthPage About)), Auth authState, _ ->
             match authState.CurrentPage with
             | UnauthPage About -> state, Cmd.none
             | AuthPage authPage ->
                 setTitle About.Render.PAGE_TITLE
                 let chatState, chatCmd =
-                    if authPage = Chat then authState.ChatState |> updateChatIsCurrentPage false authState.ConnectionState.ConnectionId authState.AuthUser
+                    if authPage = Chat then authState.ChatState |> updateChatIsCurrentPage false authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData
                     else authState.ChatState, Cmd.none
                 let state, writePreferencesCmd = Auth { authState with CurrentPage = UnauthPage About ; ChatState = chatState } |> writePreferencesOrDefault
                 state, Cmd.batch [ chatCmd ; writePreferencesCmd ]
@@ -632,7 +687,7 @@ let transition input state =
             match authState.CurrentPage with
             | AuthPage Chat -> state, Cmd.none
             | _ ->
-                let chatState, chatCmd = authState.ChatState |> updateChatIsCurrentPage true authState.ConnectionState.ConnectionId authState.AuthUser
+                let chatState, chatCmd = authState.ChatState |> updateChatIsCurrentPage true authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData
                 let state, writePreferencesCmd = Auth { authState with CurrentPage = AuthPage Chat ; ChatState = chatState } |> writePreferencesOrDefault
                 state, Cmd.batch [ chatCmd ; writePreferencesCmd ]
         | AuthInput(ShowPage(AuthPage UserAdmin)), Auth authState, _ ->
@@ -647,7 +702,7 @@ let transition input state =
                         userAdminState, userAdminCmd |> Cmd.map (UserAdminInput >> AuthInput)
                 setTitle UserAdmin.Render.PAGE_TITLE
                 let chatState, chatCmd =
-                    if page = AuthPage Chat then authState.ChatState |> updateChatIsCurrentPage false authState.ConnectionState.ConnectionId authState.AuthUser
+                    if page = AuthPage Chat then authState.ChatState |> updateChatIsCurrentPage false authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData
                     else authState.ChatState, Cmd.none
                 let authState = { authState with CurrentPage = AuthPage UserAdmin ; ChatState = chatState ; UserAdminState = Some userAdminState }
                 let state, writePreferencesCmd = Auth authState |> writePreferencesOrDefault
@@ -657,7 +712,8 @@ let transition input state =
             setTitle (authState.ChatState |> Chat.Render.pageTitle)
             state, Cmd.none
         | AuthInput(ChatInput chatInput), Auth authState ,_ ->
-            let chatState, chatCmd = authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser chatInput
+            let chatState, chatCmd =
+                authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData chatInput
             Auth { authState with ChatState = chatState }, chatCmd |> Cmd.map (ChatInput >> AuthInput)
         | AuthInput(UserAdminInput(UserAdmin.Common.Input.AddMessage message)), Auth _, _ -> state |> addToMessages message, Cmd.none
         | AuthInput(UserAdminInput userAdminInput), Auth authState ,_ ->
@@ -671,18 +727,18 @@ let transition input state =
             | Some _ -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangePasswordModal when ChangePasswordModalState is not None (%A)" state)
             | None -> Auth { authState with ChangePasswordModalState = Some(changePasswordModalState None) }, Cmd.none
         | AuthInput(ChangePasswordModalInput changePasswordModalInput), Auth authState, _ -> state |> handleChangePasswordModalInput changePasswordModalInput authState
-        | AuthInput(ChangePasswordInput changePasswordInput), Auth authState, _ -> state |> handleChangePasswordInput changePasswordInput authState
+        | AuthInput(ChangePasswordApiInput changePasswordApiInput), Auth authState, _ -> state |> handleChangePasswordApiInput changePasswordApiInput authState
         | AuthInput ShowChangeImageUrlModal, Auth authState, _ ->
             match authState.ChangeImageUrlModalState with
             | Some _ -> state |> shouldNeverHappen (sprintf "Unexpected ShowChangeImageUrlModal when ChangeImageUrlModalState is not None (%A)" state)
             | None -> Auth { authState with ChangeImageUrlModalState = Some(changeImageUrlModalState authState.AuthUser.User.ImageUrl) }, Cmd.none
         | AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
-        | AuthInput(ChangeImageUrlInput changeImageUrlInput), Auth authState, _ -> state |> handleChangeImageUrlInput changeImageUrlInput authState
+        | AuthInput(ChangeImageUrlApiInput changeImageUrlApiInput), Auth authState, _ -> state |> handleChangeImageUrlApiInput changeImageUrlApiInput authState
         | AuthInput SignOut, Auth authState, _ ->
-            let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutInput >> AuthInput)
+            let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutApiInput >> AuthInput)
             Auth { authState with SigningOut = true }, cmd
-        | AuthInput(SignOutInput signOutInput), Auth authState, _ -> state |> handleSignOutInput signOutInput authState
-        | AuthInput(GetUsersInput getUsersInput), Auth authState, _ -> state |> handleGetUsersInput getUsersInput authState
+        | AuthInput(SignOutApiInput signOutApiInput), Auth authState, _ -> state |> handleSignOutApiInput signOutApiInput authState
+        | AuthInput(GetUsersApiInput getUsersApiInput), Auth authState, _ -> state |> handleGetUsersApiInput getUsersApiInput authState
         | _ -> state |> shouldNeverHappen (unexpectedInputWhenState input state)
 #if DEBUG
     if log then console.log("New state:", state)

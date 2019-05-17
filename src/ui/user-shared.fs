@@ -13,10 +13,7 @@ type UserData = User * bool * DateTimeOffset option
 
 let [<Literal>] private RECENTLY_ACTIVE = 1.<minute>
 
-let findUser userId (users:UserData list) = users |> List.tryFind (fun (user, _, _) -> user.UserId = userId)
-let exists userId (users:UserData list) = users |> List.exists (fun (user, _, _) -> user.UserId = userId)
-
-let findUserRD userId (usersData:RemoteData<UserData list, string>) = match usersData |> receivedData with | Some(users, _) -> users |> findUser userId | None -> None
+let tryFindUser userId (users:UserData list) = users |> List.tryFind (fun (user, _, _) -> user.UserId = userId)
 
 let (|Self|RecentlyActive|SignedIn|NotSignedIn|PersonaNonGrata|) (user, signedIn, lastActivity, authUserId) =
     if user.UserId = authUserId then Self

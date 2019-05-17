@@ -114,7 +114,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let password = Password(password.Trim())
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
-                    let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
+                    let! _ = validateSameRvn imUser.User.Rvn rvn |> errorIfSome ()
                     let! _ = if hash password imUser.Salt = imUser.Hash then Error "New password must not be the same as existing password" else Ok()
                     let user = { imUser.User with Rvn = incrementRvn rvn }
                     let salt = salt()
@@ -130,7 +130,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let imageUrl = canoicalizeImageUrl imageUrl
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
-                    let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
+                    let! _ = validateSameRvn imUser.User.Rvn rvn |> errorIfSome ()
                     let imageChangeType =
                         match imUser.User.ImageUrl, imageUrl with
                         | None, Some _ -> Some ImageChosen
@@ -166,7 +166,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                 let result = result {
                     let! byImUser = imUserDict |> findUserId byUserId
                     let! imUser = imUserDict |> findUserId userId
-                    let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
+                    let! _ = validateSameRvn imUser.User.Rvn rvn |> errorIfSome ()
                     let! _ = if hash password imUser.Salt = imUser.Hash then Error "New password must not be the same as existing password" else Ok()
                     let user = { imUser.User with Rvn = incrementRvn rvn }
                     let salt = salt()
@@ -185,7 +185,7 @@ type InMemoryUserRepoAgent(logger:ILogger) =
             | ChangeUserType(userId, userType, rvn, reply) ->
                 let result = result {
                     let! imUser = imUserDict |> findUserId userId
-                    let! _ = validateRvn imUser.User.Rvn rvn |> errorIfSome ()
+                    let! _ = validateSameRvn imUser.User.Rvn rvn |> errorIfSome ()
                     let user = { imUser.User with Rvn = incrementRvn rvn ; UserType = userType }
                     let imUser = { imUser with User = user }
                     let! _ = imUserDict |> updateUser imUser

@@ -178,7 +178,7 @@ let private renderReconnectingModal theme =
 let private renderSignInModal (theme, signInModalState:SignInModalState) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Sign in" ] ] ]
     let onDismiss, signingIn, signInInteraction, onEnter, userNameStatus, passwordStatus =
-        let onDismiss, onEnter = (fun _ -> dispatch CancelSignIn), (fun _ -> dispatch SignIn)
+        let onDismiss, onEnter = (fun _ -> dispatch CloseSignInModal), (fun _ -> dispatch SignIn)
         match signInModalState.SignInApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None, None
         | _ ->
@@ -235,7 +235,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
 let private renderChangePasswordModal (theme, UserName userName, changePasswordModalState:ChangePasswordModalState) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Change password for " ; strong userName ] ] ]
     let onDismiss, changingPassword, changePasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus =
-        let onDismiss, onEnter = (fun _ -> dispatch CancelChangePassword), (fun _ -> dispatch ChangePassword)
+        let onDismiss, onEnter = (fun _ -> dispatch CloseChangePasswordModal), (fun _ -> dispatch ChangePassword)
         match changePasswordModalState.ChangePasswordApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None, None
         | _ ->
@@ -298,7 +298,7 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
         | false, true -> "Remove"
     let title = [ contentCentred None [ paraSmall [ str (sprintf "%s image for " action) ; strong userName ] ] ]
     let onDismiss, changingImageUrl, changeImageUrlInteraction, onEnter, imageUrlStatus =
-        let onDismiss, onEnter = (fun _ -> dispatch CancelChangeImageUrl), (fun _ -> dispatch ChangeImageUrl)
+        let onDismiss, onEnter = (fun _ -> dispatch CloseChangeImageUrlModal), (fun _ -> dispatch ChangeImageUrl)
         match changeImageUrlModalState.ChangeImageUrlApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None
         | _ ->

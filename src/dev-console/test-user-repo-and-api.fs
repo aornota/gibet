@@ -26,7 +26,7 @@ let private hub = { // note: fake implementation that literally does nothing!
         member __.SendClientIf predicate msg = ()
         member __.SendServerIf predicate msg = () }
 
-let testUserRepoAndApi() = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTestData.create
+let testUserRepoAndApi () = asyncResult { // cf. Aornota.Gibet.Server.Repo.UserTestData.create
     // #region UserIds &c.
     // Note: Some user names and passwords would be invalid for IUserApi - but are okay for IUserRepo
     let defaultPassword = Password "password"

@@ -7,4 +7,4 @@ open Aornota.Gibet.Ui.Pages.About.MarkdownLiterals
 
 let [<Literal>] PAGE_TITLE = "About"
 
-let render theme = divDefault [ containerFluid [ contentFromMarkdownLeft theme (Markdown READ_ME) ; divVerticalSpace 5 ] ]
+let render theme = divDefault [ containerFluid [ markdownContentTLeft theme (Markdown READ_ME) ; divVerticalSpace 5 ] ]

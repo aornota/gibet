@@ -12,7 +12,7 @@ type ChatMessage = {
     ChatMessageId : ChatMessageId
     Sender : UserId * UserName
     Payload : Markdown
-    Tagged : UserId list }
+    TaggedUsers : UserId list }
 
 let [<Literal>] CHAT_MESSAGE_LIFETIME = 0.083<hour> // TODO-NMB: Change to, e.g., 24.<hour>...
 

@@ -14,7 +14,7 @@ type private DangerousInnerHtml = { __html : string }
 
 let [<Literal>] private MARKDOWN_CLASS = "markdown"
 
-let private contentFromMarkdown theme alignment inNotification (Markdown markdown) =
+let private markdownContentT theme alignment inNotification (Markdown markdown) =
     let themeClass = themeClass theme
     let customClasses = [
         yield MARKDOWN_CLASS
@@ -24,10 +24,10 @@ let private contentFromMarkdown theme alignment inNotification (Markdown markdow
         match customClass with | Some customClass -> yield customClass | None -> ()
         yield DangerouslySetInnerHTML { __html = Globals.marked.parse markdown } ] [] ]
 
-let contentFromMarkdownCentred theme markdown = contentFromMarkdown theme TextAlignment.Centered false markdown
-let contentFromMarkdownLeft theme markdown = contentFromMarkdown theme TextAlignment.Left false markdown
-let contentFromMarkdownRight theme markdown = contentFromMarkdown theme TextAlignment.Right false markdown
+let markdownContentTLeft theme markdown = markdownContentT theme TextAlignment.Left false markdown
+let markdownContentTCentred theme markdown = markdownContentT theme TextAlignment.Centered false markdown
+let markdownContentTRight theme markdown = markdownContentT theme TextAlignment.Right false markdown
 
-let notificationContentFromMarkdownCentred theme markdown = contentFromMarkdown theme TextAlignment.Centered true markdown
-let notificationContentFromMarkdownLeft theme markdown = contentFromMarkdown theme TextAlignment.Left true markdown
-let notificationContentFromMarkdownRight theme markdown = contentFromMarkdown theme TextAlignment.Right true markdown
+let markdownNotificationContentTLeft theme markdown = markdownContentT theme TextAlignment.Left true markdown
+let markdownNotificationContentTCentred theme markdown = markdownContentT theme TextAlignment.Centered true markdown
+let markdownNotificationContentTRight theme markdown = markdownContentT theme TextAlignment.Right true markdown

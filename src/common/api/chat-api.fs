@@ -8,6 +8,6 @@ open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
 
 type ChatApi = {
-    getChatMessages : ConnectionId * Jwt * int -> AsyncResult<(ChatMessage * int * float<second>) list * int * Rvn, string>
-    moreChatMessages : Jwt * int * int -> AsyncResult<(ChatMessage * int * float<second>) list * int * Rvn, string>
-    sendChatMessage : Jwt * ChatMessage -> AsyncResult<ChatMessageId, string> }
+    getChatMessages : ConnectionId * Jwt * int option -> AsyncResult<(ChatMessage * int * float<second>) list * int * Rvn, string>
+    moreChatMessages : Jwt * int * int option -> AsyncResult<(ChatMessage * int * float<second>) list * Rvn, string>
+    sendChatMessage : Jwt * ChatMessage -> AsyncResult<unit, string> }

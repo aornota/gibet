@@ -14,16 +14,20 @@ This is part of the same paragraph.
 
 But this is a new paragraph.
 
+**TODO-NMB...**Users can be tagged in chat messages, e.g. @{EXAMPLE_ADMIN_USER_NAME}.
+
 This is a picture by the wonderful Gregory Kondos:
 
-![Text if image not found...](https://tinyurl.com/y76sbjyr "Sacremento River with 32 Palms")
+![Text if image not found...](https://tinyurl.com/y76sbjyr "Sacramento River with 32 Palms")
 
 This is a list of Mdou Moctar albums:
 
 | Name | Released |   |
 |:-----|---------:|:-:|
-| [_Sousoume Tamachek_](https://mdoumoctar.bandcamp.com/album/sousoume-tamachek) | September 2017 | ![](https://tinyurl.com/ybjew7oo) |
-| [_Akounak Tedalat Taha Tazoughai_](https://mdoumoctar.bandcamp.com/album/akounak-tedalat-taha-tazoughai-ost) (original soundtrack recording) | June 2015 | ![](https://tinyurl.com/y7hgyc77) |
+| [_Ilana: The Creator_](https://mdoumoctar.bandcamp.com/album/ilana-the-creator) | March 2019 | ![](https://tinyurl.com/y3285qgd "Like ZZ Top freaking out with Eddie Van Halen in 1975") |
+| [_Blue Stage Session_](https://mdoumoctar.bandcamp.com/album/mdou-moctar-blue-stage-session) | January 2019 | ![](https://tinyurl.com/y6roz6yn "Live in Detroit") |
+| [_Sousoume Tamachek_](https://mdoumoctar.bandcamp.com/album/sousoume-tamachek) | September 2017 | ![](https://tinyurl.com/ybjew7oo "Quite possibly my favourite album") |
+| [_Akounak Tedalat Taha Tazoughai_](https://mdoumoctar.bandcamp.com/album/akounak-tedalat-taha-tazoughai-ost) (original soundtrack recording) | June 2015 | ![](https://tinyurl.com/y7hgyc77 "Soundtrack to a Tuareg language reimagining of 'Purple Rain'") |
 | [_Anar_](https://mdoumoctar.bandcamp.com/album/anar) | September 2014 | ![](https://tinyurl.com/y7r3fby3) |
 | [_Afelan_](https://mdoumoctar.bandcamp.com/album/afelan) | July 2013 | ![](https://tinyurl.com/yam6o2zh) |
 

@@ -2,12 +2,14 @@ module Aornota.Gibet.Ui.Pages.Chat.Render
 
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
+open Aornota.Gibet.Common.Markdown
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Icon
 open Aornota.Gibet.Ui.Common.LazyViewOrHMR
 open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Render
+open Aornota.Gibet.Ui.Common.Render.Theme.Markdown
 open Aornota.Gibet.Ui.Pages.Chat.Common
 open Aornota.Gibet.Ui.Pages.Chat.MarkdownLiterals
 open Aornota.Gibet.Ui.Shared
@@ -19,7 +21,22 @@ open Fulma
 
 let [<Literal>] private PAGE_TITLE = "Chat"
 
-let pageTitle state =
+let private markdownSyntaxKey = Guid.NewGuid()
+
+let private renderMarkdownSyntaxModal (theme, users:UserData list) dispatch = // TODO-NMB: textAreaT - and @username / @{user name} example?...
+    let title = [ contentCentred None [ paraSmall [ str "Markdown syntax" ] ] ]
+    let onDismiss = Some(fun _ -> dispatch CloseMarkdownSyntaxModal)
+    let body = [
+        contentTCentred theme (Some smaller) (Some IsInfo) [ strong "As a very quick introduction to Markdown syntax, the following:" ]
+        // TEMP-NMB...
+        notificationT theme IsWarning None [ contentLeftSmallest [ strong "TODO-NMB:" ; str " textAreaT theme markdownSyntaxKey MARKDOWN_SYNTAX..." ] ]
+        br
+        // ...TEMP-NNB
+        contentTCentred theme (Some smaller) (Some IsInfo) [ strong "will appear as:" ]
+        markdownContentTLeft theme (Markdown MARKDOWN_SYNTAX) ]
+    cardModalT theme (Some(title, onDismiss)) body
+
+let pageTitle state = // TODO-NMB: See inside...
     let unseenCount, unseenTaggedCount =
         match state with
         | ReadingLastTimestampSeen _ -> None, None
@@ -41,7 +58,13 @@ let renderTab isActive onClick state = // TODO-NMB: Think about how best to disp
 let render theme (authUser:AuthUser) (usersData:RemoteData<UserData list, string>) (state:State) (_:int<tick>) (dispatch:Input -> unit) =
     divDefault [
         // Note: Render Modals (if any) first so will not be affected by contentCentred.
-        columnsDefault [ contentCentred None [
+        match state with
+        | Ready(_, readyState) when readyState.ShowingMarkdownSyntaxModal ->
+            match usersData with
+            | Received(users, _) -> yield lazyView2 renderMarkdownSyntaxModal (theme, users) dispatch
+            | _ -> ()
+        | _ -> ()
+        yield columnsDefault [ contentCentred None [
             yield paraSmall [ strong "Chat" ]
             yield hrT theme false
             match usersData with
@@ -62,6 +85,7 @@ let render theme (authUser:AuthUser) (usersData:RemoteData<UserData list, string
                     yield renderWarningMessage theme "Chat functionality is a work in progress..." // TEMP-NMB...
                     yield divTags userTags
                     yield hrT theme false
+                    yield contentRightSmallest [ linkInternal (fun _ -> dispatch ShowMarkdownSyntaxModal) [ str "Markdown syntax" ] ] // TEMP-NMB...
 
             | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "Users RemoteData Failed -> %s" error) UNEXPECTED_ERROR)
             yield divVerticalSpace 5 ] ] ]

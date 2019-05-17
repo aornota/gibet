@@ -44,7 +44,7 @@ let private userTypeRadios theme authUser user selectedUserType disableAll dispa
 let private renderCreateUsersModal (theme, authUser, users:UserData list, createUsersModalState:CreateUsersModalState) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Add user/s" ] ] ]
     let onDismiss, creatingUser, addUserInteraction, onEnter, userNameStatus, passwordStatus, confirmPasswordStatus =
-        let onDismiss, onEnter = (fun _ -> dispatch CancelCreateUsers), (fun _ -> dispatch CreateUser)
+        let onDismiss, onEnter = (fun _ -> dispatch CloseCreateUsersModal), (fun _ -> dispatch CreateUser)
         match createUsersModalState.CreateUserApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None, None, None
         | _ ->
@@ -102,9 +102,9 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
 
 let private renderResetPasswordModal (theme, authUser, users:UserData list, resetPasswordModalState:ResetPasswordModalState) dispatch =
     let title, onDismiss, body =
-        let onDismiss = (fun _ -> dispatch CancelResetPassword)
+        let onDismiss = (fun _ -> dispatch CloseResetPasswordModal)
         let userId, rvn = resetPasswordModalState.ForUser
-        match users |> findUser userId with
+        match users |> tryFindUser userId with
         | Some(user, _, _) ->
             let (UserName userName) = user.UserName
             let title = [ contentCentred None [ paraSmall [ str "Reset password for " ; strong userName ] ] ]
@@ -133,7 +133,7 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
                     Some onDismiss, false, resetPasswordInteraction, onEnter, newPasswordStatus, confirmPasswordStatus
             let body = [
                 if user.Rvn <> rvn then
-                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another user" ] ]
+                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another connection" ] ]
                     yield br
                 match resetPasswordModalState.ResetPasswordApiStatus with
                 | Some(ApiFailed error) ->
@@ -163,9 +163,9 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
 
 let private renderChangeUserTypeModal (theme, authUser, users:UserData list, changeUserTypeModalState:ChangeUserTypeModalState) dispatch =
     let title, onDismiss, body =
-        let onDismiss = (fun _ -> dispatch CancelChangeUserType)
+        let onDismiss = (fun _ -> dispatch CloseChangeUserTypeModal)
         let userId, rvn = changeUserTypeModalState.ForUser
-        match users |> findUser userId with
+        match users |> tryFindUser userId with
         | Some(user, _, _) ->
             let (UserName userName) = user.UserName
             let title = [ contentCentred None [ paraSmall [ str "Change type for " ; strong userName ] ] ]
@@ -180,7 +180,7 @@ let private renderChangeUserTypeModal (theme, authUser, users:UserData list, cha
                     Some onDismiss, false, changeUserTypeInteraction
             let body = [
                 if user.Rvn <> rvn then
-                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another user" ] ]
+                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another connection" ] ]
                     yield br
                 match changeUserTypeModalState.ChangeUserTypeApiStatus with
                 | Some(ApiFailed error) ->
@@ -258,5 +258,5 @@ let render theme authUser usersData state ticks dispatch =
             | Received(users, _) ->
                 yield ofOption (createUsers theme authUser dispatch)
                 yield lazyView2 renderUsers (theme, authUser, users, ticks) dispatch
-            | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "Users RemoveData Failed -> %s" error) UNEXPECTED_ERROR)
+            | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "Users RemoteData Failed -> %s" error) UNEXPECTED_ERROR)
             yield divVerticalSpace 5 ] ] ]

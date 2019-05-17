@@ -32,7 +32,7 @@ type PreferencesInput =
     | WritePreferencesOk of unit
     | WritePreferencesExn of exn
 
-type AutoSignInInput =
+type AutoSignInApiInput =
     | AutoSignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | AutoSignInExn of exn
 
@@ -41,8 +41,8 @@ type SignInModalInput =
     | PasswordChanged of string
     | KeepMeSignedInChanged
     | SignIn
-    | CancelSignIn
-type SignInInput =
+    | CloseSignInModal
+type SignInApiInput =
     | SignInResult of Result<AuthUser * MustChangePasswordReason option, string>
     | SignInExn of exn
 
@@ -51,30 +51,30 @@ type UnauthInput =
     // Note: No need for AboutInput as About page has no inputs.
     | ShowSignInModal
     | SignInModalInput of SignInModalInput
-    | SignInInput of SignInInput
+    | SignInApiInput of SignInApiInput
 
 type ChangePasswordModalInput =
     | NewPasswordChanged of string
     | ConfirmPasswordChanged of string
     | ChangePassword
-    | CancelChangePassword
-type ChangePasswordInput =
+    | CloseChangePasswordModal
+type ChangePasswordApiInput =
     | ChangePasswordResult of Result<UserName, string>
     | ChangePasswordExn of exn
 
 type ChangeImageUrlModalInput =
     | ImageUrlChanged of string
     | ChangeImageUrl
-    | CancelChangeImageUrl
-type ChangeImageUrlInput =
+    | CloseChangeImageUrlModal
+type ChangeImageUrlApiInput =
     | ChangeImageUrlResult of Result<UserName * ImageChangeType option, string>
     | ChangeImageUrlExn of exn
 
-type SignOutInput =
+type SignOutApiInput =
     | SignOutResult of Result<unit, string>
     | SignOutExn of exn
 
-type GetUsersInput =
+type GetUsersApiInput =
     | GetUsersResult of Result<(User * bool) list * Rvn, string>
     | GetUsersExn of exn
 
@@ -85,13 +85,13 @@ type AuthInput =
     | UserAdminInput of UserAdmin.Common.Input
     | ShowChangePasswordModal
     | ChangePasswordModalInput of ChangePasswordModalInput
-    | ChangePasswordInput of ChangePasswordInput
+    | ChangePasswordApiInput of ChangePasswordApiInput
     | ShowChangeImageUrlModal
     | ChangeImageUrlModalInput of ChangeImageUrlModalInput
-    | ChangeImageUrlInput of ChangeImageUrlInput
+    | ChangeImageUrlApiInput of ChangeImageUrlApiInput
     | SignOut
-    | SignOutInput of SignOutInput
-    | GetUsersInput of GetUsersInput
+    | SignOutApiInput of SignOutApiInput
+    | GetUsersApiInput of GetUsersApiInput
 
 type Input =
     | OnTick // note: will only be used when TICK is defined (see webpack.config.js)
@@ -103,7 +103,7 @@ type Input =
     | PreferencesInput of PreferencesInput
     | ToggleTheme
     | ToggleNavbarBurger
-    | AutoSignInInput of AutoSignInInput
+    | AutoSignInApiInput of AutoSignInApiInput
     | UnauthInput of UnauthInput
     | AuthInput of AuthInput
 
@@ -191,50 +191,3 @@ type State =
     | AutomaticallySigningIn of AutomaticallySigningInState
     | Unauth of UnauthState
     | Auth of AuthState
-
-let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
-    match usersData with
-    | Received(users, _) ->
-        match users |> exists user.UserId, shouldExist with
-        | true, true ->
-            let users =
-                users
-                |> List.map (fun (otherUser, signedIn, lastActivity) ->
-                    if otherUser.UserId = user.UserId then user, signedIn, lastActivity
-                    else otherUser, signedIn, lastActivity)
-            Received(users, usersRvn), None
-        | true, false -> usersData, Some(sprintf "addOrUpdateUser: %A already exists" user.UserId)
-        | false, true -> usersData, Some(sprintf "addOrUpdateUser: %A not found" user.UserId)
-        | false, false ->
-            let users = (user, false, None) :: users
-            Received(users, usersRvn), None
-    | _ -> usersData, Some "addOrUpdateUser: not Received"
-let addUser user usersRvn (usersData:RemoteData<UserData list, string>) =
-    usersData |> addOrUpdateUser user usersRvn false
-let updateUser user usersRvn (usersData:RemoteData<UserData list, string>) =
-    usersData |> addOrUpdateUser user usersRvn true
-
-let updateActivity userId (usersData:RemoteData<UserData list, string>) =
-    match usersData with
-    | Received(users, rvn) ->
-        if users |> exists userId then
-            let users =
-                users
-                |> List.map (fun (user, signedIn, lastActivity) ->
-                    if user.UserId = userId then user, signedIn, Some DateTimeOffset.UtcNow
-                    else user, signedIn, lastActivity)
-            Received(users, rvn), None
-        else usersData, Some(sprintf "updateActivity: %A not found" userId)
-    | _ -> usersData, Some "updateActivity: not Received"
-let updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
-    match usersData with
-    | Received(users, rvn) ->
-        if users |> exists userId then
-            let users =
-                users
-                |> List.map (fun (user, otherSignedIn, lastActivity) ->
-                    if user.UserId = userId then user, signedIn, lastActivity
-                    else user, otherSignedIn, lastActivity)
-            Received(users, rvn), None
-        else usersData, Some(sprintf "updateSignedIn: %A not found" userId)
-    | _ -> usersData, Some "updateSignIn: not Received"

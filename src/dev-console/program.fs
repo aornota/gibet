@@ -1,6 +1,7 @@
 ﻿module Aornota.Gibet.DevConsole.Program
 
 open Aornota.Gibet.DevConsole.Console
+open Aornota.Gibet.DevConsole.TestRegex
 open Aornota.Gibet.DevConsole.TestUserRepoAndApi
 open Aornota.Gibet.Server.Logger
 
@@ -30,12 +31,13 @@ let private mainAsync argv = async {
         failwith "Fake error. Sad!" *)
         // #endregion
 
-        // #region testUserRepoAndApi
-        match! testUserRepoAndApi() with | Ok _ -> () | Error error -> failwith error
+        // #region testRegex
+        testRegex ()
         // #endregion
 
-        // TEMP-NMB...logger.Information("TODO-NMB...")
-
+        // #region testUserRepoAndApi
+        //match! testUserRepoAndApi () with | Ok _ -> () | Error error -> failwith error
+        // #endregion
     with | exn -> logger.Error("Unexpected error: {errorMessage}\n{stackTrace}", exn.Message, exn.StackTrace)
 
     // #region "Press any key to exit..."

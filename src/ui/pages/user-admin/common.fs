@@ -13,8 +13,8 @@ type CreateUsersModalInput =
     | ConfirmPasswordChanged of string
     | UserTypeChanged of UserType
     | CreateUser
-    | CancelCreateUsers
-type CreateUserInput =
+    | CloseCreateUsersModal
+type CreateUserApiInput =
     | CreateUserResult of Result<UserName, string>
     | CreateUserExn of exn
 
@@ -22,16 +22,16 @@ type ResetPasswordModalInput =
     | NewPasswordChanged of string
     | ConfirmPasswordChanged of string
     | ResetPassword
-    | CancelResetPassword
-type ResetPasswordInput =
+    | CloseResetPasswordModal
+type ResetPasswordApiInput =
     | ResetPasswordResult of Result<UserName, string>
     | ResetPasswordExn of exn
 
 type ChangeUserTypeModalInput =
     | NewUserTypeChanged of UserType
     | ChangeUserType
-    | CancelChangeUserType
-type ChangeUserTypeInput =
+    | CloseChangeUserTypeModal
+type ChangeUserTypeApiInput =
     | ChangeUserTypeResult of Result<UserName, string>
     | ChangeUserTypeExn of exn
 
@@ -39,13 +39,13 @@ type Input =
     | AddMessage of Message // note: handled by Program.State.transition
     | ShowCreateUsersModal
     | CreateUsersModalInput of CreateUsersModalInput
-    | CreateUserInput of CreateUserInput
+    | CreateUserApiInput of CreateUserApiInput
     | ShowResetPasswordModal of UserId * Rvn
     | ResetPasswordModalInput of ResetPasswordModalInput
-    | ResetPasswordInput of ResetPasswordInput
+    | ResetPasswordApiInput of ResetPasswordApiInput
     | ShowChangeUserTypeModal of UserId * Rvn
     | ChangeUserTypeModalInput of ChangeUserTypeModalInput
-    | ChangeUserTypeInput of ChangeUserTypeInput
+    | ChangeUserTypeApiInput of ChangeUserTypeApiInput
 
 type CreateUsersModalState = {
     UserNameKey : Guid
