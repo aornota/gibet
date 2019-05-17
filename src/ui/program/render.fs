@@ -404,12 +404,19 @@ let render state dispatch =
                 if authState.SigningOut then SigningOut authState.ConnectionState
                 else SignedIn(authState.ConnectionState, authState.AuthUser)
             PageData = pageData }
+        let hasModal =
+            match reconnecting, authState.SigningOut, authState.ChangePasswordModalState, authState.ChangeImageUrlModalState with
+            | true, _, _, _ -> true
+            | _, true, _, _ -> true
+            | _, _, Some _, _ -> true
+            | _, _, _, Some _ -> true
+            | _ -> false
         divDefault [
             yield lazyView2 renderHeader (headerData, ticks) dispatch
             yield! lazyRenderMessages theme authState.Messages ticks
             match authState.CurrentPage with
             | UnauthPage About -> yield About.Render.render theme
-            | AuthPage Chat -> yield Chat.Render.render theme authUser usersData authState.ChatState ticks (ChatInput >> AuthInput >> dispatch)
+            | AuthPage Chat -> yield Chat.Render.render theme authUser usersData hasModal authState.ChatState ticks (ChatInput >> AuthInput >> dispatch)
             | AuthPage UserAdmin ->
                 let userType = authUser.User.UserType
                 if canAdministerUsers userType then

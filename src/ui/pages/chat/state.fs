@@ -65,8 +65,17 @@ let private exists chatMessageId (chatMessages:ChatMessageData list) = chatMessa
 
 let private tryFind chatMessageId (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
     match chatMessagesData with | Received((chatMessages, _), _) -> chatMessages |> tryFindChatMessage chatMessageId | _ -> None
-// TODO-NMB: Rework for ChatMessageReceived vs. MoreChatMessagesResult...
-let private addChatMessages (chatMessages:ChatMessageData list) count chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+let private addChatMessage (chatMessageData:ChatMessageData) (count:int) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+    match chatMessagesData with
+    | Received((chatMessages, _), currentChatMessagesRvn) ->
+        match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
+        | Some error -> Error(sprintf "addChatMessage: %s" error)
+        | None ->
+            let chatMessage, _, _ = chatMessageData
+            if chatMessages |> exists chatMessage.ChatMessageId then Error(sprintf "addChatMessage: %A already exists" chatMessage.ChatMessageId)
+            else Ok(Received((chatMessageData :: chatMessages, count), chatMessagesRvn))
+    | _ -> Error "addChatMessage: not Received"
+let private addChatMessages (chatMessages:ChatMessageData list) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
     let rec add current chatMessages =
         match chatMessages with
         | data :: tail ->
@@ -75,8 +84,8 @@ let private addChatMessages (chatMessages:ChatMessageData list) count chatMessag
             else add (data :: current) tail
         | _ -> Ok current
     match chatMessagesData with
-    | Received((current, _), currentChatMessagesRvn) ->
-        match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
+    | Received((current, count), currentChatMessagesRvn) ->
+        match validateSameRvn currentChatMessagesRvn chatMessagesRvn with
         | Some error -> Error(sprintf "addChatMessages: %s" error)
         | None ->
             match add current chatMessages with
@@ -111,11 +120,12 @@ let private handleRemoteChatInput remoteChatInput (pageState, readyState) = // T
     match remoteChatInput with
     | ChatMessageReceived(chatMessage, ordinal, sinceSent, count, chatMessagesRvn) ->
         let chatMessageData = chatMessageData chatMessage sinceSent (MessageReceived ordinal)
-        match readyState.ChatMessagesData |> addChatMessages [ chatMessageData ] count chatMessagesRvn with
+        match readyState.ChatMessagesData |> addChatMessage chatMessageData count chatMessagesRvn with
         | Ok chatMessagesData ->
             let readyState = { readyState with ChatMessagesData = chatMessagesData }
             // TODO-NMB: Update unseen counts and page title if (not IsCurrentPage || ACTIVITY)?...
-            Ready(pageState, readyState), ifDebug (sprintf "%A received (%i available) -> ChatMessageData now %A" chatMessage.ChatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
+            let toastCmd = ifDebug (sprintf "%A received (%i available) -> ChatMessageData now %A" chatMessage.ChatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
+            Ready(pageState, readyState), toastCmd
         | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
     | ChatMessagesExpired(chatMessageIds, count, chatMessagesRvn) ->
         match readyState.ChatMessagesData |> expire chatMessageIds count chatMessagesRvn with
@@ -166,17 +176,19 @@ let private handleGetChatMessagesApiInput getChatMessagesApiInput (pageState, re
         | GetChatMessagesExn exn -> Ready(pageState, readyState), GetChatMessagesApiInput(GetChatMessagesResult(Error exn.Message)) |> Cmd.ofMsg
     | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when ChatMessagesData is not Pending (%A)" getChatMessagesApiInput readyState)
 
-let private handleMoreChatMessagesApiInput moreChatMessagesApiInput (pageState, readyState) =
+let private handleMoreChatMessagesApiInput moreChatMessagesApiInput (pageState, readyState) = // TODO-NMB: See inside...
     match readyState.MoreChatMessagesApiStatus with
     | Some ApiPending ->
         match moreChatMessagesApiInput with
         | MoreChatMessagesResult(Ok(chatMessages, chatMessagesRvn)) ->
-            // TODO-NMB: Needs to be handled differently (cf. ChatMessageReceived) - plus (maybe) update unseen counts and page title if (not IsCurrentPage || ACTIVITY)?...
-            (* let count = 0 // TEMP-NMB...
             let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
-            let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessages.Length chatMessagesRvn |> infoToastCmd) Cmd.none
-            Ready(pageState, { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }), toastCmd *)
-            Ready(pageState, readyState), Cmd.none
+            match readyState.ChatMessagesData |> addChatMessages chatMessages chatMessagesRvn with
+            | Ok chatMessagesData ->
+                let readyState = { readyState with ChatMessagesData = chatMessagesData }
+                // TODO-NMB: *Maybe* update unseen counts and page title if (not IsCurrentPage || ACTIVITY) - but maybe not?...
+                let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessages.Length chatMessagesRvn |> infoToastCmd) Cmd.none
+                Ready(pageState, readyState), toastCmd
+            | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
         | MoreChatMessagesResult(Error error) ->
             let cmd = ifDebug (sprintf "MoreChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
             Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some(ApiFailed error) }), cmd
@@ -215,7 +227,7 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
     | NewChatMessageChanged newChatMessage, Ready(pageState, readyState) ->
         match readyState.SendChatMessageApiStatus with
         | Some ApiPending -> Ready(pageState, readyState), shouldNeverHappenCmd "Unexpected NewChatMessageChanged when SendChatMessageApiStatus is Pending"
-        | _ -> Ready(pageState, { readyState with NewChatMessage = newChatMessage }), Cmd.none
+        | _ -> Ready(pageState, { readyState with NewChatMessage = newChatMessage ; NewChatMessageChanged = true }), Cmd.none
     | SendChatMessage, Ready(pageState, readyState) -> // TODO-NMB: See inside...
         match readyState.SendChatMessageApiStatus with
         | Some ApiPending -> Ready(pageState, readyState), shouldNeverHappenCmd "Unexpected SendChatMessage when SendChatMessageApiStatus is Pending"

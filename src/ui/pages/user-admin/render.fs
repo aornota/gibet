@@ -235,7 +235,7 @@ let private renderUsers (theme, authUser, users:UserData list, _:int<tick>) disp
             tbody [ yield! userRows ] ]
     else renderWarningMessage theme "There are no users!"
 
-let private createUsers theme authUser dispatch =
+let private createUsers authUser dispatch =
     if canAdministerUsers authUser.User.UserType then Some(paraSmaller [ linkInternal (fun _ -> dispatch ShowCreateUsersModal) [ str "Add user/s" ] ])
     else None // should never happen
 
@@ -256,7 +256,7 @@ let render theme authUser usersData state ticks dispatch =
             match usersData with
             | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
             | Received(users, _) ->
-                yield ofOption (createUsers theme authUser dispatch)
+                yield ofOption (createUsers authUser dispatch)
                 yield lazyView2 renderUsers (theme, authUser, users, ticks) dispatch
             | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "Users RemoteData Failed -> %s" error) UNEXPECTED_ERROR)
             yield divVerticalSpace 5 ] ] ]

@@ -163,6 +163,25 @@ let tagT theme size colour rounded onDismiss children =
         match onDismiss with | Some onDismiss -> yield delete onDismiss | None -> () ]
 let tagTSmall theme colour children = tagT theme None colour false None children
 
+let textAreaT theme (key:Guid) text status extraInfo autoFocus disabled (onChange:string -> unit) =
+    let colour, help =
+        match status with
+        | Some(colour, _, help) -> Some colour, Some help
+        | None -> None, None
+    Control.div [] [
+        yield Textarea.textarea [
+            match colour with | Some colour -> yield Textarea.Color(colour |> transformColour theme) | None -> ()
+            yield Textarea.CustomClass(themeClass theme)
+            yield Textarea.Size IsSmall
+            yield Textarea.DefaultValue text
+            yield Textarea.Props [
+                Key(key.ToString ())
+                Disabled disabled
+                AutoFocus autoFocus
+                OnChange(fun ev -> !!ev.target?value |> onChange) ] ] []
+        yield RctH.ofOption help
+        yield RctH.ofOption extraInfo ]
+
 let textT theme (key:Guid) text status password iconLeft autoFocus disabled (onChange:string -> unit) onEnter =
     let colour, iconRight, help =
         match status with
