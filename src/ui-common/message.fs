@@ -44,7 +44,7 @@ let private render theme source dispatch message =
     [
         divVerticalSpace 10
         notificationT theme colour onDismiss [
-            level true [
+            level false [
                 levelLeft [ levelItem [ contentTLeftSmallest theme (Some textColour) [ strong sourceAndType ] ] ]
                 RctH.ofOption timestamp ]
             contentTLeftSmallest theme (Some textColour) [ str message.Text ] ]

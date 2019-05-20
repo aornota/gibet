@@ -25,8 +25,7 @@ let [<Literal>] private KEY__CHAT_LATEST_TIMESTAMP_SEEN = "gibet-ui-chat-latest-
 
 let [<Literal>] private QUERY_BATCH_SIZE = 10
 
-// TODO-NMB: Test query batch size (and None)...
-let private queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
+let queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
 
 let private addMessageCmd messageType text = addMessageCmd messageType text (AddMessage >> Cmd.ofMsg)
 let private addDebugErrorCmd error = addDebugErrorCmd error (AddMessage >> Cmd.ofMsg)
@@ -44,8 +43,11 @@ let private writeLastTimestampSeenCmd latestTimestampSeen =
     Cmd.OfAsync.either writeLastTimestampSeen latestTimestampSeen WriteLastTimestampSeenOk WriteLastTimestampSeenExn |> Cmd.map LastTimestampSeenInput
 
 let private readyState latestTimestampSeen connectionId authUser =
-    let getChatMessagesCmd =
-        Cmd.OfAsync.either chatApi.getChatMessages (connectionId, authUser.Jwt, queryBatchSize) GetChatMessagesResult GetChatMessagesExn |> Cmd.map GetChatMessagesApiInput
+    let getChatMessagesCmd, chatMessagesData =
+        if canGetChatMessages authUser.User.UserType then
+            let cmd = Cmd.OfAsync.either chatApi.getChatMessages (connectionId, authUser.Jwt, queryBatchSize) GetChatMessagesResult GetChatMessagesExn |> Cmd.map GetChatMessagesApiInput
+            cmd, Pending
+        else Cmd.none, Failed NOT_ALLOWED
     let state = {
         LatestTimestampSeen = latestTimestampSeen
         UnseenCount = 0
@@ -56,7 +58,7 @@ let private readyState latestTimestampSeen connectionId authUser =
         NewChatMessageChanged = false
         SendChatMessageApiStatus = None
         MoreChatMessagesApiStatus = None
-        ChatMessagesData = Pending }
+        ChatMessagesData = chatMessagesData }
     state, getChatMessagesCmd
 
 let private chatMessageData chatMessage sinceSent status : ChatMessageData = chatMessage, DateTimeOffset.UtcNow.AddSeconds(float -sinceSent), status
@@ -64,7 +66,9 @@ let private chatMessageData chatMessage sinceSent status : ChatMessageData = cha
 let private exists chatMessageId (chatMessages:ChatMessageData list) = chatMessages |> List.exists (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)
 
 let private tryFind chatMessageId (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
-    match chatMessagesData with | Received((chatMessages, _), _) -> chatMessages |> tryFindChatMessage chatMessageId | _ -> None
+    match chatMessagesData with
+    | Received((chatMessages, _), _) -> chatMessages |> List.tryFind (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)
+    | _ -> None
 let private addChatMessage (chatMessageData:ChatMessageData) (count:int) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
@@ -168,9 +172,9 @@ let private handleGetChatMessagesApiInput getChatMessagesApiInput (pageState, re
     | Pending ->
         match getChatMessagesApiInput with
         | GetChatMessagesResult(Ok(chatMessages, count, chatMessagesRvn)) ->
-            let chatMessageDatas = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
-            let toastCmd = ifDebug (sprintf "Got %i chat message/s (%i available) -> ChatMessagesData %A" chatMessageDatas.Length count chatMessagesRvn |> infoToastCmd) Cmd.none
-            Ready(pageState, { readyState with ChatMessagesData = Received((chatMessageDatas, count), chatMessagesRvn) }), toastCmd
+            let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
+            let toastCmd = ifDebug (sprintf "Got %i chat message/s (%i available) -> ChatMessagesData %A" chatMessages.Length count chatMessagesRvn |> infoToastCmd) Cmd.none
+            Ready(pageState, { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }), toastCmd
         | GetChatMessagesResult(Error error) ->
             Ready(pageState, { readyState with ChatMessagesData = Failed error }), ifDebug (sprintf "GetChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
         | GetChatMessagesExn exn -> Ready(pageState, readyState), GetChatMessagesApiInput(GetChatMessagesResult(Error exn.Message)) |> Cmd.ofMsg
@@ -184,7 +188,7 @@ let private handleMoreChatMessagesApiInput moreChatMessagesApiInput (pageState, 
             let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
             match readyState.ChatMessagesData |> addChatMessages chatMessages chatMessagesRvn with
             | Ok chatMessagesData ->
-                let readyState = { readyState with ChatMessagesData = chatMessagesData }
+                let readyState = { readyState with MoreChatMessagesApiStatus = None ; ChatMessagesData = chatMessagesData }
                 // TODO-NMB: *Maybe* update unseen counts and page title if (not IsCurrentPage || ACTIVITY) - but maybe not?...
                 let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessages.Length chatMessagesRvn |> infoToastCmd) Cmd.none
                 Ready(pageState, readyState), toastCmd
@@ -250,7 +254,7 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
         | _ ->
             let cmd =
                 Cmd.OfAsync.either chatApi.moreChatMessages (authUser.Jwt, belowOrdinal, queryBatchSize) MoreChatMessagesResult MoreChatMessagesExn |> Cmd.map MoreChatMessagesApiInput
-            Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some ApiPending }), Cmd.none
+            Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some ApiPending }), cmd
     | GetChatMessagesApiInput getChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleGetChatMessagesApiInput getChatMessagesApiInput
     | MoreChatMessagesApiInput moreChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleMoreChatMessagesApiInput moreChatMessagesApiInput
     | SendChatMessageApiInput sendChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleSendChatMessageApiInput sendChatMessageApiInput

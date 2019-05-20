@@ -192,7 +192,11 @@ let private authState messages appState connectionState lastPage authUser staySi
         | AuthPage UserAdmin -> UserAdmin.Render.PAGE_TITLE
     setTitle pageTitle
     Bridge.Send RemoteServerInput.Activity
-    let getUsersCmd = Cmd.OfAsync.either userApi.getUsers (connectionState.ConnectionId, authUser.Jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersApiInput >> AuthInput)
+    let getUsersCmd, usersData =
+        if canGetUsers authUser.User.UserType then
+            let cmd = Cmd.OfAsync.either userApi.getUsers (connectionState.ConnectionId, authUser.Jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersApiInput >> AuthInput)
+            cmd, Pending
+        else Cmd.none, Failed NOT_ALLOWED
     let cmds = Cmd.batch [
         getUsersCmd
         chatCmd |> Cmd.map (ChatInput >> AuthInput)
@@ -210,7 +214,7 @@ let private authState messages appState connectionState lastPage authUser staySi
         ChangePasswordModalState = changePasswordModalState
         ChangeImageUrlModalState = None
         SigningOut = false
-        UsersData = Pending }
+        UsersData = usersData }
     authState, cmds
 
 let private addToMessages message state =
@@ -291,7 +295,7 @@ let private updateSignedIn userId signedIn (usersData:RemoteData<UserData list, 
                     else user, otherSignedIn, lastActivity)
             Ok(Received(users, rvn))
         else Error(sprintf "updateSignedIn: %A not found" userId)
-    | _ -> Error "updateSignIn: not Received"
+    | _ -> Error "updateSignedIn: not Received"
 
 let private handleOnTick appState state : State * Cmd<Input> = // note: will only be used when TICK is defined (see webpack.config.js)
     match appState with

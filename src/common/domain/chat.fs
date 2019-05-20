@@ -1,6 +1,7 @@
 module Aornota.Gibet.Common.Domain.Chat
 
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Markdown
 open Aornota.Gibet.Common.UnitsOfMeasure
 
@@ -14,7 +15,9 @@ type ChatMessage = {
     Payload : Markdown
     TaggedUsers : UserId list }
 
-let [<Literal>] CHAT_MESSAGE_LIFETIME = 0.083<hour> // TODO-NMB: Change to, e.g., 24.<hour>...
+let [<Literal>] private CHAT_MESSAGE_LIFETIME = 24.<hour>
+
+let chatMessageLifetime = ifDebug 0.1<hour> CHAT_MESSAGE_LIFETIME
 
 let validateChatMessage (Markdown payload) =
     if String.IsNullOrWhiteSpace payload then Some "Chat message must not be blank"

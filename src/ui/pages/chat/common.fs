@@ -66,6 +66,3 @@ type ReadyState = {
 type State =
     | ReadingLastTimestampSeen of PageState
     | Ready of PageState * ReadyState
-
-// TODO-NMB: Should this be here?...
-let tryFindChatMessage chatMessageId (chatMessages:ChatMessageData list) = chatMessages |> List.tryFind (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)

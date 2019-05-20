@@ -56,8 +56,8 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop(chatMessageDict:ChatMessageDict, lastOrdinal, agentRvn) = async {
             let! input = inbox.Receive ()
-            (* TEMP-NMB... *)
-            do! ifDebugSleepAsync 250 1000
+            (* TEMP-NMB...
+            do! ifDebugSleepAsync 250 1000 *)
             match input with
             | GetChatMessages(connectionId, jwt, batchSize, reply) ->
                 let result = result {
@@ -116,7 +116,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                 let expired =
                     chatMessageDict.Values
                     |> List.ofSeq
-                    |> List.filter (fun (_, _, timestamp) -> (DateTimeOffset.UtcNow - timestamp).TotalHours * 1.<hour> > CHAT_MESSAGE_LIFETIME)
+                    |> List.filter (fun (_, _, timestamp) -> (DateTimeOffset.UtcNow - timestamp).TotalHours * 1.<hour> > chatMessageLifetime)
                     |> List.map (fun (chatMessage, _, _) -> chatMessage.ChatMessageId)
                 expired |> List.iter (chatMessageDict.Remove >> ignore)
                 let agentRvn = if expired.Length > 0 then incrementRvn agentRvn else agentRvn

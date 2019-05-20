@@ -166,7 +166,7 @@ let tagTSmall theme colour children = tagT theme None colour false None children
 let textAreaT theme (key:Guid) text status extraInfo autoFocus disabled (onChange:string -> unit) =
     let colour, help =
         match status with
-        | Some(colour, _, help) -> Some colour, Some help
+        | Some(colour, help) -> Some colour, Some help
         | None -> None, None
     Control.div [] [
         yield Textarea.textarea [

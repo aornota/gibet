@@ -21,11 +21,13 @@ type private TokenExpiry = {
 
 let [<Literal>] private EXPIRED_CREDENTIALS = "Your cached credentials have expired"
 
-let [<Literal>] private TOKEN_LIFETIME = 24.<hour>
+let [<Literal>] private TOKEN_LIFETIME = 168.<hour>
 
 let [<Literal>] private JWT_KEY_FILE = "./secret/jwt.key"
 let [<Literal>] private JWE_ALGORITHM = JweAlgorithm.A256KW
 let [<Literal>] private JWE_ENCRYPTION = JweEncryption.A256CBC_HS512
+
+let private tokenLifetime = ifDebug (Some 24.<hour>) (Some TOKEN_LIFETIME)
 
 let private jwtKey =
     let file = FileInfo(JWT_KEY_FILE)
@@ -41,7 +43,7 @@ let private decode (Jwt jwt) = Json(JWT.Decode(jwt, jwtKey, JWE_ALGORITHM, JWE_E
 
 let private expiry = {
     InvalidBefore = None // note: can use Some DateTimeOffset.UtcNow to invalidate all existing tokens whenever server is restarted (though can also do this by deleting JWT_KEY_FILE and restarting server)
-    ExpiresAfter = Some TOKEN_LIFETIME }
+    ExpiresAfter = tokenLifetime }
 
 let private checkExpiry (tokenCreated:DateTimeOffset) =
     match expiry.InvalidBefore, expiry.ExpiresAfter with
