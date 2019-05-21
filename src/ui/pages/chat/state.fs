@@ -135,7 +135,8 @@ let private unseenCounts authUser latestChatSeen (key:Guid) (chatMessages:ChatMe
                 match latestChatSeen with
                 | Some(currentKey, _) when currentKey <> key -> true
                 | Some(_, Some highestOrdinal) when ordinal > highestOrdinal -> true
-                | _ -> false
+                | Some _ -> false
+                | None -> true
             | MessageExpired -> false)
     let unseenTagged = unseen |> List.filter (fun (chatMessage, _, _) -> chatMessage.TaggedUsers |> List.contains authUser.User.UserId)
     unseen.Length, unseenTagged.Length
