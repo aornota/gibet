@@ -119,7 +119,7 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
             | false -> None
         |  _ -> None
     let toggleThemeInteraction = Clickable(fun _ -> dispatch ToggleTheme)
-    let toggleThemeTooltip = tooltip (if burgerIsActive then TooltipRight else TooltipLeft) IsPrimary (sprintf "Switch to %s theme" (match theme with | Light -> "dark" | Dark -> "light"))
+    let toggleThemeTooltip = tooltip (if burgerIsActive then TooltipRight else TooltipLeft) IsInfo (sprintf "Switch to %s theme" (match theme with | Light -> "dark" | Dark -> "light"))
     navbarT theme IsLight [
         navbarBrand [
             yield navbarItem [ image "gibet-24x24.png" Image.Is24x24 ]

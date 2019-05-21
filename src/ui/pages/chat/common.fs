@@ -90,4 +90,4 @@ let processTags (Markdown payload) (users:UserData list) =
         | [ (user, _, _) ] -> payload.Replace(replace, sprintf "**%s**" userName), user.UserId :: taggedUsers
         | _ :: _ | [] -> payload.Replace(replace, sprintf "_%s_" replace), taggedUsers
     let payload, taggedUsers = tags |> List.fold replacer (payload, [])
-    Markdown payload, taggedUsers
+    Markdown payload, taggedUsers |> List.rev

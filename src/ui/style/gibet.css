@@ -21,11 +21,24 @@ body.light { background-color: var(--white) }
 body.dark { background-color: var(--black) }
 /* #endregion */
 
+/* #region hr */
+hr { margin-top: 0.75rem ; margin-bottom: 0.75rem }
+hr.light { background-color: var(--light) }
+hr.dark { background-color: var(--dark) }
+/* #endregion */
+
 /* #region currentColor overrides (for strong &c.) */
 strong { color: currentColor }
 .content table thead th { color: currentColor }
 .label { color: currentColor }
 .select select { color: currentColor }
+/* #endregion */
+
+/* #region background colour overrides for Bulma */
+.footer.light, .input.light, .modal-card-body.light, .table.light, .textarea.light { background-color: var(--white) }
+.footer.dark, .input.dark, .modal-card-body.dark, .table.dark, .textarea.dark { background-color: var(--black) }
+.select.light select { background-color: var(--white) }
+.select.dark select { background-color: var(--black) }
 /* #endregion */
 
 /* #region .light | .light-alternative */
@@ -46,23 +59,15 @@ strong { color: currentColor }
 .dark-alternative { color: var(--white) ; background-color: var(--dark) }
 /* #endregion */
 
-/* #region hr */
-hr { margin-top: 0.75rem ; margin-bottom: 0.75rem }
-hr.light { background-color: var(--light) }
-hr.dark { background-color: var(--dark) }
+/* #region .content */
+.content figure { display: inline-flex ; margin-left: 0rem ; margin-bottom: 0rem; margin-right: 0.5rem ; vertical-align: middle }
+.content figure:not(:last-child) { margin-bottom: 0rem }
+.content table td { vertical-align: middle }
 /* #endregion */
 
 /* #region .control .icon colours */
-.light .control.has-icons-left .icon, .light control.has-icons-right .icon { color: var(--lighter) }
-.dark .control.has-icons-left .icon, .dark control.has-icons-right .icon { color: var(--darker) }
-/* #endregion */
-
-/* #region overrides for Bulma colours (*&c.) */
-.content table td { vertical-align: middle }
-.footer.light, .input.light, .modal-card-body.light, .table.light, .textarea.light { background-color: var(--white) }
-.footer.dark, .input.dark, .modal-card-body.dark, .table.dark, .textarea.dark { background-color: var(--black) }
-.select.light select { background-color: var(--white) }
-.select.dark select { background-color: var(--black) }
+.light .control.has-icons-left .icon, .light .control.has-icons-right .icon { color: var(--lighter) }
+.dark .control.has-icons-left .icon, .dark .control.has-icons-right .icon { color: var(--darker) }
 /* #endregion */
 
 /* #region .footer */

@@ -19,6 +19,7 @@ open Aornota.Gibet.Ui.Shared
 open Aornota.Gibet.Ui.User.Shared
 
 open System
+open System.Text
 
 open Fable.React.Helpers
 
@@ -41,7 +42,12 @@ let private renderMarkdownSyntaxModal (theme, users) dispatch =
         markdownContentTLeft theme processed ]
     cardModalT theme (Some(title, onDismiss)) body
 
-let private renderNewChatMessage (theme, users, readyState, hasModal) dispatch =
+let private userTagOrDefault theme authUser (userId, UserName userName) (users:UserData list) =
+    match users |> tryFindUser userId with
+    | Some(user, signedIn, lastActivity) -> tagTUserSmall theme authUser.User.UserId (user, signedIn, lastActivity)
+    | None -> strong userName
+
+let private renderNewChatMessage (theme, authUser, users, readyState, hasModal) dispatch =
     let newChatMessage = readyState.NewChatMessage
     let sendingChatMessage, sendChatMessageInteraction, newChatMessageStatus =
         match readyState.SendChatMessageApiStatus with
@@ -71,7 +77,30 @@ let private renderNewChatMessage (theme, users, readyState, hasModal) dispatch =
             str " you can also use " ; strong "@" ; strongEm "username" ; str " to tag users"
             str " (or " ; strong "@{" ; strongEm "username" ; strong "}" ; str " if " ; em "username" ; str " contains spaces)."
             str " A preview of your message will appear below." ])
-    let Markdown newChatMessage, _ = users |> processTags (Markdown newChatMessage)
+    let Markdown newChatMessage, taggedUsers = users |> processTags (Markdown newChatMessage)
+    let userImage = match authUser.User.ImageUrl with | Some(ImageUrl imageUrl) -> Some(image imageUrl Image.Is48x48) | None -> None
+    let userTag = users |> userTagOrDefault theme authUser (authUser.User.UserId, authUser.User.UserName)
+    let tagged =
+        match taggedUsers |> List.choose (fun userId -> users |> tryFindUser userId) with
+        | [ (user, _, _) ] ->
+            let (UserName userName) = user.UserName
+            let taggedTooltip = tooltip TooltipRight IsInfo (sprintf "%s will be tagged in this chat message" userName)
+            Some(iconTTooltipSmall theme ICON__INFO taggedTooltip)
+        | h :: t ->
+            let taggedUsers = h :: t
+            let count = taggedUsers.Length
+            let folder (builder:StringBuilder, i) (user, _, _) =
+                let (UserName userName) = user.UserName
+                let builder =
+                    if i = 1 then builder.Append(userName)
+                    else if i = count && count = 2 then builder.Append(sprintf " and %s" userName)
+                    else if i = count then builder.Append(sprintf ", and %s" userName)
+                    else builder.Append(sprintf ", %s" userName)
+                builder, i + 1
+            let builder, _ = taggedUsers |> List.fold folder (StringBuilder(), 1)
+            let taggedTooltip = tooltip TooltipRight IsInfo (sprintf "%s will be tagged in this chat message" (builder.ToString()))
+            Some(iconTTooltipSmall theme ICON__INFO taggedTooltip)
+        | _ -> None
     divDefault [
         match readyState.SendChatMessageApiStatus with
         | Some(ApiFailed error) ->
@@ -83,10 +112,13 @@ let private renderNewChatMessage (theme, users, readyState, hasModal) dispatch =
         yield fieldDefault [
             textAreaT theme readyState.NewChatMessageKey newChatMessage newChatMessageStatus extraInfo (not hasModal) sendingChatMessage (NewChatMessageChanged >> dispatch) ]
         if not (String.IsNullOrWhiteSpace newChatMessage) then
-            yield! [ notificationT theme IsLink None [ markdownNotificationContentTLeft theme (Markdown newChatMessage) ] ; br ]
+            yield notificationT theme IsBlack None [
+                level false [ levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ] ]
+                markdownNotificationContentTLeft theme (Markdown newChatMessage) ]
+            yield br
         yield fieldGroupedRight [ buttonTSmall theme IsLink sendChatMessageInteraction [ str "Send chat message" ] ] ]
 
-let private renderUserTags (theme, authUser, users, _:int<tick>) =
+let private renderUserTags (theme, authUser, users:UserData list, _:int<tick>) =
     let userTags =
         users
         |> List.filter (fun (user, _, _) -> user.UserType <> PersonaNonGrata)
@@ -100,27 +132,18 @@ let private renderChatMessages (theme, authUser, users, chatMessages, _:int<tick
     // #region renderChatMessage
     let renderChatMessage (chatMessage, timestamp:DateTimeOffset, status) =
         let authUserId = authUser.User.UserId
-        let userId, UserName userName = chatMessage.Sender
+        let userId, userName = chatMessage.Sender
+        let userImage =
+            match users |> tryFindUser userId with
+            | Some(user, _, _) -> match user.ImageUrl with | Some(ImageUrl imageUrl) -> Some(image imageUrl Image.Is48x48) | None -> None
+            | None -> None
+        let userTag = users |> userTagOrDefault theme authUser (userId, userName)
         let tagged =
-            if userId <> authUserId && chatMessage.TaggedUsers |> List.contains authUserId then
+            if chatMessage.TaggedUsers |> List.contains authUserId then
                 let taggedTooltip = tooltip TooltipRight IsInfo "You have been tagged in this chat message"
                 Some(iconTTooltipSmall theme ICON__INFO taggedTooltip)
             else None
-        let expired, colour, textColour =
-            match status with
-            | MessageReceived _ ->
-                let colour, textColour =
-                    match users |> tryFindUser userId with
-                    | Some(user, signedIn, lastActivity) ->
-                        match user, signedIn, lastActivity, authUserId with
-                        | Self -> IsLink, IsBlack
-                        | RecentlyActive -> IsSuccess, IsBlack
-                        | SignedIn -> IsPrimary, IsBlack
-                        | NotSignedIn -> IsDark, IsWhite
-                        | PersonaNonGrata -> IsLight, IsBlack
-                    | None -> IsDanger, IsBlack // should never happen
-                false, colour, textColour
-            | MessageExpired -> true, IsLight, IsBlack
+        let expired, colour, textColour = match status with | MessageReceived _ -> false, IsLight, IsBlack | MessageExpired -> true, IsDark, IsWhite
         let onDismiss = if expired then Some(fun _ -> dispatch (RemoveChatMessage chatMessage.ChatMessageId)) else None
         let timestamp =
             if expired then "expired"
@@ -133,7 +156,7 @@ let private renderChatMessages (theme, authUser, users, chatMessages, _:int<tick
         [
             notificationT theme colour onDismiss [ contentTCentredSmallest theme (Some textColour) [
                 level false [
-                    levelLeft [ levelItem [ contentLeftSmallest [ strong userName ; str " says" ; ofOption tagged ] ] ]
+                    levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ]
                     levelRight [ levelItem [ contentRightSmallest [ str timestamp ] ] ] ]
                 markdownNotificationContentTLeft theme chatMessage.Payload ] ]
             divVerticalSpace 10
@@ -215,7 +238,7 @@ let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
                 | ReadingLatestChatSeen _ -> yield contentTCentred theme None (Some IsLink) [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
                 | Ready(_, readyState) ->
                     if canSendChatMessage authUser.User.UserType then
-                        yield lazyView2 renderNewChatMessage (theme, users, readyState, hasModal) dispatch
+                        yield lazyView2 renderNewChatMessage (theme, authUser, users, readyState, hasModal) dispatch
                         yield hrT theme false
                     yield lazyView renderUserTags (theme, authUser, users, ticks)
                     match readyState.ChatMessagesData with

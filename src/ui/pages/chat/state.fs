@@ -126,22 +126,18 @@ let private remove chatMessageId (chatMessagesData:RemoteData<ChatMessageData li
         Ok(Received((chatMessages, count), chatMessagesRvn))
     | _ -> Error "removeChatMessage: not Received"
 
-let private unseenCounts authUser excludeSelf latestChatSeen (key:Guid) (chatMessages:ChatMessageData list) =
-    let authUserId = authUser.User.UserId
+let private unseenCounts authUser latestChatSeen (key:Guid) (chatMessages:ChatMessageData list) =
     let unseen =
         chatMessages
-        |> List.filter (fun (chatMessage, _, status) ->
-            let (userId, _) = chatMessage.Sender
-            if excludeSelf && userId = authUserId then false
-            else
-                match status with
-                | MessageReceived ordinal ->
-                    match latestChatSeen with
-                    | Some(currentKey, _) when currentKey <> key -> true
-                    | Some(_, Some highestOrdinal) when ordinal > highestOrdinal -> true
-                    | _ -> false
-                | MessageExpired -> false)
-    let unseenTagged = unseen |> List.filter (fun (chatMessage, _, _) -> chatMessage.TaggedUsers |> List.contains authUserId)
+        |> List.filter (fun (_, _, status) ->
+            match status with
+            | MessageReceived ordinal ->
+                match latestChatSeen with
+                | Some(currentKey, _) when currentKey <> key -> true
+                | Some(_, Some highestOrdinal) when ordinal > highestOrdinal -> true
+                | _ -> false
+            | MessageExpired -> false)
+    let unseenTagged = unseen |> List.filter (fun (chatMessage, _, _) -> chatMessage.TaggedUsers |> List.contains authUser.User.UserId)
     unseen.Length, unseenTagged.Length
 
 let private updateCounts isCurrentPage unseen unseenTagged readyState =
@@ -156,11 +152,9 @@ let private updateCounts isCurrentPage unseen unseenTagged readyState =
 let private updateLatestChatSeen isCurrentPage (key:Guid) (chatMessages:ChatMessageData list) readyState =
     if isCurrentPage then
         let latestChatSeen =
-            if chatMessages.Length > 0 then
-                let highestOrdinal =
-                    chatMessages
-                    |> List.choose (fun (_, _, status) -> match status with | MessageReceived ordinal -> Some ordinal | MessageExpired -> None)
-                    |> List.max
+            let nonExpired = chatMessages |> List.choose (fun (_, _, status) -> match status with | MessageReceived ordinal -> Some ordinal | MessageExpired -> None)
+            if nonExpired.Length > 0 then
+                let highestOrdinal = nonExpired |> List.max
                 Some(key, Some highestOrdinal)
             else Some(key, None)
         let currentLatestChatSeen = readyState.LatestChatSeen
@@ -179,7 +173,7 @@ let private handleRemoteChatInput authUser remoteChatInput (pageState, readyStat
         let chatMessageData = chatMessageData chatMessage 0.<second> (MessageReceived ordinal)
         match readyState.ChatMessagesData |> addChatMessage chatMessageData count chatMessagesRvn with
         | Ok chatMessagesData ->
-            let unseen, unseenTagged = [ chatMessageData ] |> unseenCounts authUser true readyState.LatestChatSeen key
+            let unseen, unseenTagged = [ chatMessageData ] |> unseenCounts authUser readyState.LatestChatSeen key
             let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
             let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key [ chatMessageData ]
             let toastCmd = ifDebug (sprintf "%A received (%i available) -> ChatMessageData now %A" chatMessage.ChatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
@@ -233,7 +227,7 @@ let private handleGetChatMessagesApiInput authUser getChatMessagesApiInput (page
         match getChatMessagesApiInput with
         | GetChatMessagesResult(Ok(chatMessages, count, key, chatMessagesRvn)) ->
             let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
-            let unseen, unseenTagged = chatMessages |> unseenCounts authUser false readyState.LatestChatSeen key
+            let unseen, unseenTagged = chatMessages |> unseenCounts authUser readyState.LatestChatSeen key
             let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
             let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key chatMessages
             let toastCmd = ifDebug (sprintf "Got %i chat message/s (%i available) -> ChatMessagesData %A" chatMessages.Length count chatMessagesRvn |> infoToastCmd) Cmd.none
@@ -253,7 +247,7 @@ let private handleMoreChatMessagesApiInput authUser moreChatMessagesApiInput (pa
             match readyState.ChatMessagesData |> addChatMessages chatMessages chatMessagesRvn with
             | Ok chatMessagesData ->
                 // Note: Updating unseen counts (&c.) should be superfluous.
-                let unseen, unseenTagged = chatMessages |> unseenCounts authUser false readyState.LatestChatSeen key
+                let unseen, unseenTagged = chatMessages |> unseenCounts authUser readyState.LatestChatSeen key
                 let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
                 let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key chatMessages
                 let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessages.Length chatMessagesRvn |> infoToastCmd) Cmd.none
