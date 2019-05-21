@@ -7,6 +7,7 @@ open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
 open Aornota.Gibet.Common.Markdown
 open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Toast
@@ -21,35 +22,40 @@ open Elmish
 
 open Thoth.Json
 
-let [<Literal>] private KEY__CHAT_LATEST_TIMESTAMP_SEEN = "gibet-ui-chat-latest-timestamp-seen"
+let [<Literal>] private KEY__LATEST_CHAT_SEEN = "gibet-ui-latest-chat-seen"
 
-let [<Literal>] private QUERY_BATCH_SIZE = 10
-
-let queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
+// #region hasActivity
+let private hasActivity =
+#if ACTIVITY
+    true
+#else
+    false
+#endif
+// #endregion
 
 let private addMessageCmd messageType text = addMessageCmd messageType text (AddMessage >> Cmd.ofMsg)
 let private addDebugErrorCmd error = addDebugErrorCmd error (AddMessage >> Cmd.ofMsg)
 let private shouldNeverHappenCmd error = shouldNeverHappenCmd error (AddMessage >> Cmd.ofMsg)
 
-let private readLastTimestampSeenCmd =
-    let readLastTimestampSeen () = async {
+let private readLatestChatSeenCmd =
+    let readLatestChatSeen () = async {
         (* TEMP-NMB...
         do! ifDebugSleepAsync 250 1000 *)
-        return readJson(Key KEY__CHAT_LATEST_TIMESTAMP_SEEN) |> Option.map (fun (Json json) -> Decode.Auto.fromString<DateTimeOffset> json) }
-    Cmd.OfAsync.either readLastTimestampSeen () ReadLastTimestampSeenResult ReadLastTimestampSeenExn |> Cmd.map LastTimestampSeenInput
-let private writeLastTimestampSeenCmd latestTimestampSeen =
-    let writeLastTimestampSeen latestTimestampSeen = async {
-        writeJson (Key KEY__CHAT_LATEST_TIMESTAMP_SEEN) (Json(Encode.Auto.toString<DateTimeOffset>(SPACE_COUNT, latestTimestampSeen))) }
-    Cmd.OfAsync.either writeLastTimestampSeen latestTimestampSeen WriteLastTimestampSeenOk WriteLastTimestampSeenExn |> Cmd.map LastTimestampSeenInput
+        return readJson(Key KEY__LATEST_CHAT_SEEN) |> Option.map (fun (Json json) -> Decode.Auto.fromString<Guid * int option> json) }
+    Cmd.OfAsync.either readLatestChatSeen () ReadLatestChatSeenResult ReadLatestChatSeenExn |> Cmd.map LatestChatSeenInput
+let private writeLatestChatSeenCmd latestChatSeen =
+    let writeLatestChatSeen latestChatSeen = async {
+        writeJson (Key KEY__LATEST_CHAT_SEEN) (Json(Encode.Auto.toString<Guid * int option>(SPACE_COUNT, latestChatSeen))) }
+    Cmd.OfAsync.either writeLatestChatSeen latestChatSeen WriteLatestChatSeenOk WriteLatestChatSeenExn |> Cmd.map LatestChatSeenInput
 
-let private readyState latestTimestampSeen connectionId authUser =
+let private readyState latestChatSeen connectionId authUser =
     let getChatMessagesCmd, chatMessagesData =
         if canGetChatMessages authUser.User.UserType then
             let cmd = Cmd.OfAsync.either chatApi.getChatMessages (connectionId, authUser.Jwt, queryBatchSize) GetChatMessagesResult GetChatMessagesExn |> Cmd.map GetChatMessagesApiInput
             cmd, Pending
         else Cmd.none, Failed NOT_ALLOWED
     let state = {
-        LatestTimestampSeen = latestTimestampSeen
+        LatestChatSeen = latestChatSeen
         UnseenCount = 0
         UnseenTaggedCount = 0
         ShowingMarkdownSyntaxModal = false
@@ -120,78 +126,139 @@ let private remove chatMessageId (chatMessagesData:RemoteData<ChatMessageData li
         Ok(Received((chatMessages, count), chatMessagesRvn))
     | _ -> Error "removeChatMessage: not Received"
 
-let private handleRemoteChatInput remoteChatInput (pageState, readyState) = // TODO-NMB: See inside...
+let private unseenCounts authUser excludeSelf latestChatSeen (key:Guid) (chatMessages:ChatMessageData list) =
+    let authUserId = authUser.User.UserId
+    let unseen =
+        chatMessages
+        |> List.filter (fun (chatMessage, _, status) ->
+            let (userId, _) = chatMessage.Sender
+            if excludeSelf && userId = authUserId then false
+            else
+                match status with
+                | MessageReceived ordinal ->
+                    match latestChatSeen with
+                    | Some(currentKey, _) when currentKey <> key -> true
+                    | Some(_, Some highestOrdinal) when ordinal > highestOrdinal -> true
+                    | _ -> false
+                | MessageExpired -> false)
+    let unseenTagged = unseen |> List.filter (fun (chatMessage, _, _) -> chatMessage.TaggedUsers |> List.contains authUserId)
+    unseen.Length, unseenTagged.Length
+
+let private updateCounts isCurrentPage unseen unseenTagged readyState =
+    let unseenCount, unseenTaggedCount =
+        if not isCurrentPage || hasActivity then readyState.UnseenCount + unseen, readyState.UnseenTaggedCount + unseenTagged
+        else readyState.UnseenCount, readyState.UnseenTaggedCount
+    let cmd =
+        if isCurrentPage && (unseenCount <> readyState.UnseenCount || unseenTaggedCount <> readyState.UnseenTaggedCount) then UpdatePageTitle |> Cmd.ofMsg
+        else Cmd.none
+    { readyState with UnseenCount = unseenCount ; UnseenTaggedCount = unseenTaggedCount }, cmd
+
+let private updateLatestChatSeen isCurrentPage (key:Guid) (chatMessages:ChatMessageData list) readyState =
+    if isCurrentPage then
+        let latestChatSeen =
+            if chatMessages.Length > 0 then
+                let highestOrdinal =
+                    chatMessages
+                    |> List.choose (fun (_, _, status) -> match status with | MessageReceived ordinal -> Some ordinal | MessageExpired -> None)
+                    |> List.max
+                Some(key, Some highestOrdinal)
+            else Some(key, None)
+        let currentLatestChatSeen = readyState.LatestChatSeen
+        match latestChatSeen, currentLatestChatSeen with
+        | Some latestChatSeen, None -> { readyState with LatestChatSeen = Some latestChatSeen }, writeLatestChatSeenCmd latestChatSeen
+        | Some(key, highestOrdinal), Some(currentKey, _) when key <> currentKey ->
+            { readyState with LatestChatSeen = Some(key, highestOrdinal) }, writeLatestChatSeenCmd (key, highestOrdinal)
+        | Some(key, highestOrdinal), Some(_, currentHighestOrdinal) when highestOrdinal > currentHighestOrdinal ->
+            { readyState with LatestChatSeen = Some(key, highestOrdinal) }, writeLatestChatSeenCmd (key, highestOrdinal)
+        | _ -> readyState, Cmd.none
+    else readyState, Cmd.none
+
+let private handleRemoteChatInput authUser remoteChatInput (pageState, readyState) =
     match remoteChatInput with
-    | ChatMessageReceived(chatMessage, ordinal, sinceSent, count, chatMessagesRvn) ->
-        let chatMessageData = chatMessageData chatMessage sinceSent (MessageReceived ordinal)
+    | ChatMessageReceived(chatMessage, ordinal, count, key, chatMessagesRvn) ->
+        let chatMessageData = chatMessageData chatMessage 0.<second> (MessageReceived ordinal)
         match readyState.ChatMessagesData |> addChatMessage chatMessageData count chatMessagesRvn with
         | Ok chatMessagesData ->
-            let readyState = { readyState with ChatMessagesData = chatMessagesData }
-            // TODO-NMB: Update unseen counts and page title if (not IsCurrentPage || ACTIVITY)?...
+            let unseen, unseenTagged = [ chatMessageData ] |> unseenCounts authUser true readyState.LatestChatSeen key
+            let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
+            let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key [ chatMessageData ]
             let toastCmd = ifDebug (sprintf "%A received (%i available) -> ChatMessageData now %A" chatMessage.ChatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
-            Ready(pageState, readyState), toastCmd
+            let readyState = { readyState with ChatMessagesData = chatMessagesData }
+            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd; toastCmd ]
         | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
     | ChatMessagesExpired(chatMessageIds, count, chatMessagesRvn) ->
         match readyState.ChatMessagesData |> expire chatMessageIds count chatMessagesRvn with
         | Ok chatMessagesData ->
+            // Note: No need to worry about unseen counts (&c.) as expired messages are not relevant for these.
             let readyState = { readyState with ChatMessagesData = chatMessagesData }
             Ready(pageState, readyState), ifDebug (sprintf "%A expired (%i available) -> ChatMessageData now %A" chatMessageIds count chatMessagesRvn |> infoToastCmd) Cmd.none
         | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
 
-let private handleLastTimestampSeenInput connectionId authUser lastTimestampSeenInput state =
-    match lastTimestampSeenInput, state with
-    | ReadLastTimestampSeenResult(Some(Ok latestTimestampSeen)), ReadingLastTimestampSeen pageState ->
-        let readyState, cmd = readyState (Some latestTimestampSeen) connectionId authUser
+let private handleLatestChatSeenInput connectionId authUser latestChatSeenInput state =
+    match latestChatSeenInput, state with
+    | ReadLatestChatSeenResult(Some(Ok latestChatSeen)), ReadingLatestChatSeen pageState ->
+        let readyState, cmd = readyState (Some latestChatSeen) connectionId authUser
         Ready(pageState, readyState ), cmd
-    | ReadLastTimestampSeenResult None, ReadingLastTimestampSeen pageState ->
+    | ReadLatestChatSeenResult None, ReadingLatestChatSeen pageState ->
         let readyState, cmd = readyState None connectionId authUser
         Ready(pageState, readyState ), cmd
-    | ReadLastTimestampSeenResult(Some(Error error)), ReadingLastTimestampSeen _ ->
+    | ReadLatestChatSeenResult(Some(Error error)), ReadingLatestChatSeen _ ->
         let cmds = Cmd.batch [
-            addDebugErrorCmd (sprintf "ReadLastTimestampSeenResult error -> %s" error)
-            LastTimestampSeenInput(ReadLastTimestampSeenResult None) |> Cmd.ofMsg ]
+            addDebugErrorCmd (sprintf "ReadLatestChatSeenResult error -> %s" error)
+            LatestChatSeenInput(ReadLatestChatSeenResult None) |> Cmd.ofMsg ]
         state, cmds
-    | ReadLastTimestampSeenExn exn, ReadingLastTimestampSeen _ -> state, LastTimestampSeenInput(ReadLastTimestampSeenResult(Some(Error exn.Message))) |> Cmd.ofMsg
-    | WriteLastTimestampSeenOk _, _ -> state, Cmd.none
-    | WriteLastTimestampSeenExn exn, _ -> state, addDebugErrorCmd (sprintf "WriteLastTimestampSeenExn -> %s" exn.Message)
-    | _ -> state, shouldNeverHappenCmd (unexpectedInputWhenState lastTimestampSeenInput state)
+    | ReadLatestChatSeenExn exn, ReadingLatestChatSeen _ -> state, LatestChatSeenInput(ReadLatestChatSeenResult(Some(Error exn.Message))) |> Cmd.ofMsg
+    | WriteLatestChatSeenOk _, _ -> state, Cmd.none
+    | WriteLatestChatSeenExn exn, _ -> state, addDebugErrorCmd (sprintf "WriteLatestChatSeenExn -> %s" exn.Message)
+    | _ -> state, shouldNeverHappenCmd (unexpectedInputWhenState latestChatSeenInput state)
 
-let private handleUpdateIsCurrentPage isCurrentPage state = // TODO-NMB: See inside...
+let private handleUpdateIsCurrentPage isCurrentPage state =
     match state with
-    | ReadingLastTimestampSeen pageState -> ReadingLastTimestampSeen { pageState with IsCurrentPage = isCurrentPage }, Cmd.none
+    | ReadingLatestChatSeen pageState -> ReadingLatestChatSeen { pageState with IsCurrentPage = isCurrentPage }, Cmd.none
     | Ready(pageState, readyState) ->
         let pageState = { pageState with IsCurrentPage = isCurrentPage }
         if isCurrentPage then
+            let updatePageTitleCmd = UpdatePageTitle |> Cmd.ofMsg
+            let readyState, writeLatestChatSeenCmd =
+                match readyState.LatestChatSeen, readyState.ChatMessagesData with
+                | Some(key, _), Received((chatMessages, _), _) -> readyState |> updateLatestChatSeen isCurrentPage key chatMessages
+                | _ -> readyState, Cmd.none
             let readyState = { readyState with UnseenCount = 0 ; UnseenTaggedCount = 0 }
-            // TODO-NMB: Also update LatestTimestampSeen (from ChatMessageData) - and persist to local storage if changed [and not None]?...
-            Ready(pageState, readyState), Cmd.none
+            Ready(pageState, readyState), Cmd.batch [ writeLatestChatSeenCmd ; updatePageTitleCmd ]
         else Ready(pageState, readyState), Cmd.none
 
-let private handleGetChatMessagesApiInput getChatMessagesApiInput (pageState, readyState) =
+let private handleGetChatMessagesApiInput authUser getChatMessagesApiInput (pageState, readyState) =
     match readyState.ChatMessagesData with
     | Pending ->
         match getChatMessagesApiInput with
-        | GetChatMessagesResult(Ok(chatMessages, count, chatMessagesRvn)) ->
+        | GetChatMessagesResult(Ok(chatMessages, count, key, chatMessagesRvn)) ->
             let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
+            let unseen, unseenTagged = chatMessages |> unseenCounts authUser false readyState.LatestChatSeen key
+            let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
+            let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key chatMessages
             let toastCmd = ifDebug (sprintf "Got %i chat message/s (%i available) -> ChatMessagesData %A" chatMessages.Length count chatMessagesRvn |> infoToastCmd) Cmd.none
-            Ready(pageState, { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }), toastCmd
+            let readyState = { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
+            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
         | GetChatMessagesResult(Error error) ->
             Ready(pageState, { readyState with ChatMessagesData = Failed error }), ifDebug (sprintf "GetChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
         | GetChatMessagesExn exn -> Ready(pageState, readyState), GetChatMessagesApiInput(GetChatMessagesResult(Error exn.Message)) |> Cmd.ofMsg
     | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when ChatMessagesData is not Pending (%A)" getChatMessagesApiInput readyState)
 
-let private handleMoreChatMessagesApiInput moreChatMessagesApiInput (pageState, readyState) = // TODO-NMB: See inside...
+let private handleMoreChatMessagesApiInput authUser moreChatMessagesApiInput (pageState, readyState) =
     match readyState.MoreChatMessagesApiStatus with
     | Some ApiPending ->
         match moreChatMessagesApiInput with
-        | MoreChatMessagesResult(Ok(chatMessages, chatMessagesRvn)) ->
+        | MoreChatMessagesResult(Ok(chatMessages, key, chatMessagesRvn)) ->
             let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
             match readyState.ChatMessagesData |> addChatMessages chatMessages chatMessagesRvn with
             | Ok chatMessagesData ->
-                let readyState = { readyState with MoreChatMessagesApiStatus = None ; ChatMessagesData = chatMessagesData }
-                // TODO-NMB: *Maybe* update unseen counts and page title if (not IsCurrentPage || ACTIVITY) - but maybe not?...
+                // Note: Updating unseen counts (&c.) should be superfluous.
+                let unseen, unseenTagged = chatMessages |> unseenCounts authUser false readyState.LatestChatSeen key
+                let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
+                let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key chatMessages
                 let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessages.Length chatMessagesRvn |> infoToastCmd) Cmd.none
-                Ready(pageState, readyState), toastCmd
+                let readyState = { readyState with MoreChatMessagesApiStatus = None ; ChatMessagesData = chatMessagesData }
+                Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
             | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
         | MoreChatMessagesResult(Error error) ->
             let cmd = ifDebug (sprintf "MoreChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
@@ -212,15 +279,15 @@ let private handleSendChatMessageApiInput sendChatMessageApiInput (pageState, re
         | SendChatMessageExn exn -> Ready(pageState, readyState), SendChatMessageApiInput(SendChatMessageResult(Error exn.Message)) |> Cmd.ofMsg
     | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when SendChatMessageApiStatus is not Pending (%A)" sendChatMessageApiInput readyState)
 
-let initialize isCurrentPage (_:AuthUser) = ReadingLastTimestampSeen { IsCurrentPage = isCurrentPage }, readLastTimestampSeenCmd
+let initialize isCurrentPage (_:AuthUser) = ReadingLatestChatSeen { IsCurrentPage = isCurrentPage }, readLatestChatSeenCmd
 
 let transition connectionId authUser (usersData:RemoteData<UserData list, string>) input state : State * Cmd<Input> =
     match input, state with
     // Note: AddMessage | UpdatePageTitle will have been handled by Program.State.transition.
-    | RemoteChatInput remoteChatInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleRemoteChatInput remoteChatInput
-    | LastTimestampSeenInput lastTimestampSeenInput, _ -> state |> handleLastTimestampSeenInput connectionId authUser lastTimestampSeenInput
+    | RemoteChatInput remoteChatInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleRemoteChatInput authUser remoteChatInput
+    | LatestChatSeenInput latestChatSeenInput, _ -> state |> handleLatestChatSeenInput connectionId authUser latestChatSeenInput
     | UpdateIsCurrentPage isCurrentPage, _ -> state |> handleUpdateIsCurrentPage isCurrentPage
-    | ActivityWhenCurrentPage, ReadingLastTimestampSeen _ -> state, Cmd.none
+    | ActivityWhenCurrentPage, ReadingLatestChatSeen _ -> state, Cmd.none
     | ActivityWhenCurrentPage, Ready({ IsCurrentPage = true }, _) -> state |> handleUpdateIsCurrentPage true
     | ShowMarkdownSyntaxModal, Ready(pageState, readyState) ->
         if not readyState.ShowingMarkdownSyntaxModal then Ready(pageState, { readyState with ShowingMarkdownSyntaxModal = true }), Cmd.none
@@ -232,16 +299,20 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
         match readyState.SendChatMessageApiStatus with
         | Some ApiPending -> Ready(pageState, readyState), shouldNeverHappenCmd "Unexpected NewChatMessageChanged when SendChatMessageApiStatus is Pending"
         | _ -> Ready(pageState, { readyState with NewChatMessage = newChatMessage ; NewChatMessageChanged = true }), Cmd.none
-    | SendChatMessage, Ready(pageState, readyState) -> // TODO-NMB: See inside...
+    | SendChatMessage, Ready(pageState, readyState) ->
         match readyState.SendChatMessageApiStatus with
         | Some ApiPending -> Ready(pageState, readyState), shouldNeverHappenCmd "Unexpected SendChatMessage when SendChatMessageApiStatus is Pending"
         | _ ->
-            // TODO-NMB: Parse (and modify) readyState.NewChatMessage to get TaggedUsers...
+            let newChatMessage = Markdown readyState.NewChatMessage
+            let newChatMessage, taggedUsers =
+                match usersData with
+                | Received(users, _) -> users |> processTags newChatMessage
+                | _ -> newChatMessage, [] // should never happen
             let chatMessage = {
                 ChatMessageId = ChatMessageId.Create()
                 Sender = authUser.User.UserId, authUser.User.UserName
-                Payload = Markdown readyState.NewChatMessage
-                TaggedUsers = [] }
+                Payload = newChatMessage
+                TaggedUsers = taggedUsers }
             let cmd = Cmd.OfAsync.either chatApi.sendChatMessage (authUser.Jwt, chatMessage) SendChatMessageResult SendChatMessageExn |> Cmd.map SendChatMessageApiInput
             Ready(pageState, { readyState with SendChatMessageApiStatus = Some ApiPending }), cmd
     | RemoveChatMessage chatMessageId, Ready(pageState, readyState) ->
@@ -255,7 +326,7 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
             let cmd =
                 Cmd.OfAsync.either chatApi.moreChatMessages (authUser.Jwt, belowOrdinal, queryBatchSize) MoreChatMessagesResult MoreChatMessagesExn |> Cmd.map MoreChatMessagesApiInput
             Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some ApiPending }), cmd
-    | GetChatMessagesApiInput getChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleGetChatMessagesApiInput getChatMessagesApiInput
-    | MoreChatMessagesApiInput moreChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleMoreChatMessagesApiInput moreChatMessagesApiInput
+    | GetChatMessagesApiInput getChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleGetChatMessagesApiInput authUser getChatMessagesApiInput
+    | MoreChatMessagesApiInput moreChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleMoreChatMessagesApiInput authUser moreChatMessagesApiInput
     | SendChatMessageApiInput sendChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleSendChatMessageApiInput sendChatMessageApiInput
     | _ -> state, shouldNeverHappenCmd (unexpectedInputWhenState input state)

@@ -1,7 +1,7 @@
 module Aornota.Gibet.Ui.Pages.About.MarkdownLiterals
 
 // #region READ_ME
-let [<Literal>] READ_ME = """# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (η)
+let [<Literal>] READ_ME = """# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (θ)
 
 An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
@@ -60,7 +60,7 @@ See _[test-user-repo-and-api.fs](https://github.com/aornota/gibet/blob/master/sr
 
 ## To do
 
-- [ ] extend functionality, e.g. Chat page? | Sql Server users repository? | Sqlite users repository? | &c.
+- [ ] extend functionality, e.g. Sql Server users repository? | Sqlite users repository? | &c.
 - [ ] unit tests? AspNetCore.TestHost?
 - [ ] additional documentation, e.g. [(currently non-existent) gh-pages branch](https://aornota.github.io/gibet/)?"""
 // #endregion

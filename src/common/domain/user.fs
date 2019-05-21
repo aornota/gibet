@@ -41,6 +41,7 @@ let validateUserName forSignIn (UserName userName) (userNames:UserName list) =
     if userName.StartsWith(SPACE) then Some "User name must not start with a space"
     else if userName.EndsWith(SPACE) then Some "User name must not end with a space"
     else if String.IsNullOrWhiteSpace userName then Some "User name must not be blank"
+    else if userName.Contains("{") || userName.Contains("}") then Some "User name must not contain '{' or '}'"
     else if not forSignIn && userName.Length < 3 then Some "User name must be at least 3 characters"
     else if not forSignIn && userNames |> List.map (fun (UserName userName) -> userName.ToLower()) |> List.contains (userName.ToLower()) then Some "User name is not available"
     else None

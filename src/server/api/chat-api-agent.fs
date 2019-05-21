@@ -3,13 +3,13 @@ module Aornota.Gibet.Server.Api.ChatApiAgent
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Api.ChatApi
 open Aornota.Gibet.Common.Bridge
-open Aornota.Gibet.Server.Bridge.HubState
 open Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
+open Aornota.Gibet.Server.Bridge.HubState
 open Aornota.Gibet.Server.Bridge.IHub
 open Aornota.Gibet.Server.Logger
 open Aornota.Gibet.Server.Jwt
@@ -22,8 +22,8 @@ open FsToolkit.ErrorHandling
 open Serilog
 
 type private Input =
-    | GetChatMessages of ConnectionId * Jwt * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * int * Rvn, string>
-    | MoreChatMessages of Jwt * int * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * Rvn, string>
+    | GetChatMessages of ConnectionId * Jwt * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
+    | MoreChatMessages of Jwt * int * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * Guid * Rvn, string>
     | SendChatMessage of Jwt * ChatMessage * AsyncReplyChannelResult<unit, string>
     | Housekeeping
 
@@ -33,9 +33,11 @@ let [<Literal>] private SOURCE = "Api.ChatApiAgent"
 
 let [<Literal>] HOUSEKEEPING_INTERVAL = 1.<minute>
 
+let private key = Guid.NewGuid()
+
 let private addChatMessage chatMessage ordinal (chatMessageDict:ChatMessageDict) =
     let chatMessageId = chatMessage.ChatMessageId
-    if chatMessageDict.ContainsKey chatMessageId then Error(ifDebug (sprintf "%s.addChatMessage -> Unable to add %A" SOURCE chatMessageId) UNEXPECTED_ERROR)
+    if chatMessageDict.ContainsKey chatMessageId then Error(ifDebug (sprintf "%s.addChatMessage [%A] -> Unable to add %A" SOURCE key chatMessageId) UNEXPECTED_ERROR)
     else
         chatMessageDict.Add(chatMessageId, (chatMessage, ordinal, DateTimeOffset.UtcNow))
         Ok()
@@ -61,53 +63,54 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
             match input with
             | GetChatMessages(connectionId, jwt, batchSize, reply) ->
                 let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake GetChatMessages error -> %A" jwt) else Ok()
+                    let! _ = if debugFakeError() then Error(sprintf "Fake GetChatMessages error [%A] -> %A" key jwt) else Ok()
                     let! _, userType = fromJwt jwt
                     let! _ =
                         if canGetChatMessages userType then Ok()
-                        else Error(ifDebug (sprintf "%s.GetChatMessages -> canGetChatMessages returned false for %A" SOURCE userType) NOT_ALLOWED)
+                        else Error(ifDebug (sprintf "%s.GetChatMessages [%A] -> canGetChatMessages returned false for %A" SOURCE key userType) NOT_ALLOWED)
                     let chatMessages = chatMessageDict |> chatMessages None batchSize
                     hub.SendServerIf (sameConnection connectionId) HasChatMessages
-                    return chatMessages, chatMessageDict.Count, agentRvn }
+                    return chatMessages, chatMessageDict.Count, key, agentRvn }
                 match result with
-                | Ok (chatMessages, count, agentRvn) -> logger.Debug("Got {length} chat message/s out of {count} (ChatApiAgent {agentRvn})", chatMessages.Length, count, agentRvn)
-                | Error error -> logger.Warning("Unable to get chat messages -> {error}", error)
+                | Ok (chatMessages, count, _, _) ->
+                    logger.Debug("Got {length} chat message/s out of {count} (ChatApiAgent {agentRvn}) [{key}]", chatMessages.Length, count, agentRvn, key)
+                | Error error -> logger.Warning("Unable to get chat messages [{key}] -> {error}", key, error)
                 reply.Reply result
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | MoreChatMessages(jwt, minOrdinal, batchSize, reply) ->
                 let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake MoreChatMessages error -> %A" jwt) else Ok()
+                    let! _ = if debugFakeError() then Error(sprintf "Fake MoreChatMessages error [%A] -> %A" key jwt) else Ok()
                     let! _, userType = fromJwt jwt
                     let! _ =
                         if canGetChatMessages userType then Ok()
-                        else Error(ifDebug (sprintf "%s.MoreChatMessages -> canGetChatMessages returned false for %A" SOURCE userType) NOT_ALLOWED)
+                        else Error(ifDebug (sprintf "%s.MoreChatMessages [%A] -> canGetChatMessages returned false for %A" SOURCE key userType) NOT_ALLOWED)
                     let chatMessages = chatMessageDict |> chatMessages (Some minOrdinal) batchSize
-                    return chatMessages, agentRvn }
+                    return chatMessages, key, agentRvn }
                 match result with
-                | Ok (chatMessages, agentRvn) ->
-                    logger.Debug("Got {length} more chat message/s out of {count} (ChatApiAgent {agentRvn})", chatMessages.Length, chatMessageDict.Count, agentRvn)
-                | Error error -> logger.Warning("Unable to get more chat messages -> {error}", error)
+                | Ok (chatMessages, _, _) ->
+                    logger.Debug("Got {length} more chat message/s out of {count} (ChatApiAgent {agentRvn}) [{key}]", chatMessages.Length, chatMessageDict.Count, agentRvn, key)
+                | Error error -> logger.Warning("Unable to get more chat messages [{key}] -> {error}", key, error)
                 reply.Reply result
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | SendChatMessage(jwt, chatMessage, reply) ->
                 let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake SendChatMessage error -> %A" jwt) else Ok()
+                    let! _ = if debugFakeError() then Error(sprintf "Fake SendChatMessage error [%A] -> %A" key jwt) else Ok()
                     let! _, userType = fromJwt jwt
                     let! _ =
                         if canSendChatMessage userType then Ok()
-                        else Error(ifDebug (sprintf "%s.SendChatMessage -> canSendChatMessage returned false for %A" SOURCE userType) NOT_ALLOWED)
+                        else Error(ifDebug (sprintf "%s.SendChatMessage [%A] -> canSendChatMessage returned false for %A" SOURCE key userType) NOT_ALLOWED)
                     let lastOrdinal = lastOrdinal + 1
                     let! _ = chatMessageDict |> addChatMessage chatMessage lastOrdinal
                     let agentRvn = incrementRvn agentRvn
-                    hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageReceived(chatMessage, lastOrdinal, 0.<second>, chatMessageDict.Count, agentRvn)))
+                    hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageReceived(chatMessage, lastOrdinal, chatMessageDict.Count, key, agentRvn)))
                     return chatMessage.ChatMessageId, (lastOrdinal, agentRvn) }
                 let lastOrdinal, agentRvn =
                     match result with
                     | Ok(chatMessageId, (lastOrdinal, agentRvn)) ->
-                        logger.Debug("Sent chat message {chatMessageId} with ordinal {lastOrdinal} (ChatApiAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
+                        logger.Debug("Sent chat message {chatMessageId} with ordinal {lastOrdinal} (ChatApiAgent now {rvn}) [{key}]", chatMessageId, lastOrdinal, agentRvn, key)
                         lastOrdinal, agentRvn
                     | Error error ->
-                        logger.Warning("Unable to send chat message (ChatApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
+                        logger.Warning("Unable to send chat message (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", agentRvn, key, error)
                         lastOrdinal, agentRvn
                 reply.Reply (result |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -124,10 +127,10 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                 if expired.Length > 0 then logger.Debug("Removed {length} expired messages", expired.Length)
                 else logger.Debug("No messages have expired")
                 return! loop (chatMessageDict, lastOrdinal, agentRvn) }
-        logger.Information("Starting...")
+        logger.Information("Starting [{key}]...", key)
         let chatMessageDict = ChatMessageDict()
         loop (chatMessageDict, 0, initialRvn))
-    do agent.Error.Add (fun exn -> logger.Error("Unexpected error -> {errorMessage}", exn.Message))
+    do agent.Error.Add (fun exn -> logger.Error("Unexpected error [{key}] -> {errorMessage}", key, exn.Message))
     let rec housekeeping () = async {
         do! Async.Sleep(int (minutesToMilliseconds HOUSEKEEPING_INTERVAL))
         agent.Post(Housekeeping)

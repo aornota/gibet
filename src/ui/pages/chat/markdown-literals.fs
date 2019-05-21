@@ -3,6 +3,8 @@ module Aornota.Gibet.Ui.Pages.Chat.MarkdownLiterals
 // #region MARKDOWN_SYNTAX
 let [<Literal>] MARKDOWN_SYNTAX = """# Markdown syntax
 ### A very quick introduction
+Users can be tagged in chat messages, e.g. @{EXAMPLE_ADMIN_USER_NAME}.
+
 Text can be:
 + **emboldened**
 + _italicized_
@@ -13,8 +15,6 @@ This is a paragraph.
 This is part of the same paragraph.
 
 But this is a new paragraph.
-
-**TODO-NMB...**Users can be tagged in chat messages, e.g. @{EXAMPLE_ADMIN_USER_NAME}.
 
 This is a picture by the wonderful Gregory Kondos:
 

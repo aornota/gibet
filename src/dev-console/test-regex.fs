@@ -18,10 +18,10 @@ let testRegex () =
         |> List.ofSeq
         |> List.choose (fun m ->
             let group1 = m.Groups.[1].Value
-            if not (String.IsNullOrWhiteSpace group1) then Some (group1, group1.Substring 1)
+            if not (String.IsNullOrWhiteSpace group1) then Some(group1, group1.Substring 1)
             else
                 let group2 = m.Groups.[2].Value
-                if not (String.IsNullOrWhiteSpace group2) then Some (group2, group2.Substring(2, group2.Length - 3))
+                if not (String.IsNullOrWhiteSpace group2) then Some(group2, group2.Substring(2, group2.Length - 3))
                 else None)
     logger.Debug("Matches: {matches}", tags)
     let replacer (message:string) (replace, userName) =

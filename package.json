@@ -1,12 +1,13 @@
 {
     "name": "gibet",
-    "version": "η",
+    "version": "θ",
     "description": "An opinionated (i.e. decidedly eccentric) \"scaffold\"/example for F# web-app development using Fable, Elmish, Fulma / Bulma, Fable.Remoting, Elmish.Bridge, Giraffe and ASP.NET Core. https://gibet.azurewebsites.net/",
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",
     "license": "https://github.com/aornota/gibet/blob/master/LICENSE",
     "private": true,
     "//": [
+        "bulma 0.7.4 is outdated - but 0.7.5 seems to cause problems with navbar drop-downs in MS Edge (for some reason).",
         "core-js 2.6.5 is outdated - but best not to upgrade (for some reason)."
     ],
     "devDependencies": {
@@ -16,14 +17,14 @@
         "@babel/preset-env": "^7.4.4",
         "@babel/runtime": "^7.4.4",
         "babel-loader": "^8.0.6",
-        "bulma": "^0.7.1",
+        "bulma": "0.7.4",
         "bulma-checkradio": "2.1.0",
         "bulma-pageloader": "2.1.0",
         "bulma-tooltip": "2.0.2",
         "copy-webpack-plugin": "^5.0.3",
         "core-js": "2.6.5",
         "css-loader": "^2.1.1",
-        "fable-compiler": "^2.3.8",
+        "fable-compiler": "^2.3.10",
         "fable-loader": "^2.1.7",
         "html-webpack-plugin": "^3.2.0",
         "mini-css-extract-plugin": "^0.6.0",
@@ -34,9 +35,9 @@
         "sass-loader": "^7.1.0",
         "style-loader": "^0.23.1",
         "toastr": "^2.1.4",
-        "webpack": "^4.31.0",
+        "webpack": "^4.32.0",
         "webpack-cli": "^3.3.2",
-        "webpack-dev-server": "^3.3.1",
+        "webpack-dev-server": "^3.4.1",
         "whatwg-fetch": "^3.0.0"
     }
 }

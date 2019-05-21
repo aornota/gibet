@@ -92,6 +92,24 @@ let helpTDanger theme children = helpT theme IsDanger children
 
 let hrT theme useAlternativeClass = RctS.hr [ ClassName(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ]
 
+let private iconTTooltip theme size options iconClass tooltip =
+    let tooltip = { tooltip with TooltipColour = tooltip.TooltipColour |> transformColour theme }
+    let customClasses = [
+        yield "fas"
+        match size with | Some IsSmall -> () | Some IsMedium -> yield "fa-2x" | Some IsLarge -> yield "fa-3x" | None -> yield "fa-lg"
+        yield iconClass ]
+    let customClass = match customClasses with | _ :: _ -> Some(String.concat SPACE customClasses) | [] -> None
+    Icon.icon [
+        match size with | Some size -> yield Icon.Size size | None -> ()
+        yield! options
+        yield Icon.CustomClass(tooltipClass tooltip)
+        yield Icon.Props [ tooltipProps tooltip ]
+    ] [ RctS.i [ match customClass with | Some customClass -> yield ClassName customClass | None -> () ] [] ]
+let iconTTooltipSmaller theme iconClass tooltip = iconTTooltip theme (Some IsSmall) [] iconClass tooltip
+let iconTTooltipSmall theme iconClass tooltip = iconTTooltip theme None [] iconClass tooltip
+let iconTTooltipLarge theme iconClass tooltip = iconTTooltip theme (Some IsMedium) [] iconClass tooltip
+let iconTTooltipLarger theme iconClass tooltip = iconTTooltip theme (Some IsLarge) [] iconClass tooltip
+
 let navbarT theme colour children =
     Navbar.navbar [
         Navbar.IsFixedTop

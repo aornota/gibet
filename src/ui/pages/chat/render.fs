@@ -12,9 +12,9 @@ open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Render
 open Aornota.Gibet.Ui.Common.Render.Theme.Markdown
 open Aornota.Gibet.Ui.Common.TimestampHelper
+open Aornota.Gibet.Ui.Common.Tooltip
 open Aornota.Gibet.Ui.Pages.Chat.Common
 open Aornota.Gibet.Ui.Pages.Chat.MarkdownLiterals
-open Aornota.Gibet.Ui.Pages.Chat.State
 open Aornota.Gibet.Ui.Shared
 open Aornota.Gibet.Ui.User.Shared
 
@@ -28,19 +28,20 @@ let [<Literal>] private PAGE_TITLE = "Chat"
 
 let private markdownSyntaxKey = Guid.NewGuid()
 
-let private renderMarkdownSyntaxModal (theme, users:UserData list) dispatch = // TODO-NMB: @username / @{user name} example [and processing]?...
+let private renderMarkdownSyntaxModal (theme, users) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Markdown syntax" ] ] ]
     let onDismiss = Some(fun _ -> dispatch CloseMarkdownSyntaxModal)
-    let (Markdown markdownSyntax) = Markdown MARKDOWN_SYNTAX
+    let markdownSyntax = MARKDOWN_SYNTAX.Replace("EXAMPLE_ADMIN_USER_NAME", EXAMPLE_ADMIN_USER_NAME)
+    let processed, _ = users |> processTags (Markdown markdownSyntax)
     let body = [
         contentTCentred theme (Some smaller) (Some IsInfo) [ strong "As a very quick introduction to Markdown syntax, the following:" ]
         textAreaT theme markdownSyntaxKey markdownSyntax None None false true ignore
         br
         contentTCentred theme (Some smaller) (Some IsInfo) [ strong "will appear as:" ]
-        markdownContentTLeft theme (Markdown markdownSyntax) ]
+        markdownContentTLeft theme processed ]
     cardModalT theme (Some(title, onDismiss)) body
 
-let private renderNewChatMessage (theme, users:UserData list, readyState, hasModal) dispatch = // TODO-NMB: @username / @{user name} processing...
+let private renderNewChatMessage (theme, users, readyState, hasModal) dispatch =
     let newChatMessage = readyState.NewChatMessage
     let sendingChatMessage, sendChatMessageInteraction, newChatMessageStatus =
         match readyState.SendChatMessageApiStatus with
@@ -63,9 +64,14 @@ let private renderNewChatMessage (theme, users:UserData list, readyState, hasMod
                 sprintf "%.0f minutes" (floor (float chatMessageLifetime))
             else sprintf "%.0f hours" (floor (float chatMessageLifetime))
         Some(helpTInfo theme [
-            str (sprintf "Chat messages are not persisted, will only be received by signed in users, and will expire after %s. You can use " expiresAfter)
+            str (sprintf "Chat messages are not persisted, will only be received by signed in users, and will expire after %s." expiresAfter)
+            str " You can use "
             linkInternal (fun _ -> dispatch ShowMarkdownSyntaxModal) [ str "Markdown syntax" ]
-            str " to format your message. A preview of your message will appear below." ])
+            str " to format your message;"
+            str " you can also use " ; strong "@" ; strongEm "username" ; str " to tag users"
+            str " (or " ; strong "@{" ; strongEm "username" ; strong "}" ; str " if " ; em "username" ; str " contains spaces)."
+            str " A preview of your message will appear below." ])
+    let Markdown newChatMessage, _ = users |> processTags (Markdown newChatMessage)
     divDefault [
         match readyState.SendChatMessageApiStatus with
         | Some(ApiFailed error) ->
@@ -90,28 +96,32 @@ let private renderUserTags (theme, authUser, users, _:int<tick>) =
         |> List.map (tagTUserSmall theme authUser.User.UserId)
     divTags userTags
 
-let private renderChatMessages (theme, authUser, users, chatMessages, _:int<tick>) dispatch = // TODO-NMB: See inside...
+let private renderChatMessages (theme, authUser, users, chatMessages, _:int<tick>) dispatch =
     // #region renderChatMessage
-    let renderChatMessage (chatMessage, timestamp:DateTimeOffset, status) = // TODO-NMB: TaggedUsers...
+    let renderChatMessage (chatMessage, timestamp:DateTimeOffset, status) =
         let authUserId = authUser.User.UserId
         let userId, UserName userName = chatMessage.Sender
-        let colour, textColour =
+        let tagged =
+            if userId <> authUserId && chatMessage.TaggedUsers |> List.contains authUserId then
+                let taggedTooltip = tooltip TooltipRight IsInfo "You have been tagged in this chat message"
+                Some(iconTTooltipSmall theme ICON__INFO taggedTooltip)
+            else None
+        let expired, colour, textColour =
             match status with
             | MessageReceived _ ->
-                match users |> tryFindUser userId with
-                | Some(user, signedIn, lastActivity) ->
-                    match user, signedIn, lastActivity, authUserId with
-                    | Self -> IsLink, IsBlack
-                    | RecentlyActive -> IsSuccess, IsBlack
-                    | SignedIn -> IsPrimary, IsBlack
-                    | NotSignedIn -> IsDark, IsWhite
-                    | PersonaNonGrata -> IsLight, IsBlack
-                | None -> IsDanger, IsBlack // should never happen
-            | MessageExpired -> IsLight, IsBlack
-        let expired, onDismiss =
-            match status with
-            | MessageReceived _ -> false, None
-            | MessageExpired -> true, Some(fun _ -> dispatch (RemoveChatMessage chatMessage.ChatMessageId))
+                let colour, textColour =
+                    match users |> tryFindUser userId with
+                    | Some(user, signedIn, lastActivity) ->
+                        match user, signedIn, lastActivity, authUserId with
+                        | Self -> IsLink, IsBlack
+                        | RecentlyActive -> IsSuccess, IsBlack
+                        | SignedIn -> IsPrimary, IsBlack
+                        | NotSignedIn -> IsDark, IsWhite
+                        | PersonaNonGrata -> IsLight, IsBlack
+                    | None -> IsDanger, IsBlack // should never happen
+                false, colour, textColour
+            | MessageExpired -> true, IsLight, IsBlack
+        let onDismiss = if expired then Some(fun _ -> dispatch (RemoveChatMessage chatMessage.ChatMessageId)) else None
         let timestamp =
             if expired then "expired"
             else
@@ -121,11 +131,11 @@ let private renderChatMessages (theme, authUser, users, chatMessages, _:int<tick
                 dateAndTimeText timestamp.LocalDateTime
 #endif
         [
-            notificationT theme colour onDismiss [
+            notificationT theme colour onDismiss [ contentTCentredSmallest theme (Some textColour) [
                 level false [
-                    levelLeft [ levelItem [ contentTLeftSmallest theme (Some textColour) [ strong userName ; str " says" ] ] ]
-                    levelRight [ levelItem [ contentTRightSmallest theme None [ str timestamp ] ] ] ]
-                markdownNotificationContentTLeft theme chatMessage.Payload ]
+                    levelLeft [ levelItem [ contentLeftSmallest [ strong userName ; str " says" ; ofOption tagged ] ] ]
+                    levelRight [ levelItem [ contentRightSmallest [ str timestamp ] ] ] ]
+                markdownNotificationContentTLeft theme chatMessage.Payload ] ]
             divVerticalSpace 10
         ]
     // #endregion
@@ -160,24 +170,31 @@ let private moreChatMessages theme authUser chatMessages count apiStatus dispatc
         else None
     else None
 
-let pageTitle state = // TODO-NMB: See inside...
-    let unseenCount, unseenTaggedCount =
-        match state with
-        | ReadingLastTimestampSeen _ -> None, None
-        | Ready(_, readyState) ->
-            let unseenCount = if readyState.UnseenCount > 0 then Some readyState.UnseenCount else None
-            let unseenTaggedCount = if readyState.UnseenTaggedCount > 0 then Some readyState.UnseenTaggedCount else None
-            unseenCount, unseenTaggedCount
-    let extra = // TODO-NMB: Think about how best to display unseenCount / unseenTaggedCount...
-        match unseenCount, unseenTaggedCount with
-        | Some unseenCount, Some unseenTaggedCount -> sprintf " (%i) [%i]" unseenCount unseenTaggedCount
-        | Some unseenCount, None -> sprintf " (%i)" unseenCount
-        | None, Some _ -> String.Empty // should never happen
-        | _ -> String.Empty
-    sprintf "%s%s" PAGE_TITLE extra
+let private nonZeroUnseenCounts state =
+    match state with
+    | ReadingLatestChatSeen _ -> None, None
+    | Ready(_, readyState) ->
+        let unseenCount, unseenTaggedCount = readyState.UnseenCount, readyState.UnseenTaggedCount
+        (if unseenCount > 0 then Some unseenCount else None), (if unseenTaggedCount > 0 then Some unseenTaggedCount else None)
 
-let renderTab isActive onClick state = // TODO-NMB: Think about how best to display unseenCount / unseenTaggedCount (but just use pageTitle for now)...
-    tab isActive [ linkInternal onClick [ str (state |> pageTitle) ] ]
+let pageTitle state =
+    let extra =
+        match state |> nonZeroUnseenCounts with
+        | Some _, Some _ -> "** "
+        | Some _, None -> "* "
+        | None, Some _ -> "* " // should never happen
+        | _ -> String.Empty
+    sprintf "%s%s" extra PAGE_TITLE
+
+let renderTab isActive onClick state =
+    let unseenTaggedExtra unseenTaggedCount = [ iconSmaller ICON__INFO ; str (sprintf "%i" unseenTaggedCount) ]
+    let unseenExtra, unseenTaggedExtra =
+        match state |> nonZeroUnseenCounts with
+        | Some unseenCount, Some unseenTaggedCount -> sprintf " (%i)" unseenCount, unseenTaggedExtra unseenTaggedCount
+        | Some unseenCount, None -> sprintf " (%i)" unseenCount, []
+        | None, Some unseenTaggedCount -> SPACE, unseenTaggedExtra unseenTaggedCount // should never happen
+        | _ -> String.Empty, []
+    tab isActive [ linkInternal onClick [ yield str (sprintf "%s%s" PAGE_TITLE unseenExtra) ; yield! unseenTaggedExtra ] ]
 
 let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
     divDefault [
@@ -195,7 +212,7 @@ let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
             | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
             | Received(users, _) ->
                 match state with
-                | ReadingLastTimestampSeen _ -> yield contentTCentred theme None (Some IsLink) [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
+                | ReadingLatestChatSeen _ -> yield contentTCentred theme None (Some IsLink) [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
                 | Ready(_, readyState) ->
                     if canSendChatMessage authUser.User.UserType then
                         yield lazyView2 renderNewChatMessage (theme, users, readyState, hasModal) dispatch

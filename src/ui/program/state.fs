@@ -172,6 +172,7 @@ let private changeImageUrlModalState imageUrl = {
     ImageUrl = match imageUrl with | Some(ImageUrl imageUrl) -> imageUrl | None -> String.Empty
     ImageUrlChanged = false
     ChangeImageUrlApiStatus = None }
+// #region authState
 let private authState messages appState connectionState lastPage authUser staySignedIn mustChangePasswordReason =
     let changePasswordModalState =
         match mustChangePasswordReason with
@@ -191,7 +192,9 @@ let private authState messages appState connectionState lastPage authUser staySi
         | AuthPage Chat -> chatState |> Chat.Render.pageTitle
         | AuthPage UserAdmin -> UserAdmin.Render.PAGE_TITLE
     setTitle pageTitle
+#if ACTIVITY
     Bridge.Send RemoteServerInput.Activity
+#endif
     let getUsersCmd, usersData =
         if canGetUsers authUser.User.UserType then
             let cmd = Cmd.OfAsync.either userApi.getUsers (connectionState.ConnectionId, authUser.Jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersApiInput >> AuthInput)
@@ -216,6 +219,7 @@ let private authState messages appState connectionState lastPage authUser staySi
         SigningOut = false
         UsersData = usersData }
     authState, cmds
+// #endregion
 
 let private addToMessages message state =
     match state with
@@ -306,19 +310,21 @@ let private handleOnMouseMove state : State * Cmd<Input> = // note: will only be
     | Auth authState ->
         let now, lastActivity = DateTime.Now, authState.LastActivity
         let elapsed = now - lastActivity
-        let lastActivity, chatState, chatCmd =
+        let lastActivity =
             if elapsed.TotalSeconds * 1.<second> > activityThrottle then
                 Bridge.Send RemoteServerInput.Activity
-                let chatState, chatCmd =
-                    if authState.CurrentPage = AuthPage Chat then
-                        let chatState, chatCmd =
-                            authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData Chat.Common.ActivityWhenCurrentPage
-                        setTitle (chatState |> Chat.Render.pageTitle)
-                        chatState, chatCmd |> Cmd.map (ChatInput >> AuthInput)
-                    else authState.ChatState, Cmd.none
-                now, chatState, chatCmd
-            else lastActivity, authState.ChatState, Cmd.none
-        Auth { authState with LastActivity = lastActivity }, chatCmd
+                now
+            else lastActivity
+        let chatState, chatCmd =
+            if authState.CurrentPage = AuthPage Chat then
+                match authState.ChatState with
+                | Chat.Common.Ready(_, readyState) when readyState.UnseenCount > 0 ->
+                    let chatState, chatCmd =
+                        authState.ChatState |> Chat.State.transition authState.ConnectionState.ConnectionId authState.AuthUser authState.UsersData Chat.Common.ActivityWhenCurrentPage
+                    chatState, chatCmd |> Cmd.map (ChatInput >> AuthInput)
+                | _ -> authState.ChatState, Cmd.none
+            else authState.ChatState, Cmd.none
+        Auth { authState with LastActivity = lastActivity ; ChatState = chatState }, chatCmd
     | _ -> state, Cmd.none
 
 let private handleRemoteUiInput remoteUiInput state =
@@ -713,7 +719,7 @@ let transition input state =
                 state, Cmd.batch [ userAdminCmd ; chatCmd ; writePreferencesCmd ]
         | AuthInput(ChatInput(Chat.Common.Input.AddMessage message)), Auth _, _ -> state |> addToMessages message, Cmd.none
         | AuthInput(ChatInput Chat.Common.Input.UpdatePageTitle), Auth authState, _ ->
-            setTitle (authState.ChatState |> Chat.Render.pageTitle)
+            if authState.CurrentPage = AuthPage Chat then setTitle (authState.ChatState |> Chat.Render.pageTitle)
             state, Cmd.none
         | AuthInput(ChatInput chatInput), Auth authState ,_ ->
             let chatState, chatCmd =
