@@ -22,6 +22,6 @@
 		, "paket.lock": true
 		, "yarn-error.log": true
 		, "yarn.lock": true
-	},
-	"FSharp.fsacRuntime": "netcore"
+	}
+	, "FSharp.fsacRuntime": "netcore"
 }
