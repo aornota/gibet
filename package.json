@@ -1,6 +1,6 @@
 {
     "name": "gibet",
-    "version": "θ",
+    "version": "κ",
     "description": "An opinionated (i.e. decidedly eccentric) \"scaffold\"/example for F# web-app development using Fable, Elmish, Fulma / Bulma, Fable.Remoting, Elmish.Bridge, Giraffe and ASP.NET Core. https://gibet.azurewebsites.net/",
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",

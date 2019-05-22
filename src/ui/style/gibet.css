@@ -7,7 +7,7 @@
     --black: black ; --white: white ;
     --link-external-light: #105010 ; --link-external-light-hover: #209040 ; --link-external-dark: #70efbf ; --link-external-dark-hover: #40bf8f ;
     --link-internal-light: #6030ff ; --link-internal-light-hover: #c040ff ; --link-internal-dark: #ffbfdf ; --link-internal-dark-hover: #cf8faf ;
-    --link-markdown-light: #2000ff ; --link-markdown-light-hover: #4080ff ; --link-markdown-dark: #df8faf; --link-markdown-dark-hover: #af5f7f ;
+    --link-markdown-light: #2000ff ; --link-markdown-light-hover: #4080ff ; --link-markdown-dark: #af8fdf; --link-markdown-dark-hover: #7f5faf ;
     --neutral: #808080 ; --neutral-darker: #777777 ; --neutral-lighter: #898989 }
 /* #endregion */
 

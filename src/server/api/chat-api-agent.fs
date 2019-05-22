@@ -6,6 +6,7 @@ open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
+open Aornota.Gibet.Common.Markdown
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
@@ -23,24 +24,50 @@ open Serilog
 
 type private Input =
     | GetChatMessages of ConnectionId * Jwt * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
-    | MoreChatMessages of Jwt * int * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * Guid * Rvn, string>
-    | SendChatMessage of Jwt * ChatMessage * AsyncReplyChannelResult<unit, string>
+    | MoreChatMessages of Jwt * int * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
+    | SendChatMessage of Jwt * UserId * UserName * Markdown * UserId list * AsyncReplyChannelResult<unit, string>
+    | EditChatMessage of Jwt * ChatMessageId * UserId * Markdown * UserId list * Rvn * AsyncReplyChannelResult<unit, string>
+    | DeleteChatMessage of Jwt * ChatMessageId * UserId * bool * Rvn * AsyncReplyChannelResult<unit, string>
     | Housekeeping
 
 type private ChatMessageDict = Dictionary<ChatMessageId, ChatMessage * int * DateTimeOffset>
 
 let [<Literal>] private SOURCE = "Api.ChatApiAgent"
 
-let [<Literal>] HOUSEKEEPING_INTERVAL = 1.<minute>
+let [<Literal>] private HOUSEKEEPING_INTERVAL = 1.<minute>
 
 let private key = Guid.NewGuid()
 
-let private addChatMessage chatMessage ordinal (chatMessageDict:ChatMessageDict) =
-    let chatMessageId = chatMessage.ChatMessageId
+let private addChatMessage userId userName payload taggedUsers ordinal (chatMessageDict:ChatMessageDict) =
+    let chatMessageId = ChatMessageId.Create()
     if chatMessageDict.ContainsKey chatMessageId then Error(ifDebug (sprintf "%s.addChatMessage [%A] -> Unable to add %A" SOURCE key chatMessageId) UNEXPECTED_ERROR)
     else
+        let chatMessage = {
+            ChatMessageId = chatMessageId
+            Rvn = initialRvn
+            Sender = userId, userName
+            Payload = payload
+            TaggedUsers = taggedUsers
+            Edited = false }
         chatMessageDict.Add(chatMessageId, (chatMessage, ordinal, DateTimeOffset.UtcNow))
+        Ok chatMessage
+let private updateChatMessage chatMessage ordinal timestamp (chatMessageDict:ChatMessageDict) =
+    let chatMessageId = chatMessage.ChatMessageId
+    if chatMessageDict.ContainsKey chatMessageId then
+        chatMessageDict.[chatMessageId] <- (chatMessage, ordinal, timestamp)
         Ok()
+    else Error(ifDebug (sprintf "%s.updateChatMessage -> Unable to update %A" SOURCE chatMessageId) UNEXPECTED_ERROR)
+let private deleteChatMessage chatMessageId expired (chatMessageDict:ChatMessageDict) =
+    if chatMessageDict.ContainsKey chatMessageId && expired then
+        Error(ifDebug (sprintf "%s.deleteChatMessage [%A] -> Unable to delete %A (expired but found)" SOURCE key chatMessageId) UNEXPECTED_ERROR)
+    else if not (chatMessageDict.ContainsKey chatMessageId) && not expired then
+        Error(ifDebug (sprintf "%s.deleteChatMessage [%A] -> Unable to delete %A (not expired but not found)" SOURCE key chatMessageId) UNEXPECTED_ERROR)
+    else
+        if not expired then chatMessageDict.Remove chatMessageId |> ignore
+        Ok()
+let private findChatMessage chatMessageId (chatMessageDict:ChatMessageDict) =
+    if chatMessageDict.ContainsKey chatMessageId then Ok chatMessageDict.[chatMessageId]
+    else Error(ifDebug (sprintf "%s.findChatMessageId -> Unable to find %A" SOURCE chatMessageId) UNEXPECTED_ERROR)
 
 let private chatMessages belowOrdinal batchSize (chatMessageDict:ChatMessageDict) =
     let chatMessages =
@@ -85,14 +112,14 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                         if canGetChatMessages userType then Ok()
                         else Error(ifDebug (sprintf "%s.MoreChatMessages [%A] -> canGetChatMessages returned false for %A" SOURCE key userType) NOT_ALLOWED)
                     let chatMessages = chatMessageDict |> chatMessages (Some minOrdinal) batchSize
-                    return chatMessages, key, agentRvn }
+                    return chatMessages, chatMessageDict.Count, key, agentRvn }
                 match result with
-                | Ok (chatMessages, _, _) ->
-                    logger.Debug("Got {length} more chat message/s out of {count} (ChatApiAgent {agentRvn}) [{key}]", chatMessages.Length, chatMessageDict.Count, agentRvn, key)
+                | Ok (chatMessages, count, _, _) ->
+                    logger.Debug("Got {length} more chat message/s out of {count} (ChatApiAgent {agentRvn}) [{key}]", chatMessages.Length, count, agentRvn, key)
                 | Error error -> logger.Warning("Unable to get more chat messages [{key}] -> {error}", key, error)
                 reply.Reply result
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
-            | SendChatMessage(jwt, chatMessage, reply) ->
+            | SendChatMessage(jwt, userId, userName, payload, taggedUsers, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake SendChatMessage error [%A] -> %A" key jwt) else Ok()
                     let! _, userType = fromJwt jwt
@@ -100,7 +127,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                         if canSendChatMessage userType then Ok()
                         else Error(ifDebug (sprintf "%s.SendChatMessage [%A] -> canSendChatMessage returned false for %A" SOURCE key userType) NOT_ALLOWED)
                     let lastOrdinal = lastOrdinal + 1
-                    let! _ = chatMessageDict |> addChatMessage chatMessage lastOrdinal
+                    let! chatMessage = chatMessageDict |> addChatMessage userId userName payload taggedUsers lastOrdinal
                     let agentRvn = incrementRvn agentRvn
                     hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageReceived(chatMessage, lastOrdinal, chatMessageDict.Count, key, agentRvn)))
                     return chatMessage.ChatMessageId, (lastOrdinal, agentRvn) }
@@ -112,7 +139,58 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                     | Error error ->
                         logger.Warning("Unable to send chat message (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", agentRvn, key, error)
                         lastOrdinal, agentRvn
-                reply.Reply (result |> ignoreResult)
+                reply.Reply(result |> ignoreResult)
+                return! loop (chatMessageDict, lastOrdinal, agentRvn)
+            | EditChatMessage(jwt, chatMessageId, userId, payload, taggedUsers, rvn, reply) ->
+                let result = result {
+                    let! _ = if debugFakeError() then Error(sprintf "Fake EditChatMessage error [%A] -> %A" key jwt) else Ok()
+                    let! byUserId, userType = fromJwt jwt
+                    let! _ =
+                        if canEditChatMessage userId (byUserId, userType) then Ok()
+                        else Error(ifDebug (sprintf "%s.EditChatMessage [%A] -> canEditChatMessage from %A returned false for %A (%A)" SOURCE key userId byUserId userType) NOT_ALLOWED)
+                    let! chatMessage, ordinal, timestamp = chatMessageDict |> findChatMessage chatMessageId
+                    let! _ = validateSameRvn chatMessage.Rvn rvn |> errorIfSome ()
+                    let chatMessage = { chatMessage with Rvn = incrementRvn rvn ; Payload = payload ; TaggedUsers = taggedUsers ; Edited = true }
+                    let! _ = chatMessageDict |> updateChatMessage chatMessage ordinal timestamp
+                    let agentRvn = incrementRvn agentRvn
+                    hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageEdited(chatMessage, chatMessageDict.Count, key, agentRvn)))
+                    return chatMessage.ChatMessageId, agentRvn }
+                let agentRvn =
+                    match result with
+                    | Ok(chatMessageId, agentRvn) ->
+                        logger.Debug("Edited chat message {chatMessageId} (ChatApiAgent now {rvn}) [{key}]", chatMessageId, agentRvn, key)
+                        agentRvn
+                    | Error error ->
+                        logger.Warning("Unable to edit chat message (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", agentRvn, key, error)
+                        agentRvn
+                reply.Reply(result |> ignoreResult)
+                return! loop (chatMessageDict, lastOrdinal, agentRvn)
+            | DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn, reply) ->
+                let result = result {
+                    let! _ = if debugFakeError() then Error(sprintf "Fake DeleteChatMessage error [%A] -> %A" key jwt) else Ok()
+                    let! byUserId, userType = fromJwt jwt
+                    let! _ =
+                        if canDeleteChatMessage userId (byUserId, userType) then Ok()
+                        else Error(ifDebug (sprintf "%s.DeleteChatMessage [%A] -> canDeleteChatMessage from %A returned false for %A (%A)" SOURCE key userId byUserId userType) NOT_ALLOWED)
+                    let! _ =
+                        if not expired then
+                            match chatMessageDict |> findChatMessage chatMessageId with
+                            | Ok(chatMessage, _, __) -> validateSameRvn chatMessage.Rvn rvn |> errorIfSome ()
+                            | Error error -> Error error
+                        else Ok()
+                    let! _ = chatMessageDict |> deleteChatMessage chatMessageId expired
+                    let agentRvn = incrementRvn agentRvn
+                    hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageDeleted(chatMessageId, chatMessageDict.Count, key, agentRvn)))
+                    return chatMessageId, agentRvn }
+                let agentRvn =
+                    match result with
+                    | Ok(chatMessageId, agentRvn) ->
+                        logger.Debug("Deleted chat message {chatMessageId} (ChatApiAgent now {rvn}) [{key}]", chatMessageId, lastOrdinal, agentRvn, key)
+                        agentRvn
+                    | Error error ->
+                        logger.Warning("Unable to delete chat message {chatMessageId} (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", chatMessageId, agentRvn, key, error)
+                        agentRvn
+                reply.Reply(result |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | Housekeeping ->
                 logger.Debug("Housekeeping!")
@@ -123,7 +201,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                     |> List.map (fun (chatMessage, _, _) -> chatMessage.ChatMessageId)
                 expired |> List.iter (chatMessageDict.Remove >> ignore)
                 let agentRvn = if expired.Length > 0 then incrementRvn agentRvn else agentRvn
-                if expired.Length > 0 then hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessagesExpired(expired, chatMessageDict.Count, agentRvn)))
+                if expired.Length > 0 then hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessagesExpired(expired, chatMessageDict.Count, key, agentRvn)))
                 if expired.Length > 0 then logger.Debug("Removed {length} expired messages", expired.Length)
                 else logger.Debug("No messages have expired")
                 return! loop (chatMessageDict, lastOrdinal, agentRvn) }
@@ -138,11 +216,16 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
     do housekeeping () |> Async.Start
     member __.GetChatMessages(connectionId, jwt, batchSize) = agent.PostAndAsyncReply(fun reply -> GetChatMessages(connectionId, jwt, batchSize, reply))
     member __.MoreChatMessages(jwt, belowOrdinal, batchSize) = agent.PostAndAsyncReply(fun reply -> MoreChatMessages(jwt, belowOrdinal, batchSize, reply))
-    member __.SendChatMessage(jwt, chatMessage) = agent.PostAndAsyncReply(fun reply -> SendChatMessage(jwt, chatMessage, reply))
+    member __.SendChatMessage(jwt, userId, userName, payload, taggedUsers) = agent.PostAndAsyncReply(fun reply -> SendChatMessage(jwt, userId, userName, payload, taggedUsers, reply))
+    member __.EditChatMessage(jwt, chatMessageId, userId, payload, taggedUsers, rvn) =
+        agent.PostAndAsyncReply(fun reply -> EditChatMessage(jwt, chatMessageId, userId, payload, taggedUsers, rvn, reply))
+    member __.DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn) = agent.PostAndAsyncReply(fun reply -> DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn, reply))
 
 let chatApiReader = reader {
     let! chatApi = resolve<ChatApiAgent>()
     return {
         getChatMessages = chatApi.GetChatMessages
         moreChatMessages = chatApi.MoreChatMessages
-        sendChatMessage = chatApi.SendChatMessage } }
+        sendChatMessage = chatApi.SendChatMessage
+        editChatMessage = chatApi.EditChatMessage
+        deleteChatMessage = chatApi.DeleteChatMessage } }

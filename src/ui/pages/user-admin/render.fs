@@ -73,16 +73,16 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
                 | _ -> None
             Some onDismiss, false, addUserInteraction, onEnter, userNameStatus, passwordStatus, confirmPasswordStatus
     let body = [
+        match createUsersModalState.LastUserNameCreated with
+        | Some(UserName userName) ->
+            yield notificationT theme IsInfo None [ contentCentredSmaller [ str "User " ; strong userName ; str " has been added" ] ]
+            yield br
+        | _ -> ()
         match createUsersModalState.CreateUserApiStatus with
         | Some(ApiFailed error) ->
             yield notificationT theme IsDanger None [
                 contentCentredSmaller [ str "Unable to add user " ; strong createUsersModalState.UserName ]
                 contentLeftSmallest [ str error ] ]
-            yield br
-        | _ -> ()
-        match createUsersModalState.LastUserNameCreated with
-        | Some(UserName userName) ->
-            yield notificationT theme IsInfo None [ contentCentredSmaller [ str "User " ; strong userName ; str " has been added" ] ]
             yield br
         | _ -> ()
         yield contentCentredSmaller [ str "Please enter the details for the new user" ]
@@ -100,7 +100,7 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
         yield fieldGroupedCentred [ buttonTSmall theme IsLink addUserInteraction [ str "Add user" ] ] ]
     cardModalT theme (Some(title, onDismiss)) body
 
-let private renderResetPasswordModal (theme, authUser, users:UserData list, resetPasswordModalState:ResetPasswordModalState) dispatch =
+let private renderResetPasswordModal (theme, users, resetPasswordModalState:ResetPasswordModalState) dispatch =
     let title, onDismiss, body =
         let onDismiss = (fun _ -> dispatch CloseResetPasswordModal)
         let userId, rvn = resetPasswordModalState.ForUser
@@ -161,7 +161,7 @@ let private renderResetPasswordModal (theme, authUser, users:UserData list, rese
             title, Some onDismiss, body
     cardModalT theme (Some(title, onDismiss)) body
 
-let private renderChangeUserTypeModal (theme, authUser, users:UserData list, changeUserTypeModalState:ChangeUserTypeModalState) dispatch =
+let private renderChangeUserTypeModal (theme, authUser, users, changeUserTypeModalState:ChangeUserTypeModalState) dispatch =
     let title, onDismiss, body =
         let onDismiss = (fun _ -> dispatch CloseChangeUserTypeModal)
         let userId, rvn = changeUserTypeModalState.ForUser
@@ -246,7 +246,7 @@ let render theme authUser usersData state ticks dispatch =
         | Received(users, _) ->
             match state.CreateUsersModalState, state.ResetPasswordModalState, state.ChangeUserTypeModalState with
             | Some createUsersModalState, _, _ -> yield lazyView2 renderCreateUsersModal (theme, authUser, users, createUsersModalState) (CreateUsersModalInput >> dispatch)
-            | _, Some resetPasswordModalState, _ -> yield lazyView2 renderResetPasswordModal (theme, authUser, users, resetPasswordModalState) (ResetPasswordModalInput >> dispatch)
+            | _, Some resetPasswordModalState, _ -> yield lazyView2 renderResetPasswordModal (theme, users, resetPasswordModalState) (ResetPasswordModalInput >> dispatch)
             | _, _, Some changeUserTypeModalState -> yield lazyView2 renderChangeUserTypeModal (theme, authUser, users, changeUserTypeModalState) (ChangeUserTypeModalInput >> dispatch)
             | _ -> ()
         | _ -> ()

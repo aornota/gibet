@@ -75,6 +75,8 @@ let canChangeUserTypeTo (forUserId, forUserType) newUserType (userId:UserId, use
 
 let canGetChatMessages userType = canSignIn userType
 let canSendChatMessage userType = canSignIn userType
+let canEditChatMessage fromUserId (userId:UserId, userType) = if fromUserId <> userId then false else canSignIn userType
+let canDeleteChatMessage fromUserId (userId:UserId, userType) = match userType with | BenevolentDictatorForLife -> true | _ -> if fromUserId <> userId then false else canSignIn userType
 
 let mustChangePasswordBecause mustChangePasswordReason =
     match mustChangePasswordReason with

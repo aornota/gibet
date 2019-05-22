@@ -7,6 +7,7 @@ open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
 open Aornota.Gibet.Common.Markdown
 open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.RemoteData
@@ -14,7 +15,6 @@ open Aornota.Gibet.Ui.Common.Toast
 open Aornota.Gibet.Ui.Pages.Chat.Common
 open Aornota.Gibet.Ui.Pages.Chat.ServerApi
 open Aornota.Gibet.Ui.Shared
-open Aornota.Gibet.Ui.User.Shared
 
 open System
 
@@ -64,33 +64,31 @@ let private readyState latestChatSeen connectionId authUser =
         NewChatMessageChanged = false
         SendChatMessageApiStatus = None
         MoreChatMessagesApiStatus = None
+        EditChatMessageModalState = None
+        DeleteChatMessageModalState = None
         ChatMessagesData = chatMessagesData }
     state, getChatMessagesCmd
 
 let private chatMessageData chatMessage sinceSent status : ChatMessageData = chatMessage, DateTimeOffset.UtcNow.AddSeconds(float -sinceSent), status
 
-let private exists chatMessageId (chatMessages:ChatMessageData list) = chatMessages |> List.exists (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)
+let private chatMessageExists chatMessageId (chatMessages:ChatMessageData list) = match chatMessages |> tryFindChatMessage chatMessageId with | Some _ -> true | None -> false
 
-let private tryFind chatMessageId (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
-    match chatMessagesData with
-    | Received((chatMessages, _), _) -> chatMessages |> List.tryFind (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)
-    | _ -> None
-let private addChatMessage (chatMessageData:ChatMessageData) (count:int) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+let private addChatMessage (chatMessageData:ChatMessageData) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
         match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
         | Some error -> Error(sprintf "addChatMessage: %s" error)
         | None ->
             let chatMessage, _, _ = chatMessageData
-            if chatMessages |> exists chatMessage.ChatMessageId then Error(sprintf "addChatMessage: %A already exists" chatMessage.ChatMessageId)
-            else Ok(Received((chatMessageData :: chatMessages, count), chatMessagesRvn))
+            if chatMessages |> chatMessageExists chatMessage.ChatMessageId then Error(sprintf "addChatMessage: %A already exists" chatMessage.ChatMessageId)
+            else Ok(chatMessageData :: chatMessages)
     | _ -> Error "addChatMessage: not Received"
 let private addChatMessages (chatMessages:ChatMessageData list) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
-    let rec add current chatMessages =
+    let rec add current (chatMessages:ChatMessageData list) =
         match chatMessages with
         | data :: tail ->
             let chatMessage, _, _ = data
-            if current |> exists chatMessage.ChatMessageId then Error(sprintf "addChatMessages: %A already exists" chatMessage.ChatMessageId)
+            if current |> chatMessageExists chatMessage.ChatMessageId then Error(sprintf "addChatMessages: %A already exists" chatMessage.ChatMessageId)
             else add (data :: current) tail
         | _ -> Ok current
     match chatMessagesData with
@@ -99,10 +97,40 @@ let private addChatMessages (chatMessages:ChatMessageData list) chatMessagesRvn 
         | Some error -> Error(sprintf "addChatMessages: %s" error)
         | None ->
             match add current chatMessages with
-            | Ok chatMessages -> Ok(Received((chatMessages, count), chatMessagesRvn))
+            | Ok chatMessages -> Ok chatMessages
             | Error error -> Error error
     | _ -> Error "addChatMessages: not Received"
-let private expire chatMessageIds count chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageIds
+let private editChatMessage (chatMessage:ChatMessage) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+    match chatMessagesData with
+    | Received((chatMessages, _), currentChatMessagesRvn) ->
+        match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
+        | Some error -> Error(sprintf "editChatMessage: %s" error)
+        | None ->
+            let chatMessageId = chatMessage.ChatMessageId
+            match chatMessages |> tryFindChatMessage chatMessageId with
+            | Some _ ->
+                let chatMessages =
+                    chatMessages
+                    |> List.map (fun (currentChatMessage, timestamp, status) ->
+                        if currentChatMessage.ChatMessageId = chatMessageId then chatMessage, timestamp, status
+                        else currentChatMessage, timestamp, status)
+                Ok chatMessages
+            | None -> Error(sprintf "editChatMessage: %A already exists" chatMessageId)
+    | _ -> Error "editChatMessage: not Received"
+let private deleteChatMessage chatMessageId chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageId
+    match chatMessagesData with
+    | Received((chatMessages, _), currentChatMessagesRvn) ->
+        match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
+        | Some error -> Error(sprintf "deleteChatMessage: %s" error)
+        | None ->
+            let chatMessages =
+                chatMessages
+                |> List.choose (fun (chatMessage, timestamp, status) ->
+                    if chatMessage.ChatMessageId = chatMessageId then None
+                    else Some(chatMessage, timestamp, status))
+            Ok chatMessages
+    | _ -> Error "deleteChatMessage: not Received"
+let private expireChatMessages chatMessageIds chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageIds
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
         match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
@@ -113,45 +141,49 @@ let private expire chatMessageIds count chatMessagesRvn (chatMessagesData:Remote
                 |> List.map (fun (chatMessage, timestamp, status) ->
                     if chatMessageIds |> List.contains chatMessage.ChatMessageId then chatMessage, timestamp, MessageExpired
                     else chatMessage, timestamp, status)
-            Ok(Received((chatMessages, count), chatMessagesRvn))
-    | _ -> Error "expireChatMessage: not Received"
-let private remove chatMessageId (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageId
+            Ok chatMessages
+    | _ -> Error "expireChatMessages: not Received"
+
+let private removeChatMessages chatMessageIds (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageIds
     match chatMessagesData with
     | Received((chatMessages, count), chatMessagesRvn) ->
         let chatMessages =
             chatMessages
             |> List.choose (fun (chatMessage, timestamp, status) ->
-                if chatMessage.ChatMessageId = chatMessageId then None
+                if chatMessageIds |> List.contains chatMessage.ChatMessageId then None
                 else Some(chatMessage, timestamp, status))
         Ok(Received((chatMessages, count), chatMessagesRvn))
-    | _ -> Error "removeChatMessage: not Received"
+    | _ -> Error "removeChatMessages: not Received"
 
-let private unseenCounts authUser latestChatSeen (key:Guid) (chatMessages:ChatMessageData list) =
+let private updateUnseenCounts authUser (key:Guid) (chatMessages:ChatMessageData list) isCurrentPage readyState =
     let unseen =
         chatMessages
         |> List.filter (fun (_, _, status) ->
             match status with
             | MessageReceived ordinal ->
-                match latestChatSeen with
+                match readyState.LatestChatSeen with
                 | Some(currentKey, _) when currentKey <> key -> true
                 | Some(_, Some highestOrdinal) when ordinal > highestOrdinal -> true
                 | Some _ -> false
                 | None -> true
             | MessageExpired -> false)
     let unseenTagged = unseen |> List.filter (fun (chatMessage, _, _) -> chatMessage.TaggedUsers |> List.contains authUser.User.UserId)
-    unseen.Length, unseenTagged.Length
-
-let private updateCounts isCurrentPage unseen unseenTagged readyState =
     let unseenCount, unseenTaggedCount =
-        if not isCurrentPage || hasActivity then readyState.UnseenCount + unseen, readyState.UnseenTaggedCount + unseenTagged
+        if not isCurrentPage || hasActivity then unseen.Length, unseenTagged.Length
         else readyState.UnseenCount, readyState.UnseenTaggedCount
     let cmd =
         if isCurrentPage && (unseenCount <> readyState.UnseenCount || unseenTaggedCount <> readyState.UnseenTaggedCount) then UpdatePageTitle |> Cmd.ofMsg
         else Cmd.none
     { readyState with UnseenCount = unseenCount ; UnseenTaggedCount = unseenTaggedCount }, cmd
-
-let private updateLatestChatSeen isCurrentPage (key:Guid) (chatMessages:ChatMessageData list) readyState =
-    if isCurrentPage then
+let private initializeLatestChatSeen (key:Guid) readyState =
+    match readyState.LatestChatSeen with
+    | Some(currentKey, _) when currentKey = key -> readyState, Cmd.none
+    | _ ->
+        let latestChatSeen = key, None
+        { readyState with LatestChatSeen = Some latestChatSeen }, writeLatestChatSeenCmd latestChatSeen
+let private updateLatestChatSeen readyState =
+    match readyState.LatestChatSeen, readyState.ChatMessagesData with
+    | Some(key, _), Received((chatMessages, _), _) ->
         let latestChatSeen =
             let nonExpired = chatMessages |> List.choose (fun (_, _, status) -> match status with | MessageReceived ordinal -> Some ordinal | MessageExpired -> None)
             if nonExpired.Length > 0 then
@@ -166,27 +198,61 @@ let private updateLatestChatSeen isCurrentPage (key:Guid) (chatMessages:ChatMess
         | Some(key, highestOrdinal), Some(_, currentHighestOrdinal) when highestOrdinal > currentHighestOrdinal ->
             { readyState with LatestChatSeen = Some(key, highestOrdinal) }, writeLatestChatSeenCmd (key, highestOrdinal)
         | _ -> readyState, Cmd.none
-    else readyState, Cmd.none
+    | _ -> readyState, Cmd.none
+
+let private editChatMessageModalState chatMessageId rvn (Markdown newChatMessage) = {
+    ForChatMessage = chatMessageId, rvn
+    NewChatMessageKey = Guid.NewGuid()
+    NewChatMessage = newChatMessage
+    NewChatMessageChanged = false
+    EditChatMessageApiStatus = None }
+
+let private deleteChatMessageModalState chatMessageId = {
+    ChatMessageId = chatMessageId
+    DeleteChatMessageApiStatus = None }
 
 let private handleRemoteChatInput authUser remoteChatInput (pageState, readyState) =
     match remoteChatInput with
     | ChatMessageReceived(chatMessage, ordinal, count, key, chatMessagesRvn) ->
         let chatMessageData = chatMessageData chatMessage 0.<second> (MessageReceived ordinal)
-        match readyState.ChatMessagesData |> addChatMessage chatMessageData count chatMessagesRvn with
-        | Ok chatMessagesData ->
-            let unseen, unseenTagged = [ chatMessageData ] |> unseenCounts authUser readyState.LatestChatSeen key
-            let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
-            let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key [ chatMessageData ]
+        match readyState.ChatMessagesData |> addChatMessage chatMessageData chatMessagesRvn with
+        | Ok chatMessages ->
+            let readyState, updatePageTitleCmd = readyState |> updateUnseenCounts authUser key chatMessages pageState.IsCurrentPage
+            // Note: Call to initializeLatestChatSeen should be superfluous.
+            let readyState, writeLatestChatSeenCmd = readyState |> initializeLatestChatSeen key
             let toastCmd = ifDebug (sprintf "%A received (%i available) -> ChatMessageData now %A" chatMessage.ChatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
-            let readyState = { readyState with ChatMessagesData = chatMessagesData }
-            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd; toastCmd ]
+            let readyState = { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
+            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
         | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
-    | ChatMessagesExpired(chatMessageIds, count, chatMessagesRvn) ->
-        match readyState.ChatMessagesData |> expire chatMessageIds count chatMessagesRvn with
-        | Ok chatMessagesData ->
-            // Note: No need to worry about unseen counts (&c.) as expired messages are not relevant for these.
-            let readyState = { readyState with ChatMessagesData = chatMessagesData }
-            Ready(pageState, readyState), ifDebug (sprintf "%A expired (%i available) -> ChatMessageData now %A" chatMessageIds count chatMessagesRvn |> infoToastCmd) Cmd.none
+    | ChatMessageEdited(chatMessage, count, key, chatMessagesRvn) ->
+        match readyState.ChatMessagesData |> editChatMessage chatMessage chatMessagesRvn with
+        | Ok chatMessages ->
+            let readyState, updatePageTitleCmd = readyState |> updateUnseenCounts authUser key chatMessages pageState.IsCurrentPage
+            // Note: Call to initializeLatestChatSeen should be superfluous.
+            let readyState, writeLatestChatSeenCmd = readyState |> initializeLatestChatSeen key
+            let toastCmd = ifDebug (sprintf "%A edited (%i available) -> ChatMessageData now %A" chatMessage.ChatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
+            let readyState = { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
+            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
+        | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
+    | ChatMessageDeleted(chatMessageId, count, key, chatMessagesRvn) ->
+        match readyState.ChatMessagesData |> deleteChatMessage chatMessageId chatMessagesRvn with
+        | Ok chatMessages ->
+            let readyState, updatePageTitleCmd = readyState |> updateUnseenCounts authUser key chatMessages pageState.IsCurrentPage
+            // Note: Call to initializeLatestChatSeen should be superfluous.
+            let readyState, writeLatestChatSeenCmd = readyState |> initializeLatestChatSeen key
+            let toastCmd = ifDebug (sprintf "%A deleted (%i available) -> ChatMessageData now %A" chatMessageId count chatMessagesRvn |> infoToastCmd) Cmd.none
+            let readyState = { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
+            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
+        | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
+    | ChatMessagesExpired(chatMessageIds, count, key, chatMessagesRvn) ->
+        match readyState.ChatMessagesData |> expireChatMessages chatMessageIds chatMessagesRvn with
+        | Ok chatMessages ->
+            let readyState, updatePageTitleCmd = readyState |> updateUnseenCounts authUser key chatMessages pageState.IsCurrentPage
+            // Note: Call to initializeLatestChatSeen should be superfluous.
+            let readyState, writeLatestChatSeenCmd = readyState |> initializeLatestChatSeen key
+            let toastCmd = ifDebug (sprintf "%A expired (%i available) -> ChatMessageData now %A" chatMessageIds count chatMessagesRvn |> infoToastCmd) Cmd.none
+            let readyState = { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
+            Ready(pageState, readyState),  Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
         | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
 
 let private handleLatestChatSeenInput connectionId authUser latestChatSeenInput state =
@@ -214,12 +280,9 @@ let private handleUpdateIsCurrentPage isCurrentPage state =
         let pageState = { pageState with IsCurrentPage = isCurrentPage }
         if isCurrentPage then
             let updatePageTitleCmd = UpdatePageTitle |> Cmd.ofMsg
-            let readyState, writeLatestChatSeenCmd =
-                match readyState.LatestChatSeen, readyState.ChatMessagesData with
-                | Some(key, _), Received((chatMessages, _), _) -> readyState |> updateLatestChatSeen isCurrentPage key chatMessages
-                | _ -> readyState, Cmd.none
+            let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen
             let readyState = { readyState with UnseenCount = 0 ; UnseenTaggedCount = 0 }
-            Ready(pageState, readyState), Cmd.batch [ writeLatestChatSeenCmd ; updatePageTitleCmd ]
+            Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ]
         else Ready(pageState, readyState), Cmd.none
 
 let private handleGetChatMessagesApiInput authUser getChatMessagesApiInput (pageState, readyState) =
@@ -228,9 +291,8 @@ let private handleGetChatMessagesApiInput authUser getChatMessagesApiInput (page
         match getChatMessagesApiInput with
         | GetChatMessagesResult(Ok(chatMessages, count, key, chatMessagesRvn)) ->
             let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
-            let unseen, unseenTagged = chatMessages |> unseenCounts authUser readyState.LatestChatSeen key
-            let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
-            let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key chatMessages
+            let readyState, updatePageTitleCmd = readyState |> updateUnseenCounts authUser key chatMessages pageState.IsCurrentPage
+            let readyState, writeLatestChatSeenCmd = readyState |> initializeLatestChatSeen key
             let toastCmd = ifDebug (sprintf "Got %i chat message/s (%i available) -> ChatMessagesData %A" chatMessages.Length count chatMessagesRvn |> infoToastCmd) Cmd.none
             let readyState = { readyState with ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
             Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
@@ -238,28 +300,6 @@ let private handleGetChatMessagesApiInput authUser getChatMessagesApiInput (page
             Ready(pageState, { readyState with ChatMessagesData = Failed error }), ifDebug (sprintf "GetChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
         | GetChatMessagesExn exn -> Ready(pageState, readyState), GetChatMessagesApiInput(GetChatMessagesResult(Error exn.Message)) |> Cmd.ofMsg
     | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when ChatMessagesData is not Pending (%A)" getChatMessagesApiInput readyState)
-
-let private handleMoreChatMessagesApiInput authUser moreChatMessagesApiInput (pageState, readyState) =
-    match readyState.MoreChatMessagesApiStatus with
-    | Some ApiPending ->
-        match moreChatMessagesApiInput with
-        | MoreChatMessagesResult(Ok(chatMessages, key, chatMessagesRvn)) ->
-            let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
-            match readyState.ChatMessagesData |> addChatMessages chatMessages chatMessagesRvn with
-            | Ok chatMessagesData ->
-                // Note: Updating unseen counts (&c.) should be superfluous.
-                let unseen, unseenTagged = chatMessages |> unseenCounts authUser readyState.LatestChatSeen key
-                let readyState, updatePageTitleCmd = readyState |> updateCounts pageState.IsCurrentPage unseen unseenTagged
-                let readyState, writeLatestChatSeenCmd = readyState |> updateLatestChatSeen pageState.IsCurrentPage key chatMessages
-                let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessages.Length chatMessagesRvn |> infoToastCmd) Cmd.none
-                let readyState = { readyState with MoreChatMessagesApiStatus = None ; ChatMessagesData = chatMessagesData }
-                Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
-            | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
-        | MoreChatMessagesResult(Error error) ->
-            let cmd = ifDebug (sprintf "MoreChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
-            Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some(ApiFailed error) }), cmd
-        | MoreChatMessagesExn exn -> Ready(pageState, readyState), MoreChatMessagesApiInput(MoreChatMessagesResult(Error exn.Message)) |> Cmd.ofMsg
-    | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when MoreChatMessagesApiStatus is not Pending (%A)" moreChatMessagesApiInput readyState)
 
 let private handleSendChatMessageApiInput sendChatMessageApiInput (pageState, readyState) =
     match readyState.SendChatMessageApiStatus with
@@ -274,9 +314,146 @@ let private handleSendChatMessageApiInput sendChatMessageApiInput (pageState, re
         | SendChatMessageExn exn -> Ready(pageState, readyState), SendChatMessageApiInput(SendChatMessageResult(Error exn.Message)) |> Cmd.ofMsg
     | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when SendChatMessageApiStatus is not Pending (%A)" sendChatMessageApiInput readyState)
 
+let private handleMoreChatMessagesApiInput authUser moreChatMessagesApiInput (pageState, readyState) =
+    match readyState.MoreChatMessagesApiStatus with
+    | Some ApiPending ->
+        match moreChatMessagesApiInput with
+        | MoreChatMessagesResult(Ok(chatMessages, count, key, chatMessagesRvn)) ->
+            let chatMessages = chatMessages |> List.map (fun (chatMessage, ordinal, sinceSent) -> chatMessageData chatMessage sinceSent (MessageReceived ordinal))
+            let chatMessagesCount = chatMessages.Length
+            match readyState.ChatMessagesData |> addChatMessages chatMessages chatMessagesRvn with
+            | Ok chatMessages ->
+                // Note: Callw to updateUnseenCounts and initializeLatestChatSeen should be superfluous.
+                let readyState, updatePageTitleCmd = readyState |> updateUnseenCounts authUser key chatMessages pageState.IsCurrentPage
+                let readyState, writeLatestChatSeenCmd = readyState |> initializeLatestChatSeen key
+                let toastCmd = ifDebug (sprintf "Got %i more chat message/s -> ChatMessagesData %A" chatMessagesCount chatMessagesRvn |> infoToastCmd) Cmd.none
+                let readyState = { readyState with MoreChatMessagesApiStatus = None ; ChatMessagesData = Received((chatMessages, count), chatMessagesRvn) }
+                Ready(pageState, readyState), Cmd.batch [ updatePageTitleCmd ; writeLatestChatSeenCmd ; toastCmd ]
+            | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
+        | MoreChatMessagesResult(Error error) ->
+            let cmd = ifDebug (sprintf "MoreChatMessagesResult error -> %s" error |> errorToastCmd) Cmd.none
+            Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some(ApiFailed error) }), cmd
+        | MoreChatMessagesExn exn -> Ready(pageState, readyState), MoreChatMessagesApiInput(MoreChatMessagesResult(Error exn.Message)) |> Cmd.ofMsg
+    | _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when MoreChatMessagesApiStatus is not Pending (%A)" moreChatMessagesApiInput readyState)
+
+let private handleEditChatMessageModalInput authUser usersData editChatMessageModalInput (pageState, readyState) =
+    match readyState.EditChatMessageModalState with
+    | Some editChatMessageModalState ->
+        match editChatMessageModalInput, editChatMessageModalState.EditChatMessageApiStatus with
+        | _, Some ApiPending ->
+            let cmd = shouldNeverHappenCmd (sprintf "Unexpected %A when EditChatMessageModalState.EditChatMessageApiStatus is Pending (%A)" editChatMessageModalInput readyState)
+            Ready(pageState, readyState), cmd
+        | EditChatMessageModalInput.NewChatMessageChanged newChatMessage, _ ->
+            let editChatMessageModalState = { editChatMessageModalState with NewChatMessage = newChatMessage ; NewChatMessageChanged = true }
+            let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+            Ready(pageState, readyState), Cmd.none
+        | EditChatMessage, _ ->
+            match readyState.ChatMessagesData with
+            | Received((chatMessages, _), _) ->
+                let chatMessageId, _ = editChatMessageModalState.ForChatMessage
+                match chatMessages |> tryFindChatMessage chatMessageId with
+                | Some(chatMessage, _, _) ->
+                    let userId, _ = chatMessage.Sender
+                    let newChatMessage = Markdown editChatMessageModalState.NewChatMessage
+                    let newChatMessage, taggedUsers =
+                        match usersData with
+                        | Received(users, _) -> users |> processTags newChatMessage
+                        | _ -> newChatMessage, [] // should never happen
+                    let cmd =
+                        Cmd.OfAsync.either chatApi.editChatMessage (authUser.Jwt, chatMessageId, userId, newChatMessage, taggedUsers, chatMessage.Rvn) EditChatMessageResult EditChatMessageExn
+                        |> Cmd.map EditChatMessageApiInput
+                    let editChatMessageModalState = { editChatMessageModalState with EditChatMessageApiStatus = Some ApiPending }
+                    let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+                    Ready(pageState, readyState), cmd
+                | None ->
+                    let cmd = shouldNeverHappenCmd (sprintf "Unexpected EditChatMessage when %A not found in ChatMessagesData (%A)" chatMessageId readyState)
+                    let editChatMessageModalState = { editChatMessageModalState with EditChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                    let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+                    Ready(pageState, readyState), cmd
+            | _ ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected EditChatMessage when ChatMessagesData not Received (%A)" readyState)
+                let editChatMessageModalState = { editChatMessageModalState with EditChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+                Ready(pageState, readyState), cmd
+        | CloseEditChatMessageModal, _ ->
+            let readyState = { readyState with EditChatMessageModalState = None }
+            Ready(pageState, readyState), Cmd.none
+    | None -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when EditChatMessageModalState is None (%A)" editChatMessageModalInput readyState)
+let private handleEditChatMessageApiInput editChatMessageApiInput (pageState, readyState) =
+    match readyState.EditChatMessageModalState with
+    | Some editChatMessageModalState ->
+        match editChatMessageModalState.EditChatMessageApiStatus with
+        | Some ApiPending ->
+            match editChatMessageApiInput with
+            | EditChatMessageResult(Ok _) ->
+                let readyState = { readyState with EditChatMessageModalState = None }
+                Ready(pageState, readyState), "Chat message edited" |> successToastCmd
+            | EditChatMessageResult(Error error) ->
+                let editChatMessageModalState = { editChatMessageModalState with EditChatMessageApiStatus = Some(ApiFailed error) }
+                let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+                Ready(pageState, readyState), Cmd.none // no need for toast (since error will be displayed on EditChatMessageModal)
+            | EditChatMessageExn exn -> Ready(pageState, readyState), EditChatMessageApiInput(EditChatMessageResult(Error exn.Message)) |> Cmd.ofMsg
+        | _ ->
+            let cmd = shouldNeverHappenCmd (sprintf "Unexpected %A when EditChatMessageModalState.EditChatMessageApiStatus is not Pending (%A)" editChatMessageApiInput readyState)
+            Ready(pageState, readyState), cmd
+    | None -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when EditChatMessageModalState is None (%A)" editChatMessageApiInput readyState)
+
+let private handleDeleteChatMessageModalInput authUser deleteChatMessageModalInput (pageState, readyState) =
+    match readyState.DeleteChatMessageModalState with
+    | Some deleteChatMessageModalState ->
+        match deleteChatMessageModalInput, deleteChatMessageModalState.DeleteChatMessageApiStatus with
+        | _, Some ApiPending ->
+            let cmd = shouldNeverHappenCmd (sprintf "Unexpected %A when DeleteChatMessageModalState.DeleteChatMessageApiStatus is Pending (%A)" deleteChatMessageModalInput readyState)
+            Ready(pageState, readyState), cmd
+        | DeleteChatMessage, _ ->
+            match readyState.ChatMessagesData with
+            | Received((chatMessages, _), _) ->
+                let chatMessageId = deleteChatMessageModalState.ChatMessageId
+                match chatMessages |> tryFindChatMessage chatMessageId with
+                | Some(chatMessage, _, status) ->
+                    let userId, _ = chatMessage.Sender
+                    let cmd =
+                        Cmd.OfAsync.either chatApi.deleteChatMessage (authUser.Jwt, chatMessageId, userId, expired status, chatMessage.Rvn) DeleteChatMessageResult DeleteChatMessageExn
+                        |> Cmd.map DeleteChatMessageApiInput
+                    let deleteChatMessageModalState = { deleteChatMessageModalState with DeleteChatMessageApiStatus = Some ApiPending }
+                    let readyState = { readyState with DeleteChatMessageModalState = Some deleteChatMessageModalState }
+                    Ready(pageState, readyState), cmd
+                | None ->
+                    let cmd = shouldNeverHappenCmd (sprintf "Unexpected DeleteChatMessage when %A not found in ChatMessagesData (%A)" chatMessageId readyState)
+                    let deleteChatMessageModalState = { deleteChatMessageModalState with DeleteChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                    let readyState = { readyState with DeleteChatMessageModalState = Some deleteChatMessageModalState }
+                    Ready(pageState, readyState), cmd
+            | _ ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected DeleteChatMessage when ChatMessagesData not Received (%A)" readyState)
+                let deleteChatMessageModalState = { deleteChatMessageModalState with DeleteChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                let readyState = { readyState with DeleteChatMessageModalState = Some deleteChatMessageModalState }
+                Ready(pageState, readyState), cmd
+        | CloseDeleteChatMessageModal, _ ->
+            let readyState = { readyState with DeleteChatMessageModalState = None }
+            Ready(pageState, readyState), Cmd.none
+    | None -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when DeleteChatMessageModalState is None (%A)" deleteChatMessageModalInput readyState)
+let private handleDeleteChatMessageApiInput deleteChatMessageApiInput (pageState, readyState) =
+    match readyState.DeleteChatMessageModalState with
+    | Some deleteChatMessageModalState ->
+        match deleteChatMessageModalState.DeleteChatMessageApiStatus with
+        | Some ApiPending ->
+            match deleteChatMessageApiInput with
+            | DeleteChatMessageResult(Ok _) ->
+                let readyState = { readyState with DeleteChatMessageModalState = None }
+                Ready(pageState, readyState), "Chat message deleted" |> successToastCmd
+            | DeleteChatMessageResult(Error error) ->
+                let deleteChatMessageModalState = { deleteChatMessageModalState with DeleteChatMessageApiStatus = Some(ApiFailed error) }
+                let readyState = { readyState with DeleteChatMessageModalState = Some deleteChatMessageModalState }
+                Ready(pageState, readyState), Cmd.none // no need for toast (since error will be displayed on DeleteChatMessageModal)
+            | DeleteChatMessageExn exn -> Ready(pageState, readyState), DeleteChatMessageApiInput(DeleteChatMessageResult(Error exn.Message)) |> Cmd.ofMsg
+        | _ ->
+            let cmd = shouldNeverHappenCmd (sprintf "Unexpected %A when DeleteChatMessageModalState.DeleteChatMessageApiStatus is not Pending (%A)" deleteChatMessageApiInput readyState)
+            Ready(pageState, readyState), cmd
+    | None -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected %A when DeleteChatMessageModalState is None (%A)" deleteChatMessageApiInput readyState)
+
 let initialize isCurrentPage (_:AuthUser) = ReadingLatestChatSeen { IsCurrentPage = isCurrentPage }, readLatestChatSeenCmd
 
-let transition connectionId authUser (usersData:RemoteData<UserData list, string>) input state : State * Cmd<Input> =
+let transition connectionId authUser usersData input state : State * Cmd<Input> =
     match input, state with
     // Note: AddMessage | UpdatePageTitle will have been handled by Program.State.transition.
     | RemoteChatInput remoteChatInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleRemoteChatInput authUser remoteChatInput
@@ -290,6 +467,7 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
     | CloseMarkdownSyntaxModal, Ready(pageState, readyState) ->
         if readyState.ShowingMarkdownSyntaxModal then Ready(pageState, { readyState with ShowingMarkdownSyntaxModal = false }), Cmd.none
         else state, shouldNeverHappenCmd "Unexpected CloseMarkdownSyntaxModal when not ShowingMarkdownSyntaxModal"
+    | GetChatMessagesApiInput getChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleGetChatMessagesApiInput authUser getChatMessagesApiInput
     | NewChatMessageChanged newChatMessage, Ready(pageState, readyState) ->
         match readyState.SendChatMessageApiStatus with
         | Some ApiPending -> Ready(pageState, readyState), shouldNeverHappenCmd "Unexpected NewChatMessageChanged when SendChatMessageApiStatus is Pending"
@@ -303,15 +481,14 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
                 match usersData with
                 | Received(users, _) -> users |> processTags newChatMessage
                 | _ -> newChatMessage, [] // should never happen
-            let chatMessage = {
-                ChatMessageId = ChatMessageId.Create()
-                Sender = authUser.User.UserId, authUser.User.UserName
-                Payload = newChatMessage
-                TaggedUsers = taggedUsers }
-            let cmd = Cmd.OfAsync.either chatApi.sendChatMessage (authUser.Jwt, chatMessage) SendChatMessageResult SendChatMessageExn |> Cmd.map SendChatMessageApiInput
+            let cmd =
+                Cmd.OfAsync.either chatApi.sendChatMessage (authUser.Jwt, authUser.User.UserId, authUser.User.UserName, newChatMessage, taggedUsers) SendChatMessageResult SendChatMessageExn
+                |> Cmd.map SendChatMessageApiInput
             Ready(pageState, { readyState with SendChatMessageApiStatus = Some ApiPending }), cmd
-    | RemoveChatMessage chatMessageId, Ready(pageState, readyState) ->
-        match readyState.ChatMessagesData |> remove chatMessageId with
+    | SendChatMessageApiInput sendChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleSendChatMessageApiInput sendChatMessageApiInput
+    // TODO-NMB?...| RemoveAllExpiredChatMessages
+    | RemoveExpiredChatMessage chatMessageId, Ready(pageState, readyState) ->
+        match readyState.ChatMessagesData |> removeChatMessages [ chatMessageId ] with
         | Ok chatMessagesData -> Ready(pageState, { readyState with ChatMessagesData = chatMessagesData }), Cmd.none
         | Error error -> Ready(pageState, readyState), shouldNeverHappenCmd error
     | MoreChatMessages belowOrdinal, Ready(pageState, readyState) ->
@@ -321,7 +498,40 @@ let transition connectionId authUser (usersData:RemoteData<UserData list, string
             let cmd =
                 Cmd.OfAsync.either chatApi.moreChatMessages (authUser.Jwt, belowOrdinal, queryBatchSize) MoreChatMessagesResult MoreChatMessagesExn |> Cmd.map MoreChatMessagesApiInput
             Ready(pageState, { readyState with MoreChatMessagesApiStatus = Some ApiPending }), cmd
-    | GetChatMessagesApiInput getChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleGetChatMessagesApiInput authUser getChatMessagesApiInput
     | MoreChatMessagesApiInput moreChatMessagesApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleMoreChatMessagesApiInput authUser moreChatMessagesApiInput
-    | SendChatMessageApiInput sendChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleSendChatMessageApiInput sendChatMessageApiInput
+    | ShowEditChatMessageModal chatMessageId, Ready(pageState, readyState) ->
+        match readyState.EditChatMessageModalState with
+        | Some _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected ShowEditChatMessageModal when EditChatMessageModalState is not None (%A)" readyState)
+        | None ->
+            match readyState.ChatMessagesData with
+            | Received((chatMessages, _), _) ->
+                match chatMessages |> tryFindChatMessage chatMessageId with
+                | Some(chatMessage, _, _) ->
+                    let readyState = { readyState with EditChatMessageModalState = Some(editChatMessageModalState chatMessageId chatMessage.Rvn chatMessage.Payload) }
+                    Ready(pageState, readyState), Cmd.none
+                | None ->
+                    let cmd = shouldNeverHappenCmd (sprintf "Unexpected ShowEditChatMessageModal when %A not found in ChatMessagesData (%A)" chatMessageId readyState)
+                    let editChatMessageModalState = editChatMessageModalState chatMessageId initialRvn (Markdown UNEXPECTED_ERROR)
+                    let editChatMessageModalState = { editChatMessageModalState with EditChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                    let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+                    Ready(pageState, readyState), cmd
+            | _ ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected ShowEditChatMessageModal when ChatMessagesData not Received (%A)" readyState)
+                let editChatMessageModalState = editChatMessageModalState chatMessageId initialRvn (Markdown UNEXPECTED_ERROR)
+                let editChatMessageModalState = { editChatMessageModalState with EditChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                let readyState = { readyState with EditChatMessageModalState = Some editChatMessageModalState }
+                Ready(pageState, readyState), cmd
+    | EditChatMessageModalInput editChatMessageModalInput, Ready(pageState, readyState) ->
+        (pageState, readyState) |> handleEditChatMessageModalInput authUser usersData editChatMessageModalInput
+    | EditChatMessageApiInput editChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleEditChatMessageApiInput editChatMessageApiInput
+    | ShowDeleteChatMessageModal chatMessageId, Ready(pageState, readyState) ->
+        match readyState.DeleteChatMessageModalState with
+        | Some _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected ShowDeleteChatMessageModal when DeleteChatMessageModalState is not None (%A)" readyState)
+        | None ->
+            // TODO-NMB: Rework to match ShowEditChatMessageModal - because will need current Rvn for warning?...
+            let readyState = { readyState with DeleteChatMessageModalState = Some(deleteChatMessageModalState chatMessageId) }
+            Ready(pageState, readyState), Cmd.none
+    | DeleteChatMessageModalInput deleteChatMessageModalInput, Ready(pageState, readyState) ->
+        (pageState, readyState) |> handleDeleteChatMessageModalInput authUser deleteChatMessageModalInput
+    | DeleteChatMessageApiInput deleteChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleDeleteChatMessageApiInput deleteChatMessageApiInput
     | _ -> state, shouldNeverHappenCmd (unexpectedInputWhenState input state)

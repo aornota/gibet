@@ -106,9 +106,9 @@ let private handleResetPasswordModalInput resetPasswordModalInput (authUser:Auth
                 let resetPasswordModalState = { resetPasswordModalState with ResetPasswordApiStatus = Some ApiPending }
                 { state with ResetPasswordModalState = Some resetPasswordModalState }, cmd
             | None ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected ResetPassword when %A not found in users (%A)" userId state)
                 let resetPasswordModalState = { resetPasswordModalState with ResetPasswordApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
-                let state = { state with ResetPasswordModalState = Some resetPasswordModalState }
-                state, shouldNeverHappenCmd (sprintf "Unexpected ResetPassword when %A not found in users (%A)" userId state)
+                { state with ResetPasswordModalState = Some resetPasswordModalState }, cmd
         | CloseResetPasswordModal, _ -> { state with ResetPasswordModalState = None }, Cmd.none
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ResetPasswordModalState is None (%A)" resetPasswordModalInput state)
 let private handleResetPasswordApiInput resetPasswordApiInput (authUser:AuthUser) (users:UserData list) state =
@@ -142,13 +142,13 @@ let private handleChangeUserTypeModalInput changeUserTypeModalInput (authUser:Au
                 let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some ApiPending }
                 { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, cmd
             | Some _, None ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected ChangeUserType when NewUserType is None (%A)" state)
                 let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
-                let state = { state with ChangeUserTypeModalState = Some changeUserTypeModalState }
-                state, shouldNeverHappenCmd (sprintf "Unexpected ChangeUserType when NewUserType is None (%A)" state)
+                { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, cmd
             | None, _ ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected ChangeUserType when %A not found in users (%A)" userId state)
                 let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
-                let state = { state with ChangeUserTypeModalState = Some changeUserTypeModalState }
-                state, shouldNeverHappenCmd (sprintf "Unexpected ChangeUserType when %A not found in users (%A)" userId state)
+                { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, cmd
         | CloseChangeUserTypeModal, _ -> { state with ChangeUserTypeModalState = None }, Cmd.none
     | None -> state, shouldNeverHappenCmd (sprintf "Unexpected %A when ChangeUserTypeModalState is None (%A)" changeUserTypeModalInput state)
 let private handleChangeUserTypeApiInput changeUserTypeApiInput (authUser:AuthUser) (users:UserData list) state =

@@ -3,6 +3,7 @@ module Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Markdown
+open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
 
 open System
@@ -11,9 +12,11 @@ type ChatMessageId = | ChatMessageId of Guid with static member Create() = ChatM
 
 type ChatMessage = {
     ChatMessageId : ChatMessageId
+    Rvn : Rvn
     Sender : UserId * UserName
     Payload : Markdown
-    TaggedUsers : UserId list }
+    TaggedUsers : UserId list
+    Edited : bool }
 
 let [<Literal>] private CHAT_MESSAGE_LIFETIME = 24.<hour>
 

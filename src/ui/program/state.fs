@@ -251,7 +251,7 @@ let private shouldNeverHappen error state : State * Cmd<Input> =
 #endif
 // #endregion
 
-let private userExists userId (users:UserData list) = users |> List.exists (fun (user, _, _) -> user.UserId = userId)
+let private userExists userId (users:UserData list) = match users |> tryFindUser userId with | Some _ -> true | None -> false
 
 let private tryFindUser userId (usersData:RemoteData<UserData list, string>) = match usersData with | Received(users, _) -> users |> tryFindUser userId | _ -> None
 let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =

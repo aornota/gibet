@@ -18,7 +18,9 @@ type UserUpdateType =
 
 type RemoteChatInput =
     | ChatMessageReceived of ChatMessage * ordinal : int * count : int * key : Guid * chatMessagesRvn : Rvn
-    | ChatMessagesExpired of ChatMessageId list * count : int * chatMessagesRvn : Rvn
+    | ChatMessageEdited of ChatMessage * count : int * key : Guid * chatMessagesRvn : Rvn
+    | ChatMessageDeleted of ChatMessageId * count : int * key : Guid * chatMessagesRvn : Rvn
+    | ChatMessagesExpired of ChatMessageId list * count : int * key : Guid * chatMessagesRvn : Rvn
 
 type RemoteUiInput =
     | Initialized // sent from Server.Bridge.State.initialize - and used to ensure that UI does not call Bridge.Send prematurely (which can cause "Still in CONNECTING state" websocket errors)

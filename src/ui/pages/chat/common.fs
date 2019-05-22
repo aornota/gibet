@@ -25,13 +25,28 @@ type GetChatMessagesApiInput =
     | GetChatMessagesResult of Result<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
     | GetChatMessagesExn of exn
 
-type MoreChatMessagesApiInput =
-    | MoreChatMessagesResult of Result<(ChatMessage * int * float<second>) list * Guid * Rvn, string>
-    | MoreChatMessagesExn of exn
-
 type SendChatMessageApiInput =
     | SendChatMessageResult of Result<unit, string>
     | SendChatMessageExn of exn
+
+type MoreChatMessagesApiInput =
+    | MoreChatMessagesResult of Result<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
+    | MoreChatMessagesExn of exn
+
+type EditChatMessageModalInput =
+    | NewChatMessageChanged of string
+    | EditChatMessage
+    | CloseEditChatMessageModal
+type EditChatMessageApiInput =
+    | EditChatMessageResult of Result<unit, string>
+    | EditChatMessageExn of exn
+
+type DeleteChatMessageModalInput =
+    | DeleteChatMessage
+    | CloseDeleteChatMessageModal
+type DeleteChatMessageApiInput =
+    | DeleteChatMessageResult of Result<unit, string>
+    | DeleteChatMessageExn of exn
 
 type Input =
     | AddMessage of Message // note: handled by Program.State.transition
@@ -42,19 +57,37 @@ type Input =
     | ActivityWhenCurrentPage
     | ShowMarkdownSyntaxModal
     | CloseMarkdownSyntaxModal
+    | GetChatMessagesApiInput of GetChatMessagesApiInput
     | NewChatMessageChanged of string
     | SendChatMessage
-    | RemoveChatMessage of ChatMessageId
-    | MoreChatMessages of belowOrdinal : int
-    | GetChatMessagesApiInput of GetChatMessagesApiInput
-    | MoreChatMessagesApiInput of MoreChatMessagesApiInput
     | SendChatMessageApiInput of SendChatMessageApiInput
+    // TODO-NMB?...| RemoveAllExpiredChatMessages
+    | RemoveExpiredChatMessage of ChatMessageId
+    | MoreChatMessages of belowOrdinal : int
+    | MoreChatMessagesApiInput of MoreChatMessagesApiInput
+    | ShowEditChatMessageModal of ChatMessageId
+    | EditChatMessageModalInput of EditChatMessageModalInput
+    | EditChatMessageApiInput of EditChatMessageApiInput
+    | ShowDeleteChatMessageModal of ChatMessageId
+    | DeleteChatMessageModalInput of DeleteChatMessageModalInput
+    | DeleteChatMessageApiInput of DeleteChatMessageApiInput
 
 type PageState = { IsCurrentPage : bool }
 
 type ChatMessageStatus = | MessageReceived of ordinal : int | MessageExpired
 
 type ChatMessageData = ChatMessage * DateTimeOffset * ChatMessageStatus
+
+type EditChatMessageModalState = {
+    ForChatMessage : ChatMessageId * Rvn
+    NewChatMessageKey : Guid
+    NewChatMessage : string
+    NewChatMessageChanged : bool
+    EditChatMessageApiStatus : ApiStatus<string> option }
+
+type DeleteChatMessageModalState = {
+    ChatMessageId : ChatMessageId
+    DeleteChatMessageApiStatus : ApiStatus<string> option }
 
 type ReadyState = {
     LatestChatSeen : (Guid * int option) option
@@ -66,6 +99,8 @@ type ReadyState = {
     NewChatMessageChanged : bool
     SendChatMessageApiStatus : ApiStatus<string> option
     MoreChatMessagesApiStatus : ApiStatus<string> option
+    EditChatMessageModalState : EditChatMessageModalState option
+    DeleteChatMessageModalState : DeleteChatMessageModalState option
     ChatMessagesData : RemoteData<ChatMessageData list * int, string> }
 
 type State =
@@ -74,7 +109,14 @@ type State =
 
 let [<Literal>] private QUERY_BATCH_SIZE = 10
 
-let queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
+// TEMP-NMB...
+//let queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
+let queryBatchSize = ifDebug (Some 4) (Some QUERY_BATCH_SIZE)
+// ...TEMP-NMB
+
+let tryFindChatMessage chatMessageId (chatMessages:ChatMessageData list) = chatMessages |> List.tryFind (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)
+
+let expired status = match status with | MessageReceived _ -> false | MessageExpired -> true
 
 let processTags (Markdown payload) (users:UserData list) =
     // Note: Differs from ..\..\..\dev-console\test-regex.fs because Regex behaviour is different once transpiled with Fable.

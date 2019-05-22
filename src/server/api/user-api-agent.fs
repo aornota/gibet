@@ -122,7 +122,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                 match result with
                 | Ok userId ->  logger.Debug("Signed out {userId}", userId)
                 | Error error -> logger.Warning("Unable to sign out -> {error}", error)
-                reply.Reply (result |> Result.map ignore)
+                reply.Reply(result |> Result.map ignore)
                 return! loop (userDict, agentRvn)
             | ChangePassword(jwt, password, rvn, reply) ->
                 let result = result {
@@ -156,7 +156,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     | Error error ->
                         logger.Warning("Unable to change password (UserApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
                         agentRvn
-                reply.Reply (result |> Result.map fst)
+                reply.Reply(result |> Result.map fst)
                 return! loop (userDict, agentRvn)
             | ChangeImageUrl(jwt, imageUrl, rvn, reply) ->
                 let result = result {
@@ -189,7 +189,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     | Error error ->
                         logger.Warning("Unable to change image URL (UserApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
                         agentRvn
-                reply.Reply (result |> Result.map fst)
+                reply.Reply(result |> Result.map fst)
                 return! loop (userDict, agentRvn)
             | GetUsers(connectionId, jwt, reply) ->
                 let result = result {
@@ -240,7 +240,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     | Error error ->
                         logger.Warning("Unable to create user {userName} (UserApiAgent {rvn} unchanged) -> {error}", userName, agentRvn, error)
                         agentRvn
-                reply.Reply (result |> Result.map fst)
+                reply.Reply(result |> Result.map fst)
                 return! loop (userDict, agentRvn)
             | ResetPassword(jwt, userId, password, rvn, reply) ->
                 let result = result {
@@ -277,8 +277,8 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     | Error error ->
                         logger.Warning("Unable to reset password for {userId} (UserApiAgent {rvn} unchanged) -> {error}", userId, agentRvn, error)
                         agentRvn
-                reply.Reply (result |> Result.map fst)
-                return! loop (userDict, agentRvn)
+                reply.Reply(result |> Result.map fst)
+                return! loop(userDict, agentRvn)
             | ChangeUserType(jwt, userId, userType, rvn, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake ChangeUserType error -> %A" jwt) else Ok()
@@ -313,7 +313,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     | Error error ->
                         logger.Warning("Unable to change user type for {userId} (UserApiAgent {rvn} unchanged) -> {error}", userId, agentRvn, error)
                         agentRvn
-                reply.Reply (result |> Result.map fst)
+                reply.Reply(result |> Result.map fst)
                 return! loop (userDict, agentRvn) }
         logger.Information("Starting...")
         let userDict = UserDict()
