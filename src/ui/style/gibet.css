@@ -47,6 +47,10 @@ strong { color: currentColor }
 .light a.external:hover { color: var(--link-external-light-hover) }
 .light a.internal { color: var(--link-internal-light) }
 .light a.internal:hover { color: var(--link-internal-light-hover) }
+.light .notification a.external:not(.button):not(.dropdown-item) { color: var(--link-external-light) }
+.light .notification a.external:not(.button):not(.dropdown-item):hover { color: var(--link-external-light-hover) }
+.light .notification a.internal:not(.button):not(.dropdown-item) { color: var(--link-internal-light) }
+.light .notification a.internal:not(.button):not(.dropdown-item):hover { color: var(--link-internal-light-hover) }
 .light-alternative { color: var(--black) ; background-color: var(--light) }
 /* #endregion */
 
@@ -56,6 +60,10 @@ strong { color: currentColor }
 .dark a.external:hover { color: var(--link-external-dark-hover) }
 .dark a.internal { color: var(--link-internal-dark) }
 .dark a.internal:hover { color: var(--link-internal-dark-hover) }
+.dark .notification a.external:not(.button):not(.dropdown-item) { color: var(--link-external-dark) }
+.dark .notification a.external:not(.button):not(.dropdown-item):hover { color: var(--link-external-dark-hover) }
+.dark .notification a.internal:not(.button):not(.dropdown-item) { color: var(--link-internal-dark) }
+.dark .notification a.internal:not(.button):not(.dropdown-item):hover { color: var(--link-internal-dark-hover) }
 .dark-alternative { color: var(--white) ; background-color: var(--dark) }
 /* #endregion */
 

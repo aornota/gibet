@@ -61,8 +61,7 @@ type Input =
     | NewChatMessageChanged of string
     | SendChatMessage
     | SendChatMessageApiInput of SendChatMessageApiInput
-    // TODO-NMB?...| RemoveAllExpiredChatMessages
-    | RemoveExpiredChatMessage of ChatMessageId
+    | RemoveExpiredChatMessages of ChatMessageId list
     | MoreChatMessages of belowOrdinal : int
     | MoreChatMessagesApiInput of MoreChatMessagesApiInput
     | ShowEditChatMessageModal of ChatMessageId
@@ -109,10 +108,7 @@ type State =
 
 let [<Literal>] private QUERY_BATCH_SIZE = 10
 
-// TEMP-NMB...
-//let queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
-let queryBatchSize = ifDebug (Some 4) (Some QUERY_BATCH_SIZE)
-// ...TEMP-NMB
+let queryBatchSize = ifDebug None (Some QUERY_BATCH_SIZE)
 
 let tryFindChatMessage chatMessageId (chatMessages:ChatMessageData list) = chatMessages |> List.tryFind (fun (chatMessage, _, _) -> chatMessage.ChatMessageId = chatMessageId)
 

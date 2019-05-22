@@ -25,8 +25,8 @@ open Serilog
 type private Input =
     | GetChatMessages of ConnectionId * Jwt * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
     | MoreChatMessages of Jwt * int * int option * AsyncReplyChannelResult<(ChatMessage * int * float<second>) list * int * Guid * Rvn, string>
-    | SendChatMessage of Jwt * UserId * UserName * Markdown * UserId list * AsyncReplyChannelResult<unit, string>
-    | EditChatMessage of Jwt * ChatMessageId * UserId * Markdown * UserId list * Rvn * AsyncReplyChannelResult<unit, string>
+    | SendChatMessage of ConnectionId * Jwt * UserId * UserName * Markdown * Markdown * UserId list * AsyncReplyChannelResult<unit, string>
+    | EditChatMessage of Jwt * ChatMessageId * UserId * Markdown * Markdown * UserId list * Rvn * AsyncReplyChannelResult<unit, string>
     | DeleteChatMessage of Jwt * ChatMessageId * UserId * bool * Rvn * AsyncReplyChannelResult<unit, string>
     | Housekeeping
 
@@ -38,7 +38,7 @@ let [<Literal>] private HOUSEKEEPING_INTERVAL = 1.<minute>
 
 let private key = Guid.NewGuid()
 
-let private addChatMessage userId userName payload taggedUsers ordinal (chatMessageDict:ChatMessageDict) =
+let private addChatMessage userId userName payload processedPayload taggedUsers ordinal (chatMessageDict:ChatMessageDict) =
     let chatMessageId = ChatMessageId.Create()
     if chatMessageDict.ContainsKey chatMessageId then Error(ifDebug (sprintf "%s.addChatMessage [%A] -> Unable to add %A" SOURCE key chatMessageId) UNEXPECTED_ERROR)
     else
@@ -47,6 +47,7 @@ let private addChatMessage userId userName payload taggedUsers ordinal (chatMess
             Rvn = initialRvn
             Sender = userId, userName
             Payload = payload
+            ProcessedPayload = processedPayload
             TaggedUsers = taggedUsers
             Edited = false }
         chatMessageDict.Add(chatMessageId, (chatMessage, ordinal, DateTimeOffset.UtcNow))
@@ -119,7 +120,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                 | Error error -> logger.Warning("Unable to get more chat messages [{key}] -> {error}", key, error)
                 reply.Reply result
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
-            | SendChatMessage(jwt, userId, userName, payload, taggedUsers, reply) ->
+            | SendChatMessage(connectionId, jwt, userId, userName, payload, processedPayload, taggedUsers, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake SendChatMessage error [%A] -> %A" key jwt) else Ok()
                     let! _, userType = fromJwt jwt
@@ -127,9 +128,9 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                         if canSendChatMessage userType then Ok()
                         else Error(ifDebug (sprintf "%s.SendChatMessage [%A] -> canSendChatMessage returned false for %A" SOURCE key userType) NOT_ALLOWED)
                     let lastOrdinal = lastOrdinal + 1
-                    let! chatMessage = chatMessageDict |> addChatMessage userId userName payload taggedUsers lastOrdinal
+                    let! chatMessage = chatMessageDict |> addChatMessage userId userName payload processedPayload taggedUsers lastOrdinal
                     let agentRvn = incrementRvn agentRvn
-                    hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageReceived(chatMessage, lastOrdinal, chatMessageDict.Count, key, agentRvn)))
+                    hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageReceived(connectionId, chatMessage, lastOrdinal, chatMessageDict.Count, key, agentRvn)))
                     return chatMessage.ChatMessageId, (lastOrdinal, agentRvn) }
                 let lastOrdinal, agentRvn =
                     match result with
@@ -141,7 +142,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                         lastOrdinal, agentRvn
                 reply.Reply(result |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
-            | EditChatMessage(jwt, chatMessageId, userId, payload, taggedUsers, rvn, reply) ->
+            | EditChatMessage(jwt, chatMessageId, userId, payload, processedPayload, taggedUsers, rvn, reply) ->
                 let result = result {
                     let! _ = if debugFakeError() then Error(sprintf "Fake EditChatMessage error [%A] -> %A" key jwt) else Ok()
                     let! byUserId, userType = fromJwt jwt
@@ -150,7 +151,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
                         else Error(ifDebug (sprintf "%s.EditChatMessage [%A] -> canEditChatMessage from %A returned false for %A (%A)" SOURCE key userId byUserId userType) NOT_ALLOWED)
                     let! chatMessage, ordinal, timestamp = chatMessageDict |> findChatMessage chatMessageId
                     let! _ = validateSameRvn chatMessage.Rvn rvn |> errorIfSome ()
-                    let chatMessage = { chatMessage with Rvn = incrementRvn rvn ; Payload = payload ; TaggedUsers = taggedUsers ; Edited = true }
+                    let chatMessage = { chatMessage with Rvn = incrementRvn rvn ; Payload = payload ; ProcessedPayload = processedPayload ; TaggedUsers = taggedUsers ; Edited = true }
                     let! _ = chatMessageDict |> updateChatMessage chatMessage ordinal timestamp
                     let agentRvn = incrementRvn agentRvn
                     hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageEdited(chatMessage, chatMessageDict.Count, key, agentRvn)))
@@ -216,9 +217,10 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, logger:I
     do housekeeping () |> Async.Start
     member __.GetChatMessages(connectionId, jwt, batchSize) = agent.PostAndAsyncReply(fun reply -> GetChatMessages(connectionId, jwt, batchSize, reply))
     member __.MoreChatMessages(jwt, belowOrdinal, batchSize) = agent.PostAndAsyncReply(fun reply -> MoreChatMessages(jwt, belowOrdinal, batchSize, reply))
-    member __.SendChatMessage(jwt, userId, userName, payload, taggedUsers) = agent.PostAndAsyncReply(fun reply -> SendChatMessage(jwt, userId, userName, payload, taggedUsers, reply))
-    member __.EditChatMessage(jwt, chatMessageId, userId, payload, taggedUsers, rvn) =
-        agent.PostAndAsyncReply(fun reply -> EditChatMessage(jwt, chatMessageId, userId, payload, taggedUsers, rvn, reply))
+    member __.SendChatMessage(connectionId, jwt, userId, userName, payload, processedPayload, taggedUsers) =
+        agent.PostAndAsyncReply(fun reply -> SendChatMessage(connectionId, jwt, userId, userName, payload, processedPayload, taggedUsers, reply))
+    member __.EditChatMessage(jwt, chatMessageId, userId, payload, processedPayload, taggedUsers, rvn) =
+        agent.PostAndAsyncReply(fun reply -> EditChatMessage(jwt, chatMessageId, userId, payload, processedPayload, taggedUsers, rvn, reply))
     member __.DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn) = agent.PostAndAsyncReply(fun reply -> DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn, reply))
 
 let chatApiReader = reader {

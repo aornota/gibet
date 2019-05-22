@@ -84,14 +84,14 @@ let private extraInfo theme forEdit dispatch =
             let chatMessageLifetime = hoursToMinutes chatMessageLifetime
             sprintf "%.0f minutes" (floor (float chatMessageLifetime))
         else sprintf "%.0f hours" (floor (float chatMessageLifetime))
-    Some(helpTInfo theme [
+    helpTInfo theme [
         if not forEdit then yield str (sprintf "Chat messages are not persisted, will only be received by signed in users, and will expire after %s." expiresAfter)
         yield str " You can use "
         yield linkInternal (fun _ -> dispatch ShowMarkdownSyntaxModal) [ str "Markdown syntax" ]
         yield str " to format your message;"
         yield! [ str " you can also use " ; strong "@" ; strongEm "username" ; str " to tag users" ]
         yield! [ str " (or " ; strong "@{" ; strongEm "username" ; strong "}" ; str " if " ; em "username" ; str " contains spaces)." ]
-        yield str " A preview of your message will appear below." ])
+        yield str " A preview of your message will appear below." ]
 
 let private renderEditChatMessageModal (theme, authUser, users, chatMessages, editChatMessageModalState:EditChatMessageModalState, hasModal) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Edit chat message" ] ] ]
@@ -103,32 +103,30 @@ let private renderEditChatMessageModal (theme, authUser, users, chatMessages, ed
         | Some(chatMessage, _, status) ->
             let onDismiss, editingChatMessage, editChatMessageInteraction, newChatMessageStatus, expired =
                 match editChatMessageModalState.EditChatMessageApiStatus with
-                | Some ApiPending -> None, true, Loading, None, []
+                | Some ApiPending -> None, true, Loading, None, false
                 | _ ->
                     let newChatMessageError = validateChatMessage (Markdown newChatMessage)
                     let expired = expired status
-                    let (Markdown currentChatMessage) = chatMessage.Payload
+                    let (Markdown currentPayload) = chatMessage.Payload
                     let editChatMessageInteraction =
-                        match newChatMessageError, expired, newChatMessage <> currentChatMessage with
+                        match newChatMessageError, expired, newChatMessage <> currentPayload with
                         | None, false, true -> Clickable(fun _ -> dispatch(EditChatMessageModalInput EditChatMessage))
                         | _ -> NotEnabled
                     let newChatMessageStatus =
                         match editChatMessageModalState.NewChatMessageChanged, newChatMessageError with
                         | true, Some error -> Some(IsDanger, helpTDanger theme [ str error ])
                         | _ -> None
-                    let expired =
-                        if expired then [
-                            notificationT theme IsWarning None [ contentCentredSmaller [ str "The chat message has now expired and can no longer be edited" ] ]
-                            br ]
-                        else []
                     Some onDismiss, false, editChatMessageInteraction, newChatMessageStatus, expired
-            let extraInfo = extraInfo theme true dispatch
-            let Markdown newChatMessage, taggedUsers = users |> processTags (Markdown newChatMessage)
+            let extraInfo = if not expired then Some(extraInfo theme true dispatch) else None
+            let newProcessedPayload, taggedUsers = users |> processTags (Markdown newChatMessage)
             let userImage = userImage authUser.User
             let userTag = users |> userTagOrDefault theme authUser (authUser.User.UserId, authUser.User.UserName)
             let tagged = taggedUsers |> tagged theme users
             let body = [
-                if chatMessage.Rvn <> rvn then
+                if expired then
+                    yield notificationT theme IsWarning None [ contentCentredSmaller [ str "The chat message has now expired and can no longer be edited" ] ]
+                    yield br
+                else if chatMessage.Rvn <> rvn then
                     yield notificationT theme IsWarning None [ contentCentredSmaller [ str "This chat message has been modified by another connection" ] ]
                     yield br
                 match editChatMessageModalState.EditChatMessageApiStatus with
@@ -138,14 +136,13 @@ let private renderEditChatMessageModal (theme, authUser, users, chatMessages, ed
                         contentLeftSmallest [ str error ] ]
                     yield br
                 | _ -> ()
-                yield! expired
                 yield fieldDefault [
-                    textAreaT theme editChatMessageModalState.NewChatMessageKey newChatMessage newChatMessageStatus extraInfo (not hasModal) editingChatMessage
+                    textAreaT theme editChatMessageModalState.NewChatMessageKey newChatMessage newChatMessageStatus extraInfo (not (hasModal || expired)) (editingChatMessage || expired)
                         (EditChatMessageModalInput.NewChatMessageChanged >> EditChatMessageModalInput >> dispatch) ]
                 if not (String.IsNullOrWhiteSpace newChatMessage) then
                     yield notificationT theme IsBlack None [
                         level false [ levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ] ]
-                        markdownNotificationContentTLeft theme (Markdown newChatMessage) ]
+                        markdownNotificationContentTLeft theme newProcessedPayload ]
                     yield br
                 yield fieldGroupedCentred [ buttonTSmall theme IsLink editChatMessageInteraction [ str "Edit chat message" ] ] ]
             onDismiss, body
@@ -165,11 +162,8 @@ let private renderDeleteChatMessageModal (theme, authUser, users, chatMessages, 
         | Some(chatMessage, _, status) ->
             let onDismiss, deleteChatMessageInteraction, expired =
                 match deleteChatMessageModalState.DeleteChatMessageApiStatus with
-                | Some ApiPending -> None, Loading, None
-                | _ ->
-                    let deleteChatMessageInteraction = Clickable(fun _ -> dispatch DeleteChatMessage)
-                    let expired = if expired status then Some(contentLeftSmallest [ str "Please also note that the chat message has now expired" ]) else None
-                    Some onDismiss, deleteChatMessageInteraction, expired
+                | Some ApiPending -> None, Loading, false
+                | _ -> Some onDismiss, Clickable(fun _ -> dispatch DeleteChatMessage), expired status
             let authUserId = authUser.User.UserId
             let userId, userName = chatMessage.Sender
             let userImage = users |> tryUserImage userId
@@ -180,9 +174,9 @@ let private renderDeleteChatMessageModal (theme, authUser, users, chatMessages, 
                     yield notificationT theme IsWarning None [ contentCentredSmaller [ str "This chat message has been modified by another connection" ] ]
                     yield br
                 yield notificationT theme IsWarning None [
-                    contentCentredSmaller [ strong "Are you sure that you want to delete this chat message?" ]
-                    contentLeftSmallest [ str "Please note that this action is irreversible." ]
-                    ofOption expired ]
+                    yield contentCentredSmaller [ strong "Are you sure that you want to delete this chat message?" ]
+                    yield contentLeftSmallest [ str "Please note that this action is irreversible." ]
+                    if expired then yield contentLeftSmallest [ str "Please also note that the chat message has now expired" ] ]
                 match deleteChatMessageModalState.DeleteChatMessageApiStatus with
                 | Some(ApiFailed error) ->
                     yield notificationT theme IsDanger None [
@@ -193,7 +187,7 @@ let private renderDeleteChatMessageModal (theme, authUser, users, chatMessages, 
                 yield br
                 yield notificationT theme IsLight None [
                     level false [ levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ] ]
-                    markdownNotificationContentTLeft theme chatMessage.Payload ]
+                    markdownNotificationContentTLeft theme chatMessage.ProcessedPayload ]
                 yield br
                 yield fieldGroupedCentred [ buttonTSmall theme IsLink deleteChatMessageInteraction [ str "Delete chat message" ] ] ]
             onDismiss, body
@@ -234,7 +228,7 @@ let private renderNewChatMessage (theme, authUser, users, readyState, hasModal) 
             yield br
         | _ -> ()
         yield fieldDefault [
-            textAreaT theme readyState.NewChatMessageKey newChatMessage newChatMessageStatus extraInfo (not hasModal) sendingChatMessage (NewChatMessageChanged >> dispatch) ]
+            textAreaT theme readyState.NewChatMessageKey newChatMessage newChatMessageStatus (Some extraInfo) (not hasModal) sendingChatMessage (NewChatMessageChanged >> dispatch) ]
         if not (String.IsNullOrWhiteSpace newChatMessage) then
             yield notificationT theme IsBlack None [
                 level false [ levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ] ]
@@ -252,58 +246,54 @@ let private renderUserTags (theme, authUser, users:UserData list, _:int<tick>) =
         |> List.map (tagTUserSmall theme authUser.User.UserId)
     divTags userTags
 
-let private renderChatMessages (theme, authUser, users, chatMessages, _:int<tick>) dispatch =
-    // #region renderChatMessage
-    let renderChatMessage (chatMessage:ChatMessage, timestamp:DateTimeOffset, status) =
-        let chatMessageId, authUserId = chatMessage.ChatMessageId, authUser.User.UserId
-        let userId, userName = chatMessage.Sender
-        let userImage = users |> tryUserImage userId
-        let userTag = users |> userTagOrDefault theme authUser (userId, userName)
-        let tagged = chatMessage.TaggedUsers |> selfTagged theme authUserId
-        let expired, colour, textColour = match status with | MessageReceived _ -> false, IsLight, IsBlack | MessageExpired -> true, IsDark, IsWhite
-        let onDismiss = if expired then Some(fun _ -> dispatch (RemoveExpiredChatMessage chatMessageId)) else None
-        let tools =
-            if not expired then
-                let userType = authUser.User.UserType
-                let edit =
-                    if canEditChatMessage userId (authUserId, userType) then
-                        Some(contentLeftSmallest [ linkInternal (fun _ -> dispatch (ShowEditChatMessageModal chatMessageId)) [ str "Edit" ] ])
-                    else None
-                let delete =
-                    if canDeleteChatMessage userId (authUserId, userType) then
-                        Some(contentRightSmallest [ linkInternal (fun _ -> dispatch (ShowDeleteChatMessageModal chatMessageId)) [ str "Delete" ] ])
-                    else None
-                match edit, delete with
-                | Some edit, Some delete -> Some(level false [ levelLeft [ levelItem [ edit ] ] ; levelRight [ levelItem [ delete ] ] ])
-                | Some edit, None -> Some(level false [ levelLeft [ levelItem [ edit ] ] ; levelRight [ levelItem [] ] ])
-                | None, Some delete -> Some(level false [ levelLeft [ levelItem [] ] ; levelRight [ levelItem [ delete ] ] ])
-                | _ -> None
-            else None
-        let timestamp =
-            if expired then "expired"
-            else
+// #region renderChatMessage
+let private renderChatMessage theme authUser users dispatch (chatMessage:ChatMessage, timestamp:DateTimeOffset, status) =
+    let chatMessageId, authUserId = chatMessage.ChatMessageId, authUser.User.UserId
+    let userId, userName = chatMessage.Sender
+    let userImage = users |> tryUserImage userId
+    let userTag = users |> userTagOrDefault theme authUser (userId, userName)
+    let tagged = chatMessage.TaggedUsers |> selfTagged theme authUserId
+    let expired, colour, textColour = match status with | MessageReceived _ -> false, IsLight, IsBlack | MessageExpired -> true, IsDark, IsWhite
+    let onDismiss = if expired then Some(fun _ -> dispatch (RemoveExpiredChatMessages [ chatMessageId ])) else None
+    let tools =
+        if not expired then
+            let userType = authUser.User.UserType
+            let edit =
+                if canEditChatMessage userId (authUserId, userType) then
+                    Some(contentLeftSmallest [ linkInternal (fun _ -> dispatch (ShowEditChatMessageModal chatMessageId)) [ str "Edit" ] ])
+                else None
+            let delete =
+                if canDeleteChatMessage userId (authUserId, userType) then
+                    Some(contentRightSmallest [ linkInternal (fun _ -> dispatch (ShowDeleteChatMessageModal chatMessageId)) [ str "Delete" ] ])
+                else None
+            match edit, delete with
+            | Some edit, Some delete -> Some(level false [ levelLeft [ levelItem [ edit ] ] ; levelRight [ levelItem [ delete ] ] ])
+            | Some edit, None -> Some(level false [ levelLeft [ levelItem [ edit ] ] ; levelRight [ levelItem [] ] ])
+            | None, Some delete -> Some(level false [ levelLeft [ levelItem [] ] ; levelRight [ levelItem [ delete ] ] ])
+            | _ -> None
+        else None
+    let timestamp =
+        if expired then "expired"
+        else
 #if TICK
-                ago timestamp.LocalDateTime
+            ago timestamp.LocalDateTime
 #else
-                dateAndTimeText timestamp.LocalDateTime
+            dateAndTimeText timestamp.LocalDateTime
 #endif
-        let edited = if chatMessage.Edited then Some(paraTSmallest theme IsInfo [ strong " edited" ]) else None
-        [
-            notificationT theme colour onDismiss [ contentTCentredSmallest theme (Some textColour) [
-                level false [
-                    levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ]
-                    levelRight [ levelItem [ contentRightSmallest [ str timestamp ; ofOption edited ] ] ] ]
-                markdownNotificationContentTLeft theme chatMessage.Payload
-                ofOption tools ] ]
-            divVerticalSpace 10
-        ]
-    // #endregion
-    let chatMessages =
-        chatMessages
-        |> List.sortBy (fun (_, timestamp, _) -> timestamp)
-        |> List.rev
-        |> List.map renderChatMessage
-        |> List.collect id
+    let edited = if chatMessage.Edited then Some(paraTSmallest theme IsInfo [ strong " edited" ]) else None
+    [
+        notificationT theme colour onDismiss [ contentTCentredSmallest theme (Some textColour) [
+            level false [
+                levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ]
+                levelRight [ levelItem [ contentRightSmallest [ str timestamp ; ofOption edited ] ] ] ]
+            markdownNotificationContentTLeft theme chatMessage.ProcessedPayload
+            ofOption tools ] ]
+        divVerticalSpace 10
+    ]
+// #endregion
+
+let private renderNonExpiredChatMessages (theme, authUser, users, chatMessages, _:int<tick>) dispatch =
+    let chatMessages = chatMessages |> List.map (renderChatMessage theme authUser users dispatch) |> List.collect id
     divDefault [ yield! chatMessages ]
 
 let private moreChatMessages theme authUser chatMessages count apiStatus dispatch =
@@ -328,6 +318,17 @@ let private moreChatMessages theme authUser chatMessages count apiStatus dispatc
             Some moreContent
         else None
     else None
+
+let private renderExpiredChatMessages (theme, authUser, users, chatMessages:ChatMessageData list, _:int<tick>) dispatch =
+    let removeAll =
+        if chatMessages.Length > 0 then
+            let chatMessageIds = chatMessages |> List.map (fun (chatMessage, _, _) -> chatMessage.ChatMessageId)
+            Some(contentRightSmallest [ linkInternal (fun _ -> dispatch (RemoveExpiredChatMessages chatMessageIds)) [ str "Remove all expired chat messages" ] ])
+        else None
+    let chatMessages = chatMessages |> List.map (renderChatMessage theme authUser users dispatch) |> List.collect id
+    divDefault [
+        yield ofOption removeAll
+        yield! chatMessages ]
 
 let private nonZeroUnseenCounts state =
     match state with
@@ -355,10 +356,9 @@ let renderTab isActive onClick state =
         | _ -> String.Empty, []
     tab isActive [ linkInternal onClick [ yield str (sprintf "%s%s" PAGE_TITLE unseenExtra) ; yield! unseenTaggedExtra ] ]
 
-let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
-    // TODO-NMB: Need separate hasModal values for different contexts?...
+let render theme authUser usersData state parentHasModal (ticks:int<tick>) dispatch =
     let hasModal =
-        if hasModal then true
+        if parentHasModal then true
         else
             match state with
             | Ready(_, readyState) ->
@@ -377,6 +377,9 @@ let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
             else
                 match readyState.ChatMessagesData, readyState.EditChatMessageModalState, readyState.DeleteChatMessageModalState with
                 | Received((chatMessages, _), _), Some editChatMessageModalState, _ ->
+                    let hasModal =
+                        if parentHasModal then true
+                        else match state with | Ready(_, readyState) when readyState.ShowingMarkdownSyntaxModal -> true | _ -> false
                     yield lazyView2 renderEditChatMessageModal (theme, authUser, users, chatMessages, editChatMessageModalState, hasModal) dispatch // note: *not* (EditChatMessageModalInput >> dispatch)
                 | Received((chatMessages, _), _), _, Some deleteChatMessageModalState ->
                     yield lazyView2 renderDeleteChatMessageModal (theme, authUser, users, chatMessages, deleteChatMessageModalState) (DeleteChatMessageModalInput >> dispatch)
@@ -398,8 +401,14 @@ let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
                     match readyState.ChatMessagesData with
                     | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconSmall ICON__SPINNER_PULSE ]
                     | Received((chatMessages, count), _) ->
-                        yield lazyView2 renderChatMessages (theme, authUser, users, chatMessages, ticks) dispatch
+                        let expiredChatMessages, nonExpiredChatMessages =
+                            let now = DateTimeOffset.UtcNow
+                            chatMessages
+                            |> List.sortBy (fun (_, timestamp, _) -> now - timestamp)
+                            |> List.partition (fun (_, _, status) -> expired status)
+                        if nonExpiredChatMessages.Length > 0 then yield lazyView2 renderNonExpiredChatMessages (theme, authUser, users, nonExpiredChatMessages, ticks) dispatch
                         yield ofOption (moreChatMessages theme authUser chatMessages count readyState.MoreChatMessagesApiStatus dispatch)
+                        if expiredChatMessages.Length > 0 then yield lazyView2 renderExpiredChatMessages (theme, authUser, users, expiredChatMessages, ticks) dispatch
                     | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "ChatMessages RemoteData Failed -> %s" error) UNEXPECTED_ERROR)
             | Failed error -> yield renderDangerMessage theme (ifDebug (sprintf "Users RemoteData Failed -> %s" error) UNEXPECTED_ERROR)
             yield divVerticalSpace 5 ] ] ]

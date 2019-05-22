@@ -73,18 +73,18 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
                 | _ -> None
             Some onDismiss, false, addUserInteraction, onEnter, userNameStatus, passwordStatus, confirmPasswordStatus
     let body = [
-        match createUsersModalState.LastUserNameCreated with
-        | Some(UserName userName) ->
-            yield notificationT theme IsInfo None [ contentCentredSmaller [ str "User " ; strong userName ; str " has been added" ] ]
-            yield br
-        | _ -> ()
         match createUsersModalState.CreateUserApiStatus with
         | Some(ApiFailed error) ->
             yield notificationT theme IsDanger None [
                 contentCentredSmaller [ str "Unable to add user " ; strong createUsersModalState.UserName ]
                 contentLeftSmallest [ str error ] ]
             yield br
-        | _ -> ()
+        | _ ->
+            match createUsersModalState.LastUserNameCreated with
+            | Some(UserName userName) ->
+                yield notificationT theme IsInfo None [ contentCentredSmaller [ str "User " ; strong userName ; str " has been added" ] ]
+                yield br
+            | _ -> ()
         yield contentCentredSmaller [ str "Please enter the details for the new user" ]
         yield fieldDefault [
             labelSmallest [ str "User name" ]

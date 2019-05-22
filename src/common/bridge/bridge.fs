@@ -17,7 +17,7 @@ type UserUpdateType =
     | UserTypeChanged
 
 type RemoteChatInput =
-    | ChatMessageReceived of ChatMessage * ordinal : int * count : int * key : Guid * chatMessagesRvn : Rvn
+    | ChatMessageReceived of ConnectionId * ChatMessage * ordinal : int * count : int * key : Guid * chatMessagesRvn : Rvn
     | ChatMessageEdited of ChatMessage * count : int * key : Guid * chatMessagesRvn : Rvn
     | ChatMessageDeleted of ChatMessageId * count : int * key : Guid * chatMessagesRvn : Rvn
     | ChatMessagesExpired of ChatMessageId list * count : int * key : Guid * chatMessagesRvn : Rvn

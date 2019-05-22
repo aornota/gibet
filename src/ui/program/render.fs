@@ -211,7 +211,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 match forcedSignOutBecause forcedSignOutReason with
                 | because, Some(UserName byUserName) -> [ str (sprintf "You have been signed out because %s by " because) ; strong byUserName ]
                 | because, None -> [ str (sprintf "You have been signed out because %s" because) ]
-            yield notificationT theme IsWarning None [ contentCentred None [ paraSmaller because ] ]
+            yield notificationT theme IsWarning None [ contentCentredSmaller because ]
             yield br
         | None, None, Some(ApiFailed(error, UserName userName)) ->
             yield notificationT theme IsDanger None [
@@ -265,7 +265,7 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
                 match mustChangePasswordBecause mustChangePasswordReason with
                 | because, Some(UserName byUserName) -> [ str (sprintf "You must change your password because %s by " because) ; strong byUserName ]
                 | because, None -> [ str (sprintf "You must change your password because %s" because) ]
-            yield notificationT theme IsWarning None [ contentCentred None [ paraSmaller because ] ]
+            yield notificationT theme IsWarning None [ contentCentredSmaller because ]
             yield br
         | None -> ()
         match changePasswordModalState.ChangePasswordApiStatus with
@@ -416,7 +416,7 @@ let render state dispatch =
             yield! lazyRenderMessages theme authState.Messages ticks
             match authState.CurrentPage with
             | UnauthPage About -> yield About.Render.render theme
-            | AuthPage Chat -> yield Chat.Render.render theme authUser usersData hasModal authState.ChatState ticks (ChatInput >> AuthInput >> dispatch)
+            | AuthPage Chat -> yield Chat.Render.render theme authUser usersData authState.ChatState hasModal ticks (ChatInput >> AuthInput >> dispatch)
             | AuthPage UserAdmin ->
                 let userType = authUser.User.UserType
                 if canAdministerUsers userType then

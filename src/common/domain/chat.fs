@@ -15,6 +15,7 @@ type ChatMessage = {
     Rvn : Rvn
     Sender : UserId * UserName
     Payload : Markdown
+    ProcessedPayload : Markdown
     TaggedUsers : UserId list
     Edited : bool }
 
