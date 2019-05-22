@@ -10,11 +10,11 @@ open Serilog
 let private logger = Log.Logger |> sourcedLogger "DevConsole.TestRegex"
 
 let testRegex () =
-    let userNames = [ "superuser" ; "admin" ; "guest" ; "user 1" ]
-    let message = "Tagging users: @{superuser} | @admin | @guessed | @{user 1} | @{user 666...}"
+    let userNames = [ "superuser" ; "admin" ; "guest" ; "john.doe" ; "user 1" ]
+    let message = "Tagging users: @{superuser} | @admin | @guessed | @john.doe | @{user 1} | @{user 666...}"
     logger.Information("Original message: {message}", message)
     let tags =
-        Regex.Matches(message, "(?<1>@\w+)|(?<2>@{[^}]*})")
+        Regex.Matches(message, "(?<1>@[\w.]+)|(?<2>@{[^}]*})")
         |> List.ofSeq
         |> List.choose (fun m ->
             let group1 = m.Groups.[1].Value
