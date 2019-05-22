@@ -86,7 +86,7 @@ type EditChatMessageModalState = {
     EditChatMessageApiStatus : ApiStatus<string> option }
 
 type DeleteChatMessageModalState = {
-    ChatMessageId : ChatMessageId
+    ForChatMessage : ChatMessageId * Rvn
     DeleteChatMessageApiStatus : ApiStatus<string> option }
 
 type ReadyState = {

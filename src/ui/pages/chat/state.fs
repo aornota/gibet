@@ -207,8 +207,8 @@ let private editChatMessageModalState chatMessageId rvn (Markdown newChatMessage
     NewChatMessageChanged = false
     EditChatMessageApiStatus = None }
 
-let private deleteChatMessageModalState chatMessageId = {
-    ChatMessageId = chatMessageId
+let private deleteChatMessageModalState chatMessageId rvn = {
+    ForChatMessage = chatMessageId, rvn
     DeleteChatMessageApiStatus = None }
 
 let private handleRemoteChatInput authUser remoteChatInput (pageState, readyState) =
@@ -408,7 +408,7 @@ let private handleDeleteChatMessageModalInput authUser deleteChatMessageModalInp
         | DeleteChatMessage, _ ->
             match readyState.ChatMessagesData with
             | Received((chatMessages, _), _) ->
-                let chatMessageId = deleteChatMessageModalState.ChatMessageId
+                let chatMessageId, _ = deleteChatMessageModalState.ForChatMessage
                 match chatMessages |> tryFindChatMessage chatMessageId with
                 | Some(chatMessage, _, status) ->
                     let userId, _ = chatMessage.Sender
@@ -528,9 +528,24 @@ let transition connectionId authUser usersData input state : State * Cmd<Input> 
         match readyState.DeleteChatMessageModalState with
         | Some _ -> Ready(pageState, readyState), shouldNeverHappenCmd (sprintf "Unexpected ShowDeleteChatMessageModal when DeleteChatMessageModalState is not None (%A)" readyState)
         | None ->
-            // TODO-NMB: Rework to match ShowEditChatMessageModal - because will need current Rvn for warning?...
-            let readyState = { readyState with DeleteChatMessageModalState = Some(deleteChatMessageModalState chatMessageId) }
-            Ready(pageState, readyState), Cmd.none
+            match readyState.ChatMessagesData with
+            | Received((chatMessages, _), _) ->
+                match chatMessages |> tryFindChatMessage chatMessageId with
+                | Some(chatMessage, _, _) ->
+                    let readyState = { readyState with DeleteChatMessageModalState = Some(deleteChatMessageModalState chatMessageId chatMessage.Rvn) }
+                    Ready(pageState, readyState), Cmd.none
+                | None ->
+                    let cmd = shouldNeverHappenCmd (sprintf "Unexpected ShowDeleteChatMessageModal when %A not found in ChatMessagesData (%A)" chatMessageId readyState)
+                    let deleteChatMessageModalState = deleteChatMessageModalState chatMessageId initialRvn
+                    let deleteChatMessageModalState = { deleteChatMessageModalState with DeleteChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                    let readyState = { readyState with DeleteChatMessageModalState = Some deleteChatMessageModalState }
+                    Ready(pageState, readyState), cmd
+            | _ ->
+                let cmd = shouldNeverHappenCmd (sprintf "Unexpected ShowDeleteChatMessageModal when ChatMessagesData not Received (%A)" readyState)
+                let deleteChatMessageModalState = deleteChatMessageModalState chatMessageId initialRvn
+                let deleteChatMessageModalState = { deleteChatMessageModalState with DeleteChatMessageApiStatus = Some(ApiFailed UNEXPECTED_ERROR) }
+                let readyState = { readyState with DeleteChatMessageModalState = Some deleteChatMessageModalState }
+                Ready(pageState, readyState), cmd
     | DeleteChatMessageModalInput deleteChatMessageModalInput, Ready(pageState, readyState) ->
         (pageState, readyState) |> handleDeleteChatMessageModalInput authUser deleteChatMessageModalInput
     | DeleteChatMessageApiInput deleteChatMessageApiInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleDeleteChatMessageApiInput deleteChatMessageApiInput

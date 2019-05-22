@@ -107,10 +107,11 @@ let private renderEditChatMessageModal (theme, authUser, users, chatMessages, ed
                 | _ ->
                     let newChatMessageError = validateChatMessage (Markdown newChatMessage)
                     let expired = expired status
+                    let (Markdown currentChatMessage) = chatMessage.Payload
                     let editChatMessageInteraction =
-                        match newChatMessageError, expired with
-                        | Some _, _ | None, true -> NotEnabled
-                        | _ -> Clickable(fun _ -> dispatch(EditChatMessageModalInput EditChatMessage))
+                        match newChatMessageError, expired, newChatMessage <> currentChatMessage with
+                        | None, false, true -> Clickable(fun _ -> dispatch(EditChatMessageModalInput EditChatMessage))
+                        | _ -> NotEnabled
                     let newChatMessageStatus =
                         match editChatMessageModalState.NewChatMessageChanged, newChatMessageError with
                         | true, Some error -> Some(IsDanger, helpTDanger theme [ str error ])
@@ -155,12 +156,11 @@ let private renderEditChatMessageModal (theme, authUser, users, chatMessages, ed
             Some onDismiss, body
     cardModalT theme (Some(title, onDismiss)) body
 
-// TODO-NMB: Rvn warning...
 let private renderDeleteChatMessageModal (theme, authUser, users, chatMessages, deleteChatMessageModalState:DeleteChatMessageModalState) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Delete chat message" ] ] ]
     let onDismiss, body =
         let onDismiss = (fun _ -> dispatch CloseDeleteChatMessageModal)
-        let chatMessageId = deleteChatMessageModalState.ChatMessageId
+        let chatMessageId, rvn = deleteChatMessageModalState.ForChatMessage
         match chatMessages |> tryFindChatMessage chatMessageId with
         | Some(chatMessage, _, status) ->
             let onDismiss, deleteChatMessageInteraction, expired =
@@ -176,9 +176,9 @@ let private renderDeleteChatMessageModal (theme, authUser, users, chatMessages, 
             let userTag = users |> userTagOrDefault theme authUser (userId, userName)
             let tagged = chatMessage.TaggedUsers |> selfTagged theme authUserId
             let body = [
-                (* TODO-NMB (cf. expired)?...if user.Rvn <> rvn then
-                    yield notificationT theme IsWarning None [ contentCentredSmaller [ strong userName ; str " has been modified by another connection" ] ]
-                    yield br *)
+                if chatMessage.Rvn <> rvn then
+                    yield notificationT theme IsWarning None [ contentCentredSmaller [ str "This chat message has been modified by another connection" ] ]
+                    yield br
                 yield notificationT theme IsWarning None [
                     contentCentredSmaller [ strong "Are you sure that you want to delete this chat message?" ]
                     contentLeftSmallest [ str "Please note that this action is irreversible." ]
@@ -356,6 +356,7 @@ let renderTab isActive onClick state =
     tab isActive [ linkInternal onClick [ yield str (sprintf "%s%s" PAGE_TITLE unseenExtra) ; yield! unseenTaggedExtra ] ]
 
 let render theme authUser usersData hasModal state (ticks:int<tick>) dispatch =
+    // TODO-NMB: Need separate hasModal values for different contexts?...
     let hasModal =
         if hasModal then true
         else
