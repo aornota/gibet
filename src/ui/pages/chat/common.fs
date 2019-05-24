@@ -116,7 +116,7 @@ let expired status = match status with | MessageReceived _ -> false | MessageExp
 
 let processTags (Markdown payload) (users:UserData list) =
     // Note: Differs from ..\..\..\dev-console\test-regex.fs because Regex behaviour is different once transpiled with Fable.
-    let matches = Regex.Matches(payload, "(@[\w.]+)|(@{[^}]*})")
+    let matches = Regex.Matches(payload, "(@[\w'-.]+)|(@{[^}]*})")
     let tags = [
         for i in 0 .. matches.Count - 1 do
             let value = matches.[i].Value
