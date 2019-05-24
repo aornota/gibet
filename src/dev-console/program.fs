@@ -1,7 +1,7 @@
 ﻿module Aornota.Gibet.DevConsole.Program
 
 open Aornota.Gibet.DevConsole.Console
-open Aornota.Gibet.DevConsole.TestRegex
+open Aornota.Gibet.DevConsole.TestTaggingRegex
 open Aornota.Gibet.DevConsole.TestUserRepoAndApi
 open Aornota.Gibet.Server.Logger
 
@@ -31,8 +31,8 @@ let private mainAsync argv = async {
         failwith "Fake error. Sad!" *)
         // #endregion
 
-        // #region testRegex
-        testRegex ()
+        // #region testTaggingRegex
+        testTaggingRegex ()
         // #endregion
 
         // #region testUserRepoAndApi

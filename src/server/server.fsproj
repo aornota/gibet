@@ -34,7 +34,7 @@
         <Compile Include="bridge\bridge-state.fs" />
         <Compile Include="api\user-api-agent.fs" />
         <Compile Include="api\chat-api-agent.fs" />
-        <Compile Include="host-run.fs" />
+        <Compile Include="host.fs" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

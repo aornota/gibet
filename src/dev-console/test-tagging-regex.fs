@@ -1,4 +1,4 @@
-module Aornota.Gibet.DevConsole.TestRegex
+module Aornota.Gibet.DevConsole.TestTaggingRegex
 
 open Aornota.Gibet.Server.Logger
 
@@ -9,7 +9,7 @@ open Serilog
 
 let private logger = Log.Logger |> sourcedLogger "DevConsole.TestRegex"
 
-let testRegex () =
+let testTaggingRegex () =
     let userNames = [ "superuser" ; "admin" ; "guest" ; "john.doe" ; "billy-bob" ; "o'mahony" ; "user 1" ]
     let message = "Tagging users: @{superuser} | @admin | @guessed | @john.doe | @billy-bob | @o'mahony | @{user 1} | @{user 666}..."
     logger.Information("Original message: {message}", message)

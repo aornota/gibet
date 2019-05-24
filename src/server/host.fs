@@ -1,4 +1,4 @@
-module Aornota.Gibet.Server.Host.Run
+module Aornota.Gibet.Server.Host
 
 open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Bridge
