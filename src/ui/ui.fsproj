@@ -40,7 +40,7 @@
         <Compile Include="pages\about\markdown-literals.fs" />
         <Compile Include="pages\about\render.fs" />
         <Compile Include="pages\chat\common.fs" />
-        <Compile Include="pages\chat\server-api.fs" />
+        <Compile Include="pages\chat\chat-api.fs" />
         <Compile Include="pages\chat\state.fs" />
         <Compile Include="pages\chat\markdown-literals.fs" />
         <Compile Include="pages\chat\render.fs" />

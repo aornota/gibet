@@ -252,7 +252,7 @@ let render theme authUser usersData state ticks dispatch =
             | _ -> ()
         | _ -> ()
         yield columnsDefault [ contentCentred None [
-            yield paraSmall [ strong "User administration" ]
+            yield paraSmall [ strong PAGE_TITLE ]
             yield hrT theme false
             match usersData with
             | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]

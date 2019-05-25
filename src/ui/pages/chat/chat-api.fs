@@ -1,4 +1,4 @@
-module Aornota.Gibet.Ui.Pages.Chat.ServerApi
+module Aornota.Gibet.Ui.Pages.Chat.ChatApi
 
 open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Api.ChatApi

@@ -12,8 +12,8 @@ open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Toast
+open Aornota.Gibet.Ui.Pages.Chat.ChatApi
 open Aornota.Gibet.Ui.Pages.Chat.Common
-open Aornota.Gibet.Ui.Pages.Chat.ServerApi
 open Aornota.Gibet.Ui.Shared
 
 open System
@@ -263,10 +263,10 @@ let private handleLatestChatSeenInput connectionId authUser latestChatSeenInput 
     match latestChatSeenInput, state with
     | ReadLatestChatSeenResult(Some(Ok latestChatSeen)), ReadingLatestChatSeen pageState ->
         let readyState, cmd = readyState (Some latestChatSeen) connectionId authUser
-        Ready(pageState, readyState ), cmd
+        Ready(pageState, readyState), cmd
     | ReadLatestChatSeenResult None, ReadingLatestChatSeen pageState ->
         let readyState, cmd = readyState None connectionId authUser
-        Ready(pageState, readyState ), cmd
+        Ready(pageState, readyState), cmd
     | ReadLatestChatSeenResult(Some(Error error)), ReadingLatestChatSeen _ ->
         let cmds = Cmd.batch [
             addDebugErrorCmd (sprintf "ReadLatestChatSeenResult error -> %s" error)
@@ -457,7 +457,7 @@ let private handleDeleteChatMessageApiInput deleteChatMessageApiInput (pageState
 
 let initialize isCurrentPage (_:AuthUser) = ReadingLatestChatSeen { IsCurrentPage = isCurrentPage }, readLatestChatSeenCmd
 
-let transition connectionId authUser usersData input state : State * Cmd<Input> =
+let transition connectionId authUser usersData input state =
     match input, state with
     // Note: AddMessage | UpdatePageTitle will have been handled by Program.State.transition.
     | RemoteChatInput remoteChatInput, Ready(pageState, readyState) -> (pageState, readyState) |> handleRemoteChatInput connectionId authUser remoteChatInput

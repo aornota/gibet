@@ -11,11 +11,11 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 ### Prerequisites
 
-- [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.202 and 2.2.300 (on different machines)
-- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_: I'm currently using 5.12.6 and 5.13.7
-- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_: I'm currently using 5.200.4 and 5.207.2
-- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.15.2 and 1.16.0
-- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.0 and 10.15.3
+- [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.300
+- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_: I'm currently using 5.13.7
+- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_: I'm currently using 5.207.3
+- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.16.0
+- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.3
 
 #### Also recommended
 

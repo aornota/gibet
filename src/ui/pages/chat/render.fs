@@ -386,7 +386,7 @@ let render theme authUser usersData state parentHasModal (ticks:int<tick>) dispa
                 | _ -> ()
         | _ -> ()
         yield columnsDefault [ contentCentred None [
-            yield paraSmall [ strong "Chat" ]
+            yield paraSmall [ strong PAGE_TITLE ]
             yield hrT theme false
             match usersData with
             | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconLarge ICON__SPINNER_PULSE ]
