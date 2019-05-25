@@ -30,7 +30,7 @@ type RemoteUiInput =
     | UserSignedOut of UserId
     | ForceUserSignOut of ForcedSignOutReason
     | ForceUserChangePassword of byUserName : UserName
-    | UserUpdated of User * usersRvn : Rvn * UserUpdateType
+    | UserUpdated of User * UserUpdateType * usersRvn : Rvn
     | UserAdded of User * usersRvn : Rvn
     | RemoteChatInput of RemoteChatInput
     | UnexpectedServerInput of string

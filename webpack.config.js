@@ -6,7 +6,7 @@ var htmlWebpackPlugin = require('html-webpack-plugin');
 var copyWebpackPlugin = require('copy-webpack-plugin');
 var miniCssExtractPlugin = require("mini-css-extract-plugin");
 
-var port = process.env.SERVER_PORT || "8085"
+var port = "8088" // see also .\src\server\host.fs
 
 var config = {
     indexHtmlTemplate: "./src/ui/index.html"

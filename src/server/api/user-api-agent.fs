@@ -144,7 +144,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserUpdated(user, agentRvn, PasswordChanged))
+                                    hub.SendClientIf hasUsers (UserUpdated(user, PasswordChanged, agentRvn))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -177,7 +177,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDict |> updateUser user with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserUpdated(user, agentRvn, UserUpdateType.ImageChanged imageChangeType))
+                                    hub.SendClientIf hasUsers (UserUpdated(user, UserUpdateType.ImageChanged imageChangeType, agentRvn))
                                     Ok((user.UserName, imageChangeType), agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -265,7 +265,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
                                     hub.SendServerIf (sameUser userId) (ForceChangePassword byUser.UserName)
-                                    hub.SendClientIf hasUsers (UserUpdated(user, agentRvn, UserUpdateType.PasswordReset))
+                                    hub.SendClientIf hasUsers (UserUpdated(user, UserUpdateType.PasswordReset, agentRvn))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -301,7 +301,7 @@ type UserApiAgent(userRepo:IUserRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
                                     hub.SendServerIf (sameUser userId) (ForceSignOut(UserTypeChanged byUser.UserName))
-                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, agentRvn, UserUpdateType.UserTypeChanged))
+                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, UserUpdateType.UserTypeChanged, agentRvn))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error

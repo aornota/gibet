@@ -406,7 +406,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 { changePasswordModalState with MustChangePasswordReason = Some mustChangePasswordReason }
             | None -> changePasswordModalState (Some mustChangePasswordReason)
         Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, toastCmd
-    | UserUpdated(user, usersRvn, userUpdateType), Auth authState ->
+    | UserUpdated(user, userUpdateType, usersRvn), Auth authState ->
         let authUser = authState.AuthUser
         let authUser = if user.UserId = authUser.User.UserId then { authUser with User = user } else authUser
         match authState.UsersData |> updateUser user usersRvn with

@@ -11,7 +11,7 @@ open Microsoft.Extensions.Logging
 
 open Serilog
 
-let [<Literal>] private DEFAULT_SERVER_PORT = 8085us
+let [<Literal>] private DEFAULT_SERVER_PORT = 8088us // see also ..\..\webpack.config.js
 
 let private publicPath =
     let publicPath = Path.GetFullPath(Path.Combine("..", "ui/public")) // e.g. when served via webpack-dev-server
