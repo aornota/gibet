@@ -178,6 +178,7 @@ type AuthState = {
     StaySignedIn : bool
     LastActivity : DateTime
     CurrentPage : Page
+    // Note: No need for AboutState as About page has no state.
     ChatState : Chat.Common.State
     UserAdminState : UserAdmin.Common.State option
     ChangePasswordModalState : ChangePasswordModalState option

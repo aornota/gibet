@@ -99,12 +99,15 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
             let signOut = paraSmallest [ linkInternal (fun _ -> dispatch (SignOut |> AuthInput) ) [ str "Sign out" ] ]
             Some(navbarDropDownT theme image [
                 let userId, userType = authUser.User.UserId, authUser.User.UserType
-                match canChangePassword userId (userId, userType) with
-                | true -> yield navbarDropDownItemT theme false [ changePassword ]
-                | false -> ()
-                match canChangeImageUrl userId (userId, userType) with
-                | true -> yield navbarDropDownItemT theme false [ changeImageUrl ]
-                | false -> ()
+                let items = [
+                    match canChangePassword userId (userId, userType) with
+                    | true -> yield navbarDropDownItemT theme false [ changePassword ]
+                    | false -> ()
+                    match canChangeImageUrl userId (userId, userType) with
+                    | true -> yield navbarDropDownItemT theme false [ changeImageUrl ]
+                    | false -> () ]
+                yield! items
+                match items with | _ :: _ -> yield navbarDividerT theme true | [] -> ()
                 yield navbarDropDownItemT theme false [ signOut ] ])
         | _ -> None
     let pageTabs = headerData.PageData |> List.choose (fun page -> match page with | Tab element -> Some element | _ -> None)

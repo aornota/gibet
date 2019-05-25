@@ -24,7 +24,9 @@ body.dark { background-color: var(--black) }
 /* #region hr */
 hr { margin-top: 0.75rem ; margin-bottom: 0.75rem }
 hr.light { background-color: var(--light) }
+hr.light-alternative { background-color: var(--even-lighter) }
 hr.dark { background-color: var(--dark) }
+hr.dark-alternative { background-color: var(--even-darker) }
 /* #endregion */
 
 /* #region currentColor overrides (for strong &c.) */
@@ -121,6 +123,11 @@ strong { color: currentColor }
 
 /* #region .navbar-{xyz} */
 .navbar { min-height: 64px }
+.navbar-divider { height: 1px ; margin-left: 0.5rem ; margin-right: 0.5rem }
+.navbar-divider.light { background-color: var(--lightest) }
+.navbar-divider.light-alternative { background-color: var(--even-lighter) }
+.navbar-divider.dark { background-color: var(--darkest) }
+.navbar-divider.dark-alternative { background-color: var(--even-darker) }
 .navbar-dropdown { border-top-width: 0px }
 .navbar-dropdown.light { background-color: var(--lighter) }
 .navbar-dropdown.dark { background-color: var(--darker) }
@@ -140,7 +147,7 @@ strong { color: currentColor }
 /* #endregion */
 
 /* #region .toast */
-.toast { font-size: 0.875rem }
+.toast { font-size: 0.85rem }
 .toast-info { background-color: var(--info) }
 .toast-success { background-color: var(--success) }
 .toast-warning { background-color: var(--warning) }

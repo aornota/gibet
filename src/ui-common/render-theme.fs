@@ -126,6 +126,7 @@ let navbarDropDownT theme element children =
         Navbar.Link.div [ Navbar.Link.CustomClass themeClass ] [ element ]
         Navbar.Dropdown.div [ Navbar.Dropdown.CustomClass themeClass ] children ]
 let navbarDropDownItemT theme isActive children = Navbar.Item.div [ Navbar.Item.CustomClass(themeClass theme) ; Navbar.Item.IsActive isActive ] children
+let navbarDividerT theme useAlternativeClass = Navbar.divider [ CustomClass(if useAlternativeClass then themeAlternativeClass theme else themeClass theme) ] []
 
 let notificationT theme colour onDismiss children =
     Notification.notification [ Notification.Color(colour |> transformColour theme) ] [

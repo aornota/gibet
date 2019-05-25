@@ -30,7 +30,7 @@ open Fable.Remoting.Server
 open Serilog
 
 // #region bridge
-let private bridgeServer (logger:ILogger) =
+let private bridgeServer logger =
     Bridge.mkServer BRIDGE_ENDPOINT initialize (transition logger)
     |> Bridge.register RemoteServerInput
     |> Bridge.whenDown Disconnected

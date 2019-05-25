@@ -396,7 +396,7 @@ let render theme authUser usersData state parentHasModal (ticks:int<tick>) dispa
                 | Ready(_, readyState) ->
                     if canSendChatMessage authUser.User.UserType then
                         yield lazyView2 renderNewChatMessage (theme, authUser, users, readyState, hasModal) dispatch
-                        yield hrT theme false
+                        yield hrT theme true
                     yield lazyView renderUserTags (theme, authUser, users, ticks)
                     match readyState.ChatMessagesData with
                     | Pending -> yield contentCentred None [ divVerticalSpace 15 ; iconSmall ICON__SPINNER_PULSE ]

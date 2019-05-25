@@ -2,8 +2,6 @@ module Aornota.Gibet.Ui.Common.Marked
 
 // Note: Adapted from https://github.com/MangelMaxime/Fulma/blob/master/docs/src/Libs/Fable.Import.Marked.fs.
 
-// Note: Adapted from https://github.com/MangelMaxime/Fulma/blob/master/docs/src/Libs/Fable.Import.Marked.fs.
-
 open System
 
 open Fable.Core
