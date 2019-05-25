@@ -9,15 +9,15 @@ paltry 5.
 
 And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I love Ravel's _Gaspard de la nuit_, especially _[Le Gibet](https://www.youtube.com/watch?v=vRQF490yyAY/)_.
 
-### Prerequisites
+#### Development prerequisites
 
 - [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.300
-- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_: I'm currently using 5.13.7
-- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_: I'm currently using 5.207.3
+- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.13.7
+- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.207.3
 - [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.16.0
 - [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.3
 
-#### Also recommended
+##### Also recommended
 
 - [Microsoft Visual Studio Code](https://code.visualstudio.com/download/) with the following extensions:
     - [Microsoft C#](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp)
@@ -31,12 +31,12 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 - ([Microsoft .NET Framework 4.7.2 Developer Pack](https://dotnet.microsoft.com/download/dotnet-framework/net472/): this appeared to resolve problems with Intellisense in
 _[build.fsx](https://github.com/aornota/gibet/blob/master/build.fsx)_)
 
-### History
+#### History
 
 - Installed SAFE templates for .NET Core: _dotnet new -i "SAFE.Template::*"_
 - Created from template: _dotnet new SAFE --server giraffe --layout fulma-basic --communication remoting --pattern default --deploy azure --js-deps yarn_
 
-### Running / building / deploying
+#### Running / building / deploying
 
 - Run/watch for development (debug): _fake build --target run_ (or _fake build -t run_)
 - Build for production (release): _fake build --target build_ (or _fake build -t build_)
@@ -46,7 +46,7 @@ see [Registering with Azure](https://safe-stack.github.io/docs/template-azure-re
 - Run the dev-console (debug): _fake build --target run-dev-console_ (or _fake build -t run-dev-console_)
 - Help (lists key targets): _fake build --target help_ (or just _fake build_)
 
-### Unit tests
+#### Unit tests
 
 There are no unit tests yet ;(
 
@@ -55,8 +55,8 @@ However, the repository and web API services have been designed to work with ASP
 See _[test-user-repo-and-api.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs)_ for an example of "testing" IUserRepo
 (e.g. InMemoryUserRepoAgent) and UserApi (e.g. UserApiAgent) from a console project.
 
-## To do
+### To do
 
-- [ ] extend functionality, e.g. Sql Server users repository? | Sqlite users repository? | &c.
+- [ ] extend functionality, e.g. Sqlite users repository? | &c.
 - [ ] unit tests? AspNetCore.TestHost?
 - [ ] additional documentation, e.g. [(currently non-existent) gh-pages branch](https://aornota.github.io/gibet/)?

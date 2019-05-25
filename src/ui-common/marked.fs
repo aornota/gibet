@@ -2,18 +2,21 @@ module Aornota.Gibet.Ui.Common.Marked
 
 // Note: Adapted from https://github.com/MangelMaxime/Fulma/blob/master/docs/src/Libs/Fable.Import.Marked.fs.
 
+// Note: Adapted from https://github.com/MangelMaxime/Fulma/blob/master/docs/src/Libs/Fable.Import.Marked.fs.
+
+open System
+
 open Fable.Core
-open Fable.Core.JsInterop
 
 [<AllowNullLiteral>]
 type MarkedStatic =
     abstract Renderer : obj with get, set
     abstract Parser : obj with get, set
-    [<Emit("$0($1...)")>] abstract Invoke : string * JsFunc -> string
-    [<Emit("$0($1...)")>] abstract Invoke : string * MarkedOptions * JsFunc -> string
+    [<Emit("$0($1...)")>] abstract Invoke : string * (Exception -> string -> unit) -> string
+    [<Emit("$0($1...)")>] abstract Invoke : string * MarkedOptions * (Exception -> string -> unit) -> string
     abstract lexer : string * MarkedOptions -> ResizeArray<obj>
-    abstract parse : string * JsFunc -> string
-    abstract parse : string * ?options: MarkedOptions * ?callback: JsFunc -> string
+    abstract parse : string * (Exception -> string -> unit) -> string
+    abstract parse : string * ?options: MarkedOptions * ?callback: (Exception -> string -> unit) -> string
     abstract parser : ResizeArray<obj> * MarkedOptions -> string
     abstract setOptions : MarkedOptions -> MarkedStatic
 
@@ -52,7 +55,7 @@ and [<AllowNullLiteral>] MarkedOptions =
     abstract silent : bool option with get, set
     abstract langPrefix : string option with get, set
     abstract smartypants : bool option with get, set
-    abstract highlight : string * string * JsFunc -> string
+    abstract highlight : string * string * (Exception -> string -> unit) -> string
 
 [<Erase>]
 type Globals =
