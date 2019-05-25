@@ -7,8 +7,8 @@ open Elmish
 
 type ApiStatus<'a> = | ApiPending | ApiFailed of 'a
 
-// (α | β | γ | δ | ε | ζ | η | θ | ι | κ | λ) | μ | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
-let [<Literal>] GIBET = "gibet (λ)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
+// (α | β | γ | δ | ε | ζ | η | θ | ι | κ | λ | μ) | ν | ξ | ο | π | ρ | σ | τ | υ | φ | χ | ψ | ω
+let [<Literal>] GIBET = "gibet (μ)" // note: also update index.html | ..\..\package.json | ..\..\README.md | READ_ME (.\pages\about\markdown-literals.fs)
 
 let [<Literal>] ERROR = "ERROR"
 let [<Literal>] SOMETHING_HAS_GONE_WRONG = "Something has gone wrong. Please try refreshing the page - and if problems persist, please contact the wesbite administrator."

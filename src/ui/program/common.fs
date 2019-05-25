@@ -3,6 +3,7 @@ module Aornota.Gibet.Ui.Program.Common
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.Jwt
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Message

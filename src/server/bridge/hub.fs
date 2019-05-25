@@ -1,12 +1,10 @@
 module Aornota.Gibet.Server.Bridge.Hub
 
 open Aornota.Gibet.Common.Bridge
-open Aornota.Gibet.Common.Domain.Affinity
-open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Server.Bridge.HubState
 
 open Elmish.Bridge
 
-let hub =
+let serverHub =
     ServerHub<HubState, ServerInput, RemoteUiInput>()
         .RegisterServer(RemoteServerInput)

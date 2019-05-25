@@ -182,8 +182,9 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
         match signInModalState.SignInApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None, None
         | _ ->
+            let userName = UserName signInModalState.UserName
             let userNameError = validateUserName true (UserName signInModalState.UserName) []
-            let passwordError = validatePassword true (Password signInModalState.Password)
+            let passwordError = validatePassword true (Password signInModalState.Password) userName
             let signInInteration, onEnter =
                 match userNameError, passwordError with
                 | None, None -> Clickable onEnter, onEnter
@@ -240,7 +241,7 @@ let private renderChangePasswordModal (theme, UserName userName, changePasswordM
         | Some ApiPending -> None, true, Loading, ignore, None, None
         | _ ->
             let newPassword, confirmPassword = Password changePasswordModalState.NewPassword, Password changePasswordModalState.ConfirmPassword
-            let newPasswordError = validatePassword false newPassword
+            let newPasswordError = validatePassword false newPassword (UserName userName)
             let confirmPasswordError = validateConfirmPassword false confirmPassword newPassword
             let changePasswordInteraction, onEnter =
                 match newPasswordError, confirmPasswordError with
@@ -292,7 +293,7 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
     let currentlyNone = match currentImageUrl with | Some _ -> false | None -> true
     let action, extra = if currentlyNone then "Choose", String.Empty else "Change (or remove)", " (or blank to remove image)"
     let buttonAction =
-        match currentlyNone, String.IsNullOrWhiteSpace imageUrl with
+        match currentlyNone, String.IsNullOrWhiteSpace(imageUrl) with
         | true, _ -> "Choose"
         | false, false -> "Change"
         | false, true -> "Remove"
@@ -302,17 +303,17 @@ let private renderChangeImageUrlModal (theme, authUser, changeImageUrlModalState
         match changeImageUrlModalState.ChangeImageUrlApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None
         | _ ->
-            let hasChanged = (if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)) <> currentImageUrl
+            let hasChanged = (if String.IsNullOrWhiteSpace(imageUrl) then None else Some(ImageUrl imageUrl)) <> currentImageUrl
             let changeImageUrlInteraction, onEnter =
                 if hasChanged then Clickable onEnter, onEnter
                 else NotEnabled, ignore
             let imageUrlStatus =
-                match hasChanged, currentlyNone, String.IsNullOrWhiteSpace imageUrl with
+                match hasChanged, currentlyNone, String.IsNullOrWhiteSpace(imageUrl) with
                 | true, true, _ | true, false, false -> Some(IsInfo, ICON__INFO, helpTInfo theme [ str "Please check the image preview above" ])
                 | true, false, true -> Some(IsWarning, ICON__WARNING, helpTWarning theme [ str "The image will be removed for " ; strong userName ])
                 | _ -> None
             Some onDismiss, false, changeImageUrlInteraction, onEnter, imageUrlStatus
-    let image = if String.IsNullOrWhiteSpace imageUrl then None else Some(fieldGroupedCentred [ image imageUrl Image.Is128x128 ])
+    let image = if String.IsNullOrWhiteSpace(imageUrl) then None else Some(fieldGroupedCentred [ image imageUrl Image.Is128x128 ])
     let body = [
         match changeImageUrlModalState.ChangeImageUrlApiStatus with
         | Some(ApiFailed error) ->

@@ -3,12 +3,14 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>netcoreapp2.2</TargetFramework>
-       <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!-- Note: No need for <EnableDefaultContentItems>false</EnableDefaultContentItems> (cf. server.fsproj) - perhaps because Microsoft.NET.Sdk rather than Microsoft.NET.Sdk.Web? -->
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="..\common\error-handling.fs" />
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
+        <Compile Include="..\common\jwt.fs" />
         <Compile Include="..\common\markdown.fs" />
         <Compile Include="..\common\revision.fs" />
         <Compile Include="..\common\unexpected-error.fs" />
@@ -18,9 +20,9 @@
         <Compile Include="..\common\domain\chat.fs" />
         <Compile Include="..\common\bridge\bridge.fs" />
         <Compile Include="..\common\api\user-api.fs" />
-        <Compile Include="..\server-common\invalid-credentials.fs" />
-        <Compile Include="..\server\jwt.fs" />
-        <Compile Include="..\server\logger.fs" />
+        <Compile Include="..\server\invalid-credentials.fs" />
+        <Compile Include="..\server\sourced-logger.fs" />
+        <Compile Include="..\server\authenticator.fs" />
         <Compile Include="..\server\repo\i-user-repo.fs" />
         <Compile Include="..\server\repo\in-memory-user-repo-agent.fs" />
         <Compile Include="..\server\bridge\i-hub.fs" />
@@ -30,6 +32,14 @@
         <Compile Include="test-user-repo-and-api.fs" />
         <Compile Include="console.fs" />
         <Compile Include="program.fs" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="appsettings.development.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

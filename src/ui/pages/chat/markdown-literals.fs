@@ -5,6 +5,8 @@ let [<Literal>] MARKDOWN_SYNTAX = """# Markdown syntax
 ### A very quick introduction
 Users can be tagged in chat messages, e.g. @{EXAMPLE_ADMIN_USER_NAME}.
 
+(Note that braces are required in this case because the user name contains a space.)
+
 Text can be:
 + **emboldened**
 + _italicized_

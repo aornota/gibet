@@ -1,20 +1,18 @@
-module Aornota.Gibet.Server.Repo.UserTestData
+module Aornota.Gibet.Server.Repo.InitialUsers
 
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Server.Logger
+open Aornota.Gibet.Server.SourcedLogger
 open Aornota.Gibet.Server.Repo.IUserRepo
+open Aornota.Gibet.Server.SourcedLogger
 
 open System
 
 open FsToolkit.ErrorHandling
 
-open Serilog
-
-let private logger = Log.Logger |> sourcedLogger "Repo.UserTestData"
-
-let create (userRepo:IUserRepo) = asyncResult {
-    logger.Information("Creating user test data...")
-    // Note: Some user names and passwords would be invalid for IUserApi - but are okay for IUserRepo
+let createInitialUsers (userRepo:IUserRepo) logger = asyncResult {
+    let sourcedLogger, logger = logger |> sourcedLogger "Repo.InitialUsers", ()
+    sourcedLogger.Information("Creating initial users...")
+    // Note: Some user names and passwords would be invalid for IUserApi - but are okay for IUserRepo.    let defaultPassword = Password "password"
     let defaultPassword = Password "password"
     let yvesId, yves, yvesPassword = UserId(Guid("00000000-0001-0000-0000-000000000000")), UserName "yves strop", Password "yves"
     let yvesImageUrl = ImageUrl "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZrSarOxyHO_FbyMvr8uJTeoSqgGiAIr3m9EhXqy_i28kBRV8S" // Rainer Maria Rilke
@@ -34,5 +32,5 @@ let create (userRepo:IUserRepo) = asyncResult {
     let! mike1User = userRepo.CreateUser(Some mike1Id, mike1, defaultPassword, Pleb, Some mike1ImageUrl)
     let! _ = userRepo.ChangePassword(mike1User.UserId, mike1Password, mike1User.Rvn)
     let! _ = userRepo.CreateUser(Some mike2Id, mike2, defaultPassword, PersonaNonGrata, Some mike2ImageUrl)
-    logger.Information("...user test data created")
+    sourcedLogger.Information("...initial users created")
     return () }

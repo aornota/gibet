@@ -1,15 +1,12 @@
 {
     "name": "gibet",
-    "version": "λ",
+    "version": "μ",
     "description": "An opinionated (i.e. decidedly eccentric) \"scaffold\"/example for F# web-app development using Fable, Elmish, Fulma / Bulma, Fable.Remoting, Elmish.Bridge, Giraffe and ASP.NET Core. https://gibet.azurewebsites.net/",
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",
-    "license": "https://github.com/aornota/gibet/blob/master/LICENSE",
-    "private": true,
-    "//": [
-        "bulma 0.7.4 is outdated - but 0.7.5 seems to cause problems with navbar drop-downs in MS Edge (for some reason).",
-        "core-js 2.6.5 is outdated - but best not to upgrade (for some reason)."
-    ],
+    "license": "MIT",
+    "// devDependencies:bulma": "0.7.4 is outdated - but 0.7.5 seems to cause problems with navbar drop-down/s in MS Edge (for some reason)",
+    "// devDependencies:core-js": "2.6.5 is outdated - but best not to upgrade (for some reason)",
     "devDependencies": {
         "@babel/core": "^7.4.5",
         "@babel/plugin-transform-runtime": "^7.4.4",
@@ -35,7 +32,7 @@
         "sass-loader": "^7.1.0",
         "style-loader": "^0.23.1",
         "toastr": "^2.1.4",
-        "webpack": "^4.32.1",
+        "webpack": "^4.32.2",
         "webpack-cli": "^3.3.2",
         "webpack-dev-server": "^3.4.1",
         "whatwg-fetch": "^3.0.0"

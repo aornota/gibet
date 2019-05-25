@@ -21,7 +21,7 @@ let [<Literal>] private SECONDS_PER_TICK = 1<second/tick> // note: "ignored" if 
 
 Globals.marked.setOptions(unbox(createObj [ "sanitize" ==> true ])) |> ignore // note: "sanitize" ensures Html within Markdown rendered as text
 
-let private millisecondsPerTick = float(max SECONDS_PER_TICK 1<second/tick>) * MILLISECONDS_PER_SECOND
+let private millisecondsPerTick = max SECONDS_PER_TICK 1<second/tick>
 
 let private onTick (_:State) =
     fun dispatch ->

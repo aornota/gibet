@@ -90,7 +90,7 @@ let private extraInfo theme forEdit dispatch =
         yield linkInternal (fun _ -> dispatch ShowMarkdownSyntaxModal) [ str "Markdown syntax" ]
         yield str " to format your message;"
         yield! [ str " you can also use " ; strong "@" ; strongEm "username" ; str " to tag users" ]
-        yield! [ str " (or " ; strong "@{" ; strongEm "username" ; strong "}" ; str " if " ; em "username" ; str " contains spaces)." ]
+        yield! [ str " (or " ; strong "@{" ; strongEm "username" ; strong "}" ; str " if " ; em "username" ; str " contains spaces or other funky characters)." ]
         yield str " A preview of your message will appear below." ]
 
 let private renderEditChatMessageModal (theme, authUser, users, chatMessages, editChatMessageModalState:EditChatMessageModalState, hasModal) dispatch =
@@ -139,7 +139,7 @@ let private renderEditChatMessageModal (theme, authUser, users, chatMessages, ed
                 yield fieldDefault [
                     textAreaT theme editChatMessageModalState.NewChatMessageKey newChatMessage newChatMessageStatus extraInfo (not (hasModal || expired)) (editingChatMessage || expired)
                         (EditChatMessageModalInput.NewChatMessageChanged >> EditChatMessageModalInput >> dispatch) ]
-                if not (String.IsNullOrWhiteSpace newChatMessage) then
+                if not (String.IsNullOrWhiteSpace(newChatMessage)) then
                     yield notificationT theme IsBlack None [
                         level false [ levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ] ]
                         markdownNotificationContentTLeft theme newProcessedPayload ]
@@ -229,7 +229,7 @@ let private renderNewChatMessage (theme, authUser, users, readyState, hasModal) 
         | _ -> ()
         yield fieldDefault [
             textAreaT theme readyState.NewChatMessageKey newChatMessage newChatMessageStatus (Some extraInfo) (not hasModal) sendingChatMessage (NewChatMessageChanged >> dispatch) ]
-        if not (String.IsNullOrWhiteSpace newChatMessage) then
+        if not (String.IsNullOrWhiteSpace(newChatMessage)) then
             yield notificationT theme IsBlack None [
                 level false [ levelLeft [ levelItem [ contentLeftSmallest [ ofOption userImage ; userTag ; ofOption tagged ] ] ] ]
                 markdownNotificationContentTLeft theme (Markdown newChatMessage) ]

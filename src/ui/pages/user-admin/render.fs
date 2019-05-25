@@ -48,9 +48,10 @@ let private renderCreateUsersModal (theme, authUser, users:UserData list, create
         match createUsersModalState.CreateUserApiStatus with
         | Some ApiPending -> None, true, Loading, ignore, None, None, None
         | _ ->
+            let userName = (UserName createUsersModalState.UserName)
             let password, confirmPassword = Password createUsersModalState.Password, Password createUsersModalState.ConfirmPassword
             let userNameError = validateUserName false (UserName createUsersModalState.UserName) (users |> List.map (fun (user, _, _) -> user.UserName))
-            let passwordError = validatePassword false password
+            let passwordError = validatePassword false password userName
             let confirmPasswordError = validateConfirmPassword true confirmPassword password
             let addUserInteraction, onEnter =
                 match userNameError, passwordError, confirmPasswordError with
@@ -114,7 +115,7 @@ let private renderResetPasswordModal (theme, users, resetPasswordModalState:Rese
                 | Some ApiPending -> None, true, Loading, ignore, None, None
                 | _ ->
                     let newPassword, confirmPassword = Password resetPasswordModalState.NewPassword, Password resetPasswordModalState.ConfirmPassword
-                    let newPasswordError = validatePassword false newPassword
+                    let newPasswordError = validatePassword false newPassword (UserName userName)
                     let confirmPasswordError = validateConfirmPassword false confirmPassword newPassword
                     let resetPasswordInteraction, onEnter =
                         match newPasswordError, confirmPasswordError with

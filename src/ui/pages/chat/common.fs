@@ -120,7 +120,7 @@ let processTags (Markdown payload) (users:UserData list) =
     let tags = [
         for i in 0 .. matches.Count - 1 do
             let value = matches.[i].Value
-            if not (String.IsNullOrWhiteSpace value) then
+            if not (String.IsNullOrWhiteSpace(value)) then
                 if value.StartsWith("@{") then yield value, value.Substring(2, value.Length - 3)
                 else yield value, value.Substring 1 ]
     let replacer (payload:string, taggedUsers) (replace, userName) =

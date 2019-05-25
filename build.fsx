@@ -35,8 +35,8 @@ let mutable deploymentOutputs : ArmOutput option = None
 
 let serverDir = Path.getFullName "./src/server"
 let uiDir = Path.getFullName "./src/ui"
-let uiDeployDir = Path.combine uiDir "deploy"
-let deployDir = Path.getFullName "./deploy"
+let uiPublishDir = Path.combine uiDir "publish"
+let publishDir = Path.getFullName "./publish"
 
 let devConsoleDir = Path.getFullName "./src/dev-console"
 
@@ -68,7 +68,7 @@ let openBrowser url =
     |> Proc.run
     |> ignore
 
-Target.create "clean" (fun _ -> Shell.cleanDirs [ deployDir ; uiDeployDir ])
+Target.create "clean" (fun _ -> Shell.cleanDirs [ publishDir ; uiPublishDir ])
 
 Target.create "restore-ui" (fun _ ->
     printfn "Yarn version:"
@@ -88,8 +88,8 @@ Target.create "build-server" (fun _ -> runDotNet "build -c Release" serverDir)
 Target.create "build-ui" (fun _ -> runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__)
 Target.create "build" (fun _ -> ())
 
-Target.create "publish-server" (fun _ -> runDotNet (sprintf "publish -c Release -o \"%s\"" deployDir) serverDir)
-Target.create "publish-ui" (fun _ -> Shell.copyDir (Path.combine deployDir "public") uiDeployDir FileFilter.allFiles)
+Target.create "publish-server" (fun _ -> runDotNet (sprintf "publish -c Release -o \"%s\"" publishDir) serverDir)
+Target.create "publish-ui" (fun _ -> Shell.copyDir (Path.combine publishDir "public") uiPublishDir FileFilter.allFiles)
 Target.create "publish" (fun _ -> ())
 
 Target.create "arm-template" (fun _ ->
@@ -122,7 +122,7 @@ Target.create "arm-template" (fun _ ->
 Target.create "deploy-azure" (fun _ ->
     let zipFile = "deploy.zip"
     IO.File.Delete(zipFile)
-    Zip.zip deployDir zipFile !!(deployDir + @"\**\**")
+    Zip.zip publishDir zipFile !!(publishDir + @"\**\**")
     let appName = deploymentOutputs.Value.WebAppName.value
     let appPassword = deploymentOutputs.Value.WebAppPassword.value
     let destinationUri = sprintf "https://%s.scm.azurewebsites.net/api/zipdeploy" appName
@@ -135,9 +135,9 @@ Target.create "run-dev-console" (fun _ -> runDotNet "run" devConsoleDir)
 Target.create "help" (fun _ ->
     printfn "\nThese useful build targets can be run via 'fake build -t {target}':"
     printfn "\n\trun -> builds, runs and watches [Debug] server and [non-production] ui (served via webpack-dev-server)"
-    printfn "\n\tbuild -> builds [Release] server and [production] ui (which writes output to .\\src\\ui\\deploy)"
-    printfn "\tpublish -> builds [Release] server and [production] ui and copies output to .\\deploy"
-    printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\deploy and deploys to Azure"
+    printfn "\n\tbuild -> builds [Release] server and [production] ui (which writes output to .\\src\\ui\\publish)"
+    printfn "\tpublish -> builds [Release] server and [production] ui and copies output to .\\publish"
+    printfn "\n\tdeploy-azure -> builds [Release] server and [production] ui, copies output to .\\publish and deploys to Azure"
     printfn "\n\trun-dev-console -> builds and runs [Debug] dev-console"
     // TODO-NMB: gh-pages?...
     printfn "\n\thelp -> shows this list of build targets\n")

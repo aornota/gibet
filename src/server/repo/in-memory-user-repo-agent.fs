@@ -5,9 +5,9 @@ open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Revision
 open Aornota.Gibet.Common.UnexpectedError
-open Aornota.Gibet.Server.Common.InvalidCredentials
-open Aornota.Gibet.Server.Logger
+open Aornota.Gibet.Server.InvalidCredentials
 open Aornota.Gibet.Server.Repo.IUserRepo
+open Aornota.Gibet.Server.SourcedLogger
 
 open System
 open System.Collections.Generic
@@ -16,11 +16,12 @@ open FsToolkit.ErrorHandling
 
 open Serilog
 
-(* Enforces unique UserId.
-   Enforces actual/expected Rvn/s.
-   Does not enforce unique UserName (but cannot sign in with non-unique UserName).
-   Does not enforce any length (&c.) restrictions on UserName or Password - but trims UserName and Password and canonicalizes ImageUrl, i.e. None if (Some whitespace-only).
-   Does not prevent SignIn/AutoSignIn if PersonaNonGrata. *)
+(* Notes:
+     Enforces unique UserId.
+     Enforces actual/expected Rvn/s.
+     Does not enforce unique UserName - but cannot sign in with non-unique UserName.
+     Does not enforce any length (&c.) restrictions on UserName or Password - but trims UserName and Password and canonicalizes ImageUrl, i.e. None if (Some whitespace-only).
+     Does not prevent SignIn/AutoSignIn if PersonaNonGrata. *)
 
 type private Input =
     | SignIn of UserName * Password * AsyncReplyChannelResult<UserId * MustChangePasswordReason option, string>
@@ -45,7 +46,7 @@ let [<Literal>] private SOURCE = "Repo.InMemoryUserRepoAgent"
 let private canoicalizeImageUrl imageUrl =
     match imageUrl with
     | Some(ImageUrl imageUrl) ->
-        if String.IsNullOrWhiteSpace imageUrl then None else Some(ImageUrl imageUrl)
+        if String.IsNullOrWhiteSpace(imageUrl) then None else Some(ImageUrl imageUrl)
     | None -> None
 
 let private addUser userId userName password userType imageUrl (imUserDict:ImUserDict) =
@@ -81,11 +82,11 @@ let private findUserId userId (imUserDict:ImUserDict) =
 let private findUserName userName (imUserDict:ImUserDict) =
     match imUserDict.Values |> List.ofSeq |> List.filter (fun imUser -> imUser.User.UserName = userName) with
     | [ imUser ] -> Ok imUser
-    | _ :: _ -> Error (ifDebug (sprintf "%s.findUserName -> %A not unique" SOURCE userName) INVALID_CREDENTIALS)
-    | [] -> Error (ifDebug (sprintf "%s.findUserName -> %A not found" SOURCE userName) INVALID_CREDENTIALS)
+    | _ :: _ -> Error(ifDebug (sprintf "%s.findUserName -> %A not unique" SOURCE userName) INVALID_CREDENTIALS)
+    | [] -> Error(ifDebug (sprintf "%s.findUserName -> %A not found" SOURCE userName) INVALID_CREDENTIALS)
 
 type InMemoryUserRepoAgent(logger:ILogger) =
-    let logger = logger |> sourcedLogger SOURCE
+    let sourcedLogger, logger = logger |> sourcedLogger SOURCE, ()
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop (imUserDict:ImUserDict) = async {
             match! inbox.Receive() with
@@ -97,8 +98,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                         else Error(ifDebug (sprintf "%s.SignIn -> Invalid password for %A" SOURCE userName) INVALID_CREDENTIALS)
                     return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
-                | Ok _ -> logger.Debug("Able to sign in as {userName}", userName)
-                | Error error -> logger.Warning("Unable to sign in as {userName} -> {error}", userName, error)
+                | Ok _ -> sourcedLogger.Debug("Able to sign in as {userName}", userName)
+                | Error error -> sourcedLogger.Warning("Unable to sign in as {userName} -> {error}", userName, error)
                 reply.Reply result
                 return! loop imUserDict
             | AutoSignIn(userId, reply) ->
@@ -106,8 +107,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! imUser = imUserDict |> findUserId userId
                     return (imUser.User.UserId, imUser.MustChangePasswordReason) }
                 match result with
-                | Ok _ -> logger.Debug("Able to automatically sign in as {userId}", userId)
-                | Error error -> logger.Warning("Unable to automatically sign in as {userId} -> {error}", userId, error)
+                | Ok _ -> sourcedLogger.Debug("Able to automatically sign in as {userId}", userId)
+                | Error error -> sourcedLogger.Warning("Unable to automatically sign in as {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | ChangePassword(userId, Password password, rvn, reply) ->
@@ -122,8 +123,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
-                | Ok user -> logger.Debug("Password changed for {user}", user)
-                | Error error -> logger.Warning("Unable to change password for {userId} -> {error}", userId, error)
+                | Ok user -> sourcedLogger.Debug("Password changed for {user}", user)
+                | Error error -> sourcedLogger.Warning("Unable to change password for {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | ChangeImageUrl(userId, imageUrl, rvn, reply) ->
@@ -142,23 +143,23 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user, imageChangeType }
                 match result with
-                | Ok(user, imageChangeType) -> logger.Debug("Image URL {changeType} for {user}", changeType imageChangeType, user)
-                | Error error -> logger.Warning("Unable to change image URL for {userId} -> {error}", userId, error)
+                | Ok(user, imageChangeType) -> sourcedLogger.Debug("Image URL {changeType} for {user}", changeType imageChangeType, user)
+                | Error error -> sourcedLogger.Warning("Unable to change image URL for {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | GetUsers reply ->
                 let result : Result<User list, string> = Ok(imUserDict.Values |> List.ofSeq |> List.map (fun imUser -> imUser.User))
                 match result with
-                | Ok users -> logger.Debug("Got {length} user/s", users.Length)
-                | Error error -> logger.Warning("Unable to get users -> {error}", error)
+                | Ok users -> sourcedLogger.Debug("Got {length} user/s", users.Length)
+                | Error error -> sourcedLogger.Warning("Unable to get users -> {error}", error)
                 reply.Reply result
                 return! loop imUserDict
             | CreateUser(userId, UserName userName, Password password, userType, imageUrl, reply) ->
                 let userName, password, imageUrl = UserName(userName.Trim()), Password(password.Trim()), canoicalizeImageUrl imageUrl
                 let result = imUserDict |> addUser userId userName password userType imageUrl
                 match result with
-                | Ok user -> logger.Debug("Created {user}", user)
-                | Error error -> logger.Warning("Unable to create {userName} -> {error}", userName, error)
+                | Ok user -> sourcedLogger.Debug("Created {user}", user)
+                | Error error -> sourcedLogger.Warning("Unable to create {userName} -> {error}", userName, error)
                 reply.Reply result
                 return! loop imUserDict
             | ResetPassword(byUserId, userId, Password password, rvn, reply) ->
@@ -178,8 +179,8 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
-                | Ok user -> logger.Debug("Password reset for {user}", user)
-                | Error error -> logger.Warning("Unable to reset password for {userId} -> {error}", userId, error)
+                | Ok user -> sourcedLogger.Debug("Password reset for {user}", user)
+                | Error error -> sourcedLogger.Warning("Unable to reset password for {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict
             | ChangeUserType(userId, userType, rvn, reply) ->
@@ -191,13 +192,13 @@ type InMemoryUserRepoAgent(logger:ILogger) =
                     let! _ = imUserDict |> updateUser imUser
                     return user }
                 match result with
-                | Ok user -> logger.Debug("User type changed for {user}", user)
-                | Error error -> logger.Warning("Unable to change user type for {userId} -> {error}", userId, error)
+                | Ok user -> sourcedLogger.Debug("User type changed for {user}", user)
+                | Error error -> sourcedLogger.Warning("Unable to change user type for {userId} -> {error}", userId, error)
                 reply.Reply result
                 return! loop imUserDict }
-        logger.Information("Starting...")
+        sourcedLogger.Information("Starting...")
         loop (ImUserDict()))
-    do agent.Error.Add (fun exn -> logger.Error("Unexpected error -> {errorMessage}", exn.Message))
+    do agent.Error.Add (fun exn -> sourcedLogger.Error("Unexpected error -> {errorMessage}", exn.Message))
     interface IUserRepo with
         member __.SignIn(userName, password) = agent.PostAndAsyncReply(fun reply -> SignIn(userName, password, reply))
         member __.AutoSignIn(userId) = agent.PostAndAsyncReply(fun reply -> AutoSignIn(userId, reply))

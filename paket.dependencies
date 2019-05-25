@@ -22,17 +22,19 @@ group server
     storage: none
 
     nuget FSharp.Core
+    nuget Microsoft.AspNetCore
+    nuget Microsoft.AspNetCore.StaticFiles
     nuget Elmish.Bridge.Giraffe prerelease
     nuget Fable.Remoting.Giraffe
     nuget FsToolkit.ErrorHandling
     nuget Giraffe
     nuget Giraffe.SerilogExtensions
     nuget jose-jwt
-    nuget Microsoft.AspNetCore
-    nuget Microsoft.AspNetCore.StaticFiles
 	nuget Serilog
-	nuget Serilog.Sinks.Literate
-	nuget Serilog.Sinks.RollingFile
+	nuget Serilog.Extensions.Logging
+	nuget Serilog.Settings.Configuration
+	nuget Serilog.Sinks.Console
+	nuget Serilog.Sinks.File
     nuget Thoth.Json.Net prerelease
 
 group ui
@@ -67,11 +69,12 @@ group dev-console
     storage: none
 
 	nuget FSharp.Core
+    nuget Microsoft.AspNetCore
     nuget Fable.Remoting.Giraffe
     nuget FsToolkit.ErrorHandling
     nuget Giraffe.SerilogExtensions
     nuget jose-jwt
 	nuget Serilog
-	nuget Serilog.Sinks.Literate
-	nuget Serilog.Sinks.RollingFile
+	nuget Serilog.Settings.Configuration
+	nuget Serilog.Sinks.Console
     nuget Thoth.Json.Net prerelease

@@ -1,11 +1,12 @@
 group dev-console
 
 	FSharp.Core
+    Microsoft.AspNetCore
     Fable.Remoting.Giraffe
     FsToolkit.ErrorHandling
     Giraffe.SerilogExtensions
     jose-jwt
 	Serilog
-	Serilog.Sinks.Literate
-	Serilog.Sinks.RollingFile
+    Serilog.Settings.Configuration
+	Serilog.Sinks.Console
     Thoth.Json.Net

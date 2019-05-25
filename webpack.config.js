@@ -13,7 +13,7 @@ var config = {
     , fsharpEntry: "./src/ui/ui.fsproj"
     , sassEntry: "./src/ui/style/gibet-bulma.sass"
     , cssEntry: "./src/ui/style/gibet.css"
-    , outputDir: "./src/ui/deploy"
+    , outputDir: "./src/ui/publish"
     , assetsDir: "./src/ui/public"
     , devServerPort: 8080
     , devServerProxy: {

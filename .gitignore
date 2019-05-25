@@ -1,11 +1,12 @@
 .fable/
 .fake/
-deploy/
 node_modules/
 paket-files/
+publish/
 bin/
 obj/
 logs/
 secret/
+appsettings.development.json
 deploy.zip
 yarn-error.log

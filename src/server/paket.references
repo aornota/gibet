@@ -1,15 +1,17 @@
 group server
 
     FSharp.Core
+    Microsoft.AspNetCore
+    Microsoft.AspNetCore.StaticFiles
     Elmish.Bridge.Giraffe
     Fable.Remoting.Giraffe
     FsToolkit.ErrorHandling
     Giraffe
     Giraffe.SerilogExtensions
     jose-jwt
-    Microsoft.AspNetCore
-    Microsoft.AspNetCore.StaticFiles
 	Serilog
-	Serilog.Sinks.Literate
-	Serilog.Sinks.RollingFile
+    Serilog.Extensions.Logging
+    Serilog.Settings.Configuration
+	Serilog.Sinks.Console
+	Serilog.Sinks.File
     Thoth.Json.Net

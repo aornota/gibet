@@ -583,7 +583,7 @@ let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:A
             let changeImageUrlModalState = { changeImageUrlModalState with ImageUrl = imageUrl ; ImageUrlChanged = true }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none
         | ChangeImageUrl, _ ->
-            let imageUrl = if String.IsNullOrWhiteSpace changeImageUrlModalState.ImageUrl then None else Some(ImageUrl changeImageUrlModalState.ImageUrl)
+            let imageUrl = if String.IsNullOrWhiteSpace(changeImageUrlModalState.ImageUrl) then None else Some(ImageUrl changeImageUrlModalState.ImageUrl)
             let cmd =
                 Cmd.OfAsync.either userApi.changeImageUrl (authState.AuthUser.Jwt, imageUrl, authState.AuthUser.User.Rvn) ChangeImageUrlResult ChangeImageUrlExn
                 |> Cmd.map (ChangeImageUrlApiInput >> AuthInput)

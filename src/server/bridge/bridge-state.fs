@@ -5,7 +5,7 @@ open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Server.Bridge.HubState
-open Aornota.Gibet.Server.Logger
+open Aornota.Gibet.Server.SourcedLogger
 
 open System
 
@@ -13,15 +13,13 @@ open Elmish
 
 open Serilog
 
-let private logger = Log.Logger |> sourcedLogger "Bridge.State"
-
 let private serverStarted = DateTimeOffset.UtcNow
 
 let private sendIfNotSignedIn userId connectionId =
-    if not (hub.GetModels() |> signedInDifferentConnection userId connectionId) then hub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
+    if not (serverHub.GetModels() |> signedInDifferentConnection userId connectionId) then serverHub.SendClientIf (differentUserHasUsers userId) (UserSignedOut userId)
 
 // #region handleUnexpectedInput
-let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubState) =
+let private handleUnexpectedInput (logger:ILogger) clientDispatch (input:ServerInput) (state:HubState) =
     let unexpectedInputWhenState = "Unexpected {input} when {state}"
     clientDispatch (UnexpectedServerInput(sprintf "Unexpected %A when %A" input state))
 #if DEBUG
@@ -32,7 +30,7 @@ let private handleUnexpectedInput clientDispatch (input:ServerInput) (state:HubS
     state
 // #endregion
 
-let private handleRemoteServerInput clientDispatch input state =
+let private handleRemoteServerInput logger clientDispatch input state =
     match input, state with
     | Register(affinityId, connectionId), NotRegistered ->
         let connectionState = {
@@ -42,13 +40,13 @@ let private handleRemoteServerInput clientDispatch input state =
         clientDispatch (Registered(connectionState.ConnectionId, sinceServerStarted))
         Unauth connectionState
     | Activity, Auth(connectionState, userId, hasUsers) -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
-        hub.SendClientIf (differentUserHasUsers userId) (UserActivity userId)
+        serverHub.SendClientIf (differentUserHasUsers userId) (UserActivity userId)
         Auth(connectionState, userId, hasUsers)
     | SignedIn userId, Unauth connectionState ->
-        hub.SendClientIf (differentUserHasUsers userId) (UserSignedIn userId)
+        serverHub.SendClientIf (differentUserHasUsers userId) (UserSignedIn userId)
         Auth(connectionState, userId, { HasUsers = false ; HasChatMessages = false })
     | SignedOut, Auth(connectionState, userId, _) ->
-        hub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut SelfSameAffinityDifferentConnection)
+        serverHub.SendServerIf (sameUserSameAffinityDifferentConnection userId connectionState.AffinityId connectionState.ConnectionId) (ForceSignOut SelfSameAffinityDifferentConnection)
         sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
     | ForceSignOut forcedSignOutReason, Auth(connectionState, userId, _) ->
@@ -60,23 +58,24 @@ let private handleRemoteServerInput clientDispatch input state =
         Auth(connectionState, userId, hasUsers)
     | HasUsers, Auth(connectionState, userId, subscriptions) when not subscriptions.HasUsers -> Auth(connectionState, userId, { subscriptions with HasUsers = true })
     | HasChatMessages, Auth(connectionState, userId, subscriptions) when not subscriptions.HasChatMessages -> Auth(connectionState, userId, { subscriptions with HasChatMessages = true })
-    | _ -> state |> handleUnexpectedInput clientDispatch (RemoteServerInput input)
+    | _ -> state |> handleUnexpectedInput logger clientDispatch (RemoteServerInput input)
 
-let private handleDisconnected clientDispatch state =
+let private handleDisconnected logger clientDispatch state =
     match state with
     | Auth(connectionState, userId, _) ->
         sendIfNotSignedIn userId connectionState.ConnectionId
         NotRegistered
     | Unauth _ -> NotRegistered
-    | _ -> state |> handleUnexpectedInput clientDispatch Disconnected
+    | _ -> state |> handleUnexpectedInput logger clientDispatch Disconnected
 
 let initialize clientDispatch () : HubState * Cmd<ServerInput> =
     clientDispatch Initialized
     NotRegistered, Cmd.none
 
-let transition clientDispatch input state : HubState * Cmd<ServerInput> =
+let transition logger clientDispatch input state : HubState * Cmd<ServerInput> =
+    let sourcedLogger, logger = logger |> sourcedLogger "Bridge.State", ()
     let state =
         match input, state with
-        | RemoteServerInput input, _ -> state |> handleRemoteServerInput clientDispatch input
-        | Disconnected, _ -> state |> handleDisconnected clientDispatch
+        | RemoteServerInput input, _ -> state |> handleRemoteServerInput sourcedLogger clientDispatch input
+        | Disconnected, _ -> state |> handleDisconnected sourcedLogger clientDispatch
     state, Cmd.none

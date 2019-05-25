@@ -8,7 +8,7 @@ let write (text:string) consoleColor =
     let action = (fun _ ->
         let current = Console.ForegroundColor
         Console.ForegroundColor <- consoleColor
-        Console.Write text
+        Console.Write(text)
         Console.ForegroundColor <- current)
     lock lockObj action
 

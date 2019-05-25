@@ -24,6 +24,6 @@ let [<Literal>] private CHAT_MESSAGE_LIFETIME = 24.<hour>
 let chatMessageLifetime = ifDebug 0.1<hour> CHAT_MESSAGE_LIFETIME
 
 let validateChatMessage (Markdown payload) =
-    if String.IsNullOrWhiteSpace payload then Some "Chat message must not be blank"
+    if String.IsNullOrWhiteSpace(payload) then Some "Chat message must not be blank"
     else if payload.Trim().Length > 2_000 then Some "Chat message is too long"
     else None
