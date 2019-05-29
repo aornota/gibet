@@ -4,7 +4,7 @@
         <TargetFramework>netstandard2.0</TargetFramework>
         <TreatWarningsAsErrors>false</TreatWarningsAsErrors> <!-- TEMP-NMB: Until Fable.Remoting.Client updated to prevent "This construct is deprecated" warnings (e.g. "Use Browser")... -->
     </PropertyGroup>
-    <ItemGroup>
+    <ItemGroup> <!-- Compile -->
         <Compile Include="..\common\error-handling.fs" />
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
@@ -18,7 +18,7 @@
         <Compile Include="..\common\domain\chat.fs" />
         <Compile Include="..\common\bridge\bridge.fs" />
         <Compile Include="..\common\api\route.fs" />
-        <Compile Include="..\common\api\user-api.fs" />
+        <Compile Include="..\common\api\users-api.fs" />
         <Compile Include="..\common\api\chat-api.fs" />
         <Compile Include="..\ui-common\local-storage.fs" />
         <Compile Include="..\ui-common\lazy-view-or-hmr.fs" />
@@ -35,8 +35,8 @@
         <Compile Include="..\ui-common\toast.fs" />
         <Compile Include="..\ui-common\message.fs" />
         <Compile Include="shared.fs" />
-        <Compile Include="user-api.fs" />
         <Compile Include="user-shared.fs" />
+        <Compile Include="users-api.fs" />
         <Compile Include="pages\about\markdown-literals.fs" />
         <Compile Include="pages\about\render.fs" />
         <Compile Include="pages\chat\common.fs" />

@@ -6,6 +6,7 @@ open Aornota.Gibet.Common.Json
 open Aornota.Gibet.Common.Jwt
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
+open Aornota.Gibet.Server.AppSettingsLiterals
 open Aornota.Gibet.Server.InvalidCredentials
 open Aornota.Gibet.Server.SourcedLogger
 
@@ -19,16 +20,19 @@ open Jose
 
 open Thoth.Json.Net
 
-(* Note: Can invalidate existing tokens by deleting JWT_KEY_FILE and restarting server (though can also do this by setting InvalidateExistingTokens to true in appsettings.json and
-   restarting server). *)
+(* Note: Can invalidate existing tokens by deleting JWT_KEY_FILE and restarting server (though can also do this by setting InvalidateExistingTokens to true in appsettings.json [or
+   appsettings.[development|production].json] and restarting server). *)
 
 type private TokenExpiry = {
     InvalidBefore : DateTimeOffset option
     TokenLifetime : float<hour> option }
 
+let [<Literal>] private SOURCE = "Authenticator"
+
 let [<Literal>] private EXPIRED_CREDENTIALS = "Your cached credentials have expired"
 
 let [<Literal>] private DEFAULT_TOKEN_LIFETIME = 24.<hour>
+let [<Literal>] private INFINITE = "infinite"
 
 let [<Literal>] private JWT_KEY_FILE = "./secret/jwt.key"
 let [<Literal>] private JWE_ALGORITHM = JweAlgorithm.A256KW
@@ -58,29 +62,29 @@ let private checkExpiry tokenExpiry tokenCreated =
     | _ -> Ok()
 
 type Authenticator(configuration:IConfiguration, logger) =
-    let sourcedLogger, logger = logger |> sourcedLogger "Authenticator", ()
+    let sourcedLogger, logger = logger |> sourcedLogger SOURCE, ()
     do sourcedLogger.Information("Starting...")
-    let invalidateExistingTokens = configuration.["Authenticator:InvalidateExistingTokens"]
-    let invalidBefore = if invalidateExistingTokens = "true" then Some DateTimeOffset.UtcNow else None
+    let invalidBefore = try if configuration.[AUTHENTICATOR__INVALIDATE_EXISTING_TOKENS] = "true" then Some DateTimeOffset.UtcNow else None with _ -> None
+    let tokenLifetime =
+        try let tokenLifetimeInHours = configuration.[AUTHENTICATOR__TOKEN_LIFETIME_IN_HOURS]
+            if tokenLifetimeInHours = INFINITE then None
+            else if String.IsNullOrWhiteSpace(tokenLifetimeInHours) then Some DEFAULT_TOKEN_LIFETIME
+            else
+                match Double.TryParse(tokenLifetimeInHours) with
+                | true, tokenLifetime -> Some(tokenLifetime * 1.<hour>)
+                | false, _ ->
+                    sourcedLogger.Warning("{setting} \"{tokenLifetimeInHours}\" is not valid; defaulting to DEFAULT_TOKEN_LIFETIME", AUTHENTICATOR__TOKEN_LIFETIME_IN_HOURS, tokenLifetimeInHours)
+                    Some DEFAULT_TOKEN_LIFETIME
+        with _ -> Some DEFAULT_TOKEN_LIFETIME
     do
         match invalidBefore with
         | Some invalidBefore -> sourcedLogger.Warning("Existing tokens (created before {invalidBefore}) will be invalidated", dateAndTime invalidBefore)
-        | None -> ()
-    let tokenLifetimeInHours = configuration.["Authenticator:TokenLifetimeInHours"]
-    let tokenLifetime =
-        if tokenLifetimeInHours = "infinite" then None
-        else if String.IsNullOrWhiteSpace(tokenLifetimeInHours) then Some DEFAULT_TOKEN_LIFETIME
-        else
-            match Double.TryParse(tokenLifetimeInHours) with
-            | true, tokenLifetime -> Some(tokenLifetime * 1.<hour>)
-            | false, _ ->
-                sourcedLogger.Warning("TokenLifetimeInHours \"{tokenLifetimeInHours}\" is not valid; defaulting to DEFAULT_TOKEN_LIFETIME", tokenLifetimeInHours)
-                Some DEFAULT_TOKEN_LIFETIME
+        | None -> sourcedLogger.Information("Existing tokens will be honoured (unless expired)")
     do
         match tokenLifetime with
         | Some tokenLifetime ->
-            sourcedLogger.Information("Tokens will expire after {tokenLifetime} hours (or earlier if server restarted and InvalidateExistingTokens is \"true\")", tokenLifetime)
-        | None -> sourcedLogger.Warning("Tokens will never expire (unless server restarted and InvalidateExistingTokens is \"true\")")
+            sourcedLogger.Information("Tokens will expire after {tokenLifetime} hours (or earlier if server restarted and {setting} is \"true\")", tokenLifetime, AUTHENTICATOR__INVALIDATE_EXISTING_TOKENS)
+        | None -> sourcedLogger.Warning("Tokens will never expire (unless server restarted and {setting} is \"true\")", AUTHENTICATOR__INVALIDATE_EXISTING_TOKENS)
     let tokenExpiry = { InvalidBefore = invalidBefore ; TokenLifetime = tokenLifetime }
     member __.ToJwt(userId, userType) =
         try let jwt = encode(Json(Encode.Auto.toString<UserId * UserType * DateTimeOffset>(SPACE_COUNT, (userId, userType, DateTimeOffset.UtcNow))))

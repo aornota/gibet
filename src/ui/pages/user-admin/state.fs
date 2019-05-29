@@ -2,14 +2,12 @@ module Aornota.Gibet.Ui.Pages.UserAdmin.State
 
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.UnexpectedError
-open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
-open Aornota.Gibet.Ui.Common.ShouldNeverHappen
 open Aornota.Gibet.Ui.Common.Toast
 open Aornota.Gibet.Ui.Pages.UserAdmin.Common
 open Aornota.Gibet.Ui.Shared
 open Aornota.Gibet.Ui.User.Shared
-open Aornota.Gibet.Ui.UserApi
+open Aornota.Gibet.Ui.UsersApi
 
 open System
 
@@ -65,7 +63,7 @@ let private handleCreateUsersModalInput createUsersModalInput (authUser:AuthUser
             { state with CreateUsersModalState = Some createUsersModalState }, Cmd.none
         | CreateUser, _ ->
             let userName, password = UserName(createUsersModalState.UserName.Trim()), Password(createUsersModalState.Password.Trim())
-            let cmd = Cmd.OfAsync.either userApi.createUser (authUser.Jwt, userName, password, createUsersModalState.UserType) CreateUserResult CreateUserExn |> Cmd.map CreateUserApiInput
+            let cmd = Cmd.OfAsync.either usersApi.createUser (authUser.Jwt, userName, password, createUsersModalState.UserType) CreateUserResult CreateUserExn |> Cmd.map CreateUserApiInput
             let createUsersModalState = { createUsersModalState with LastUserNameCreated = None ; CreateUserApiStatus = Some ApiPending }
             { state with CreateUsersModalState = Some createUsersModalState }, cmd
         | CloseCreateUsersModal, _ -> { state with CreateUsersModalState = None }, Cmd.none
@@ -76,7 +74,7 @@ let private handleCreateUserApiInput createUserApiInput (authUser:AuthUser) (use
         match createUsersModalState.CreateUserApiStatus with
         | Some ApiPending ->
             match createUserApiInput with
-            | CreateUserResult(Ok(UserName userName)) ->
+            | CreateUserResult(Ok(_, UserName userName)) ->
                 let toastCmd = sprintf "User <strong>%s</strong> added" userName |> successToastCmd
                 { state with CreateUsersModalState = Some(_createUsersModalState createUsersModalState.UserType (Some(UserName userName))) }, toastCmd
             | CreateUserResult(Error error) ->
@@ -102,7 +100,7 @@ let private handleResetPasswordModalInput resetPasswordModalInput (authUser:Auth
             match users |> tryFindUser userId with
             | Some(user, _, _) ->
                 let password = Password(resetPasswordModalState.NewPassword.Trim())
-                let cmd = Cmd.OfAsync.either userApi.resetPassword (authUser.Jwt, userId, password, user.Rvn) ResetPasswordResult ResetPasswordExn |> Cmd.map ResetPasswordApiInput
+                let cmd = Cmd.OfAsync.either usersApi.resetPassword (authUser.Jwt, userId, password, user.Rvn) ResetPasswordResult ResetPasswordExn |> Cmd.map ResetPasswordApiInput
                 let resetPasswordModalState = { resetPasswordModalState with ResetPasswordApiStatus = Some ApiPending }
                 { state with ResetPasswordModalState = Some resetPasswordModalState }, cmd
             | None ->
@@ -138,7 +136,7 @@ let private handleChangeUserTypeModalInput changeUserTypeModalInput (authUser:Au
             let userId, _ =  changeUserTypeModalState.ForUser
             match users |> tryFindUser userId, changeUserTypeModalState.NewUserType with
             | Some(user, _, _), Some newUserType ->
-                let cmd = Cmd.OfAsync.either userApi.changeUserType (authUser.Jwt, userId, newUserType, user.Rvn) ChangeUserTypeResult ChangeUserTypeExn |> Cmd.map ChangeUserTypeApiInput
+                let cmd = Cmd.OfAsync.either usersApi.changeUserType (authUser.Jwt, userId, newUserType, user.Rvn) ChangeUserTypeResult ChangeUserTypeExn |> Cmd.map ChangeUserTypeApiInput
                 let changeUserTypeModalState = { changeUserTypeModalState with ChangeUserTypeApiStatus = Some ApiPending }
                 { state with ChangeUserTypeModalState = Some changeUserTypeModalState }, cmd
             | Some _, None ->

@@ -14,6 +14,7 @@ type private LinkType =
     | DownloadFile of url : string * fileName : string
 
 let [<Literal>] private KEYBOARD_CODE__ENTER = 13.
+let [<Literal>] private KEYBOARD_CODE__ESCAPE = 27.
 
 let [<Literal>] SPACE = " "
 
@@ -49,6 +50,13 @@ let onEnterPressed onEnter =
         | _ when ev.keyCode = KEYBOARD_CODE__ENTER ->
             ev.preventDefault()
             onEnter()
+        | _ -> ())
+let onEscapePressed onEscape =
+    OnKeyDown(fun (ev:KeyboardEvent) ->
+        match ev with
+        | _ when ev.keyCode = KEYBOARD_CODE__ESCAPE ->
+            ev.preventDefault()
+            onEscape()
         | _ -> ())
 
 let delete onClick = Delete.delete [ Delete.OnClick onClick ] []

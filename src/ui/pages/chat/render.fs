@@ -33,7 +33,7 @@ let private markdownSyntaxKey = Guid.NewGuid()
 let private renderMarkdownSyntaxModal (theme, users) dispatch =
     let title = [ contentCentred None [ paraSmall [ str "Markdown syntax" ] ] ]
     let onDismiss = Some(fun _ -> dispatch CloseMarkdownSyntaxModal)
-    let markdownSyntax = MARKDOWN_SYNTAX.Replace("EXAMPLE_ADMIN_USER_NAME", EXAMPLE_ADMIN_USER_NAME)
+    let markdownSyntax = MARKDOWN_SYNTAX.Replace("EXAMPLE_USER_NAME__AE", EXAMPLE_USER_NAME__AE)
     let processed, _ = users |> processTags (Markdown markdownSyntax)
     let body = [
         contentTCentred theme (Some smaller) (Some IsInfo) [ strong "As a very quick introduction to Markdown syntax, the following:" ]

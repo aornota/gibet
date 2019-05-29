@@ -24,7 +24,7 @@ let ifDebugSleepAsync min max = async {
 #if DEBUG
     do! Async.Sleep(random.Next(min, max)) }
 #else
-    return() }
+    return () }
 #endif
 // #endregion
 

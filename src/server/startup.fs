@@ -3,31 +3,34 @@ module Aornota.Gibet.Server.Startup
 open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Server.Api.ChatApiAgent
-open Aornota.Gibet.Server.Api.UserApiAgent
+open Aornota.Gibet.Server.Api.UsersApiAgent
 open Aornota.Gibet.Server.Authenticator
 open Aornota.Gibet.Server.Bridge.State
 open Aornota.Gibet.Server.Bridge.Hub
 open Aornota.Gibet.Server.Bridge.HubState
 open Aornota.Gibet.Server.Bridge.IHub
-open Aornota.Gibet.Server.Repo
-open Aornota.Gibet.Server.Repo.IUserRepo
+open Aornota.Gibet.Server.InitialUsers
 open Aornota.Gibet.Server.SourcedLogger
 
-open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 
-open Giraffe
-open Giraffe.SerilogExtensions
-
 open Elmish
-open Elmish.Bridge
 
 open Fable.Remoting.Giraffe
 open Fable.Remoting.Server
 
+open FsToolkit.ErrorHandling
+
+open Giraffe
+open Giraffe.SerilogExtensions
+
+open Elmish.Bridge // note: needs to be after open Giraffe (else tries to open Elmish.Bridge.Giraffe)
+
 open Serilog
+
+let [<Literal>] private SOURCE = "Server.Startup"
 
 // #region bridge
 let private bridgeServer logger =
@@ -41,10 +44,10 @@ let private bridgeServer logger =
     |> Bridge.run Giraffe.server
 // #endregion
 
-let private userApi =
+let private usersApi =
     Remoting.createApi()
     |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.fromReader userApiReader
+    |> Remoting.fromReader usersApiReader
     |> Remoting.buildHttpHandler
 let private chatApi =
     Remoting.createApi()
@@ -66,25 +69,15 @@ type Startup(configuration:IConfiguration) =
             .ReadFrom.Configuration(configuration)
             .Destructure.FSharpTypes()
             .CreateLogger()
-    let sourcedLogger = Log.Logger |> sourcedLogger "Server.Startup"
+    let sourcedLogger = Log.Logger |> sourcedLogger SOURCE
     do sourcedLogger.Information("Starting...")
-    // TEMP-NMB: Note helpful GetConnectionString method...
-    do sourcedLogger.Information("TEMP-NMB...Sqlite connection string is {Sqlite}", configuration.GetConnectionString("Sqlite"))
-    // ...NMB-TEMP
-    let userRepo = configuration.["Repo:IUserRepo"]
-    let userRepo, createInitialUsers =
-        match userRepo with
-        | "InMemoryUserRepoAgent" -> InMemoryUserRepoAgent.InMemoryUserRepoAgent(Log.Logger) :> IUserRepo, true
-        | "SqliteUserRepo" ->
-            // TODO-NMB: Once SqliteUserRepo implemented, createInitialUsers only if configuration.["Repo:Sqlite:WipeAndCreate"] = "true"?...
-            // TEMP-NMB...
-            sourcedLogger.Warning("SqliteUserRepo has not yet been implemented; using InMemoryUserRepoAgent instead")
-            InMemoryUserRepoAgent.InMemoryUserRepoAgent(Log.Logger) :> IUserRepo, true
-            // ...TEMP-NMB
-        | _ -> failwithf "\"%s\" is not a valid configuration option for Repo.IUserRepo" userRepo
-    do if createInitialUsers then InitialUsers.createInitialUsers userRepo Log.Logger |> Async.RunSynchronously |> ignore
+    let authenticator = Authenticator(configuration, Log.Logger)
+    let usersRepo, usersApiAgent =
+        match createInitialUsers hub authenticator Log.Logger |> Async.RunSynchronously with
+        | Ok(usersRepo, usersApiAgent) -> usersRepo, usersApiAgent
+        | Error error -> failwithf "Unable to create initial Users -> %s" error
     member __.Configure(applicationBuilder:IApplicationBuilder) =
-        let webAppWithLogging = choose [ bridgeServer Log.Logger ; userApi ; chatApi ] |> SerilogAdapter.Enable
+        let webAppWithLogging = choose [ bridgeServer Log.Logger ; usersApi ; chatApi ] |> SerilogAdapter.Enable
         applicationBuilder
             .UseDefaultFiles()
             .UseStaticFiles()
@@ -93,9 +86,8 @@ type Startup(configuration:IConfiguration) =
     member __.ConfigureServices(services:IServiceCollection) =
         services.AddSingleton(Log.Logger) |> ignore
         services.AddSingleton(hub) |> ignore
-        // TODO-NMB: Make conditional on configuration, e.g. if want SqliteUserRepo to be transient rather than singleton?...
-        services.AddSingleton(userRepo) |> ignore
-        services.AddSingleton<Authenticator, Authenticator>() |> ignore
-        services.AddSingleton<UserApiAgent, UserApiAgent>() |> ignore
+        services.AddSingleton(usersRepo) |> ignore
+        services.AddSingleton(authenticator) |> ignore
+        services.AddSingleton(usersApiAgent) |> ignore
         services.AddSingleton<ChatApiAgent, ChatApiAgent>() |> ignore
         services.AddGiraffe() |> ignore

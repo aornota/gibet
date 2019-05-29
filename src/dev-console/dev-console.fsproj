@@ -6,7 +6,7 @@
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <!-- Note: No need for <EnableDefaultContentItems>false</EnableDefaultContentItems> (cf. server.fsproj) - perhaps because Microsoft.NET.Sdk rather than Microsoft.NET.Sdk.Web? -->
     </PropertyGroup>
-    <ItemGroup>
+    <ItemGroup> <!-- Compile -->
         <Compile Include="..\common\error-handling.fs" />
         <Compile Include="..\common\if-debug.fs" />
         <Compile Include="..\common\json.fs" />
@@ -19,26 +19,26 @@
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\domain\chat.fs" />
         <Compile Include="..\common\bridge\bridge.fs" />
-        <Compile Include="..\common\api\user-api.fs" />
+        <Compile Include="..\common\api\users-api.fs" />
+        <Compile Include="..\server\app-settings-literals.fs" />
         <Compile Include="..\server\invalid-credentials.fs" />
         <Compile Include="..\server\sourced-logger.fs" />
         <Compile Include="..\server\authenticator.fs" />
-        <Compile Include="..\server\repo\i-user-repo.fs" />
-        <Compile Include="..\server\repo\in-memory-user-repo-agent.fs" />
+        <Compile Include="..\server\repo\i-users-repo.fs" />
         <Compile Include="..\server\bridge\i-hub.fs" />
         <Compile Include="..\server\bridge\hub-state.fs" />
-        <Compile Include="..\server\api\user-api-agent.fs" />
+        <Compile Include="..\server\api\users-api-agent.fs" />
         <Compile Include="test-tagging-regex.fs" />
-        <Compile Include="test-user-repo-and-api.fs" />
+        <Compile Include="test-users-repo-and-users-api-agent.fs" />
         <Compile Include="console.fs" />
         <Compile Include="program.fs" />
     </ItemGroup>
-    <ItemGroup>
+    <ItemGroup> <!-- appsettings.json | appsettings.development.json -->
         <Content Include="appsettings.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
         <Content Include="appsettings.development.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />

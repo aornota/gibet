@@ -5,8 +5,10 @@ open Aornota.Gibet.Server.SourcedLogger
 open System
 open System.Text.RegularExpressions
 
+let [<Literal>] private SOURCE = "TestTaggingRegex"
+
 let testTaggingRegex logger =
-    let sourcedLogger, logger = logger |> sourcedLogger "TestTaggingRegex", ()
+    let sourcedLogger, logger = logger |> sourcedLogger SOURCE, ()
     let userNames = [ "superuser" ; "admin" ; "guest" ; "john.doe" ; "billy-bob" ; "o'mahony" ; "user 1" ]
     let message = "Tagging users: @{superuser} | @admin | @guessed | @john.doe | @billy-bob | @o'mahony | @{user 1} | @{user 666}..."
     sourcedLogger.Information("Original message: {message}", message)

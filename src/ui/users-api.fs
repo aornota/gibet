@@ -1,11 +1,11 @@
-module Aornota.Gibet.Ui.UserApi
+module Aornota.Gibet.Ui.UsersApi
 
 open Aornota.Gibet.Common.Api
-open Aornota.Gibet.Common.Api.UserApi
+open Aornota.Gibet.Common.Api.UsersApi
 
 open Fable.Remoting.Client
 
-let userApi =
+let usersApi =
     Remoting.createApi()
     |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.buildProxy<UserApi>
+    |> Remoting.buildProxy<UsersApi>

@@ -37,37 +37,27 @@ let [<Literal>] private HOUSEKEEPING_INTERVAL = 1.<minute>
 
 let private key = Guid.NewGuid()
 
-let private addChatMessage userId userName payload processedPayload taggedUsers ordinal (chatMessageDict:ChatMessageDict) =
-    let chatMessageId = ChatMessageId.Create()
-    if chatMessageDict.ContainsKey chatMessageId then Error(ifDebug (sprintf "%s.addChatMessage [%A] -> Unable to add %A" SOURCE key chatMessageId) UNEXPECTED_ERROR)
-    else
-        let chatMessage = {
-            ChatMessageId = chatMessageId
-            Rvn = initialRvn
-            Sender = userId, userName
-            Payload = payload
-            ProcessedPayload = processedPayload
-            TaggedUsers = taggedUsers
-            Edited = false }
-        chatMessageDict.Add(chatMessageId, (chatMessage, ordinal, DateTimeOffset.UtcNow))
-        Ok chatMessage
-let private updateChatMessage chatMessage ordinal timestamp (chatMessageDict:ChatMessageDict) =
+let private findChatMessage chatMessageId (chatMessageDict:ChatMessageDict) =
+    if chatMessageDict.ContainsKey chatMessageId then Ok chatMessageDict.[chatMessageId]
+    else Error(ifDebug (sprintf "Unable to find %A" chatMessageId) UNEXPECTED_ERROR)
+let private addChatMessage chatMessage ordinal (chatMessageDict:ChatMessageDict) =
     let chatMessageId = chatMessage.ChatMessageId
-    if chatMessageDict.ContainsKey chatMessageId then
-        chatMessageDict.[chatMessageId] <- (chatMessage, ordinal, timestamp)
+    if chatMessageDict.ContainsKey chatMessageId then Error(ifDebug (sprintf "%A already exists" chatMessageId) UNEXPECTED_ERROR)
+    else
+        chatMessageDict.Add(chatMessageId, (chatMessage, ordinal, DateTimeOffset.UtcNow))
         Ok()
-    else Error(ifDebug (sprintf "%s.updateChatMessage -> Unable to update %A" SOURCE chatMessageId) UNEXPECTED_ERROR)
+let private updateChatMessage chatMessage (chatMessageDict:ChatMessageDict) =
+    let chatMessageId = chatMessage.ChatMessageId
+    result {
+        let! _, ordinal, timestamp = chatMessageDict |> findChatMessage chatMessageId
+        chatMessageDict.[chatMessageId] <- (chatMessage, ordinal, timestamp)
+        return () }
 let private deleteChatMessage chatMessageId expired (chatMessageDict:ChatMessageDict) =
-    if chatMessageDict.ContainsKey chatMessageId && expired then
-        Error(ifDebug (sprintf "%s.deleteChatMessage [%A] -> Unable to delete %A (expired but found)" SOURCE key chatMessageId) UNEXPECTED_ERROR)
-    else if not (chatMessageDict.ContainsKey chatMessageId) && not expired then
-        Error(ifDebug (sprintf "%s.deleteChatMessage [%A] -> Unable to delete %A (not expired but not found)" SOURCE key chatMessageId) UNEXPECTED_ERROR)
+    if chatMessageDict.ContainsKey chatMessageId && expired then Error(ifDebug (sprintf "Unable to delete %A (expired but found)" chatMessageId) UNEXPECTED_ERROR)
+    else if not (chatMessageDict.ContainsKey chatMessageId) && not expired then Error(ifDebug (sprintf "Unable to delete %A (not expired but not found)" chatMessageId) UNEXPECTED_ERROR)
     else
         if not expired then chatMessageDict.Remove chatMessageId |> ignore
         Ok()
-let private findChatMessage chatMessageId (chatMessageDict:ChatMessageDict) =
-    if chatMessageDict.ContainsKey chatMessageId then Ok chatMessageDict.[chatMessageId]
-    else Error(ifDebug (sprintf "%s.findChatMessageId -> Unable to find %A" SOURCE chatMessageId) UNEXPECTED_ERROR)
 
 let private chatMessages belowOrdinal batchSize (chatMessageDict:ChatMessageDict) =
     let chatMessages =
@@ -89,89 +79,89 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
             do! ifDebugSleepAsync 250 1000 *)
             match input with
             | GetChatMessages(connectionId, jwt, batchSize, reply) ->
-                let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake GetChatMessages error [%A] -> %A" key jwt) else Ok()
+                let chatMessagesPlusResult = result {
+                    let! _ = if debugFakeError() then Error "Fake GetChatMessages error" else Ok()
                     let! _, userType = authenticator.FromJwt(jwt)
-                    let! _ =
-                        if canGetChatMessages userType then Ok()
-                        else Error(ifDebug (sprintf "%s.GetChatMessages [%A] -> canGetChatMessages returned false for %A" SOURCE key userType) NOT_ALLOWED)
+                    let! _ = if canGetChatMessages userType then Ok() else Error(ifDebug (sprintf "canGetChatMessages returned false for %A" userType) NOT_ALLOWED)
                     let chatMessages = chatMessageDict |> chatMessages None batchSize
                     hub.SendServerIf (sameConnection connectionId) HasChatMessages
                     return chatMessages, chatMessageDict.Count, key, agentRvn }
-                match result with
-                | Ok (chatMessages, count, _, _) ->
-                    sourcedLogger.Debug("Got {length} chat message/s out of {count} (ChatApiAgent {agentRvn}) [{key}]", chatMessages.Length, count, agentRvn, key)
-                | Error error -> sourcedLogger.Warning("Unable to get chat messages [{key}] -> {error}", key, error)
-                reply.Reply result
+                match chatMessagesPlusResult with
+                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} ChatMessage/s out of {count} (ChatApiAgent {agentRvn})", chatMessages.Length, count, agentRvn)
+                | Error error -> sourcedLogger.Warning("Unable to get ChatMessages -> {error}", error)
+                reply.Reply chatMessagesPlusResult
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | MoreChatMessages(jwt, minOrdinal, batchSize, reply) ->
-                let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake MoreChatMessages error [%A] -> %A" key jwt) else Ok()
+                let chatMessagesPlusResult = result {
+                    let! _ = if debugFakeError() then Error "Fake MoreChatMessages error" else Ok()
                     let! _, userType = authenticator.FromJwt(jwt)
-                    let! _ =
-                        if canGetChatMessages userType then Ok()
-                        else Error(ifDebug (sprintf "%s.MoreChatMessages [%A] -> canGetChatMessages returned false for %A" SOURCE key userType) NOT_ALLOWED)
+                    let! _ = if canGetChatMessages userType then Ok() else Error(ifDebug (sprintf "canGetChatMessages returned false for %A" userType) NOT_ALLOWED)
                     let chatMessages = chatMessageDict |> chatMessages (Some minOrdinal) batchSize
                     return chatMessages, chatMessageDict.Count, key, agentRvn }
-                match result with
-                | Ok (chatMessages, count, _, _) ->
-                    sourcedLogger.Debug("Got {length} more chat message/s out of {count} (ChatApiAgent {agentRvn}) [{key}]", chatMessages.Length, count, agentRvn, key)
-                | Error error -> sourcedLogger.Warning("Unable to get more chat messages [{key}] -> {error}", key, error)
-                reply.Reply result
+                match chatMessagesPlusResult with
+                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} more ChatMessage/s out of {count} (ChatApiAgent {agentRvn})", chatMessages.Length, count, agentRvn)
+                | Error error -> sourcedLogger.Warning("Unable to get more ChatMessages -> {error}", error)
+                reply.Reply chatMessagesPlusResult
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | SendChatMessage(connectionId, jwt, userId, userName, payload, processedPayload, taggedUsers, reply) ->
-                let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake SendChatMessage error [%A] -> %A" key jwt) else Ok()
+                let chatMessageIdPlusResult = result {
+                    let! _ = if debugFakeError() then Error "Fake SendChatMessage error" else Ok()
                     let! _, userType = authenticator.FromJwt(jwt)
-                    let! _ =
-                        if canSendChatMessage userType then Ok()
-                        else Error(ifDebug (sprintf "%s.SendChatMessage [%A] -> canSendChatMessage returned false for %A" SOURCE key userType) NOT_ALLOWED)
+                    let! _ = if canSendChatMessage userType then Ok() else Error(ifDebug (sprintf "canSendChatMessage returned false for %A" userType) NOT_ALLOWED)
                     let lastOrdinal = lastOrdinal + 1
-                    let! chatMessage = chatMessageDict |> addChatMessage userId userName payload processedPayload taggedUsers lastOrdinal
+                    let chatMessage = {
+                        ChatMessageId = ChatMessageId.Create()
+                        Rvn = initialRvn
+                        Sender = userId, userName
+                        Payload = payload
+                        ProcessedPayload = processedPayload
+                        TaggedUsers = taggedUsers
+                        Edited = false }
+                    let! _ = chatMessageDict |> addChatMessage chatMessage lastOrdinal
                     let agentRvn = incrementRvn agentRvn
                     hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageReceived(connectionId, chatMessage, lastOrdinal, chatMessageDict.Count, key, agentRvn)))
                     return chatMessage.ChatMessageId, (lastOrdinal, agentRvn) }
                 let lastOrdinal, agentRvn =
-                    match result with
+                    match chatMessageIdPlusResult with
                     | Ok(chatMessageId, (lastOrdinal, agentRvn)) ->
-                        sourcedLogger.Debug("Sent chat message {chatMessageId} with ordinal {lastOrdinal} (ChatApiAgent now {rvn}) [{key}]", chatMessageId, lastOrdinal, agentRvn, key)
+                        sourcedLogger.Debug("Sent {chatMessageId} with ordinal {lastOrdinal} (ChatApiAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
                         lastOrdinal, agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to send chat message (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", agentRvn, key, error)
+                        sourcedLogger.Warning("Unable to send ChatMessage (ChatApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
                         lastOrdinal, agentRvn
-                reply.Reply(result |> ignoreResult)
+                reply.Reply(chatMessageIdPlusResult |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | EditChatMessage(jwt, chatMessageId, userId, payload, processedPayload, taggedUsers, rvn, reply) ->
-                let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake EditChatMessage error [%A] -> %A" key jwt) else Ok()
+                let chatMessageIdPlusResult = result {
+                    let! _ = if debugFakeError() then Error "Fake EditChatMessage error" else Ok()
                     let! byUserId, userType = authenticator.FromJwt(jwt)
                     let! _ =
                         if canEditChatMessage userId (byUserId, userType) then Ok()
-                        else Error(ifDebug (sprintf "%s.EditChatMessage [%A] -> canEditChatMessage from %A returned false for %A (%A)" SOURCE key userId byUserId userType) NOT_ALLOWED)
-                    let! chatMessage, ordinal, timestamp = chatMessageDict |> findChatMessage chatMessageId
+                        else Error(ifDebug (sprintf "canEditChatMessage from %A returned false for %A (%A)" userId byUserId userType) NOT_ALLOWED)
+                    let! chatMessage, _, _ = chatMessageDict |> findChatMessage chatMessageId
                     let! _ = validateSameRvn chatMessage.Rvn rvn |> errorIfSome ()
                     let chatMessage = { chatMessage with Rvn = incrementRvn rvn ; Payload = payload ; ProcessedPayload = processedPayload ; TaggedUsers = taggedUsers ; Edited = true }
-                    let! _ = chatMessageDict |> updateChatMessage chatMessage ordinal timestamp
+                    let! _ = chatMessageDict |> updateChatMessage chatMessage
                     let agentRvn = incrementRvn agentRvn
                     hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageEdited(chatMessage, chatMessageDict.Count, key, agentRvn)))
                     return chatMessage.ChatMessageId, agentRvn }
                 let agentRvn =
-                    match result with
+                    match chatMessageIdPlusResult with
                     | Ok(chatMessageId, agentRvn) ->
-                        sourcedLogger.Debug("Edited chat message {chatMessageId} (ChatApiAgent now {rvn}) [{key}]", chatMessageId, agentRvn, key)
+                        sourcedLogger.Debug("Edited {chatMessageId} (ChatApiAgent now {rvn})", chatMessageId, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to edit chat message (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", agentRvn, key, error)
+                        sourcedLogger.Warning("Unable to edit {chatMessageId} (ChatApiAgent {rvn} unchanged) -> {error}", chatMessageId, agentRvn, error)
                         agentRvn
-                reply.Reply(result |> ignoreResult)
+                reply.Reply(chatMessageIdPlusResult |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn, reply) ->
-                let result = result {
-                    let! _ = if debugFakeError() then Error(sprintf "Fake DeleteChatMessage error [%A] -> %A" key jwt) else Ok()
+                let chatMessageIdPlusResult = result {
+                    let! _ = if debugFakeError() then Error "Fake DeleteChatMessage error" else Ok()
                     let! byUserId, userType = authenticator.FromJwt(jwt)
                     let! _ =
                         if canDeleteChatMessage userId (byUserId, userType) then Ok()
-                        else Error(ifDebug (sprintf "%s.DeleteChatMessage [%A] -> canDeleteChatMessage from %A returned false for %A (%A)" SOURCE key userId byUserId userType) NOT_ALLOWED)
+                        else Error(ifDebug (sprintf "canDeleteChatMessage from %A returned false for %A (%A)" userId byUserId userType) NOT_ALLOWED)
                     let! _ =
                         if not expired then
                             match chatMessageDict |> findChatMessage chatMessageId with
@@ -183,14 +173,14 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                     hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessageDeleted(chatMessageId, chatMessageDict.Count, key, agentRvn)))
                     return chatMessageId, agentRvn }
                 let agentRvn =
-                    match result with
+                    match chatMessageIdPlusResult with
                     | Ok(chatMessageId, agentRvn) ->
-                        sourcedLogger.Debug("Deleted chat message {chatMessageId} (ChatApiAgent now {rvn}) [{key}]", chatMessageId, lastOrdinal, agentRvn, key)
+                        sourcedLogger.Debug("Deleted {chatMessageId} (ChatApiAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to delete chat message {chatMessageId} (ChatApiAgent {rvn} unchanged) [{key}] -> {error}", chatMessageId, agentRvn, key, error)
+                        sourcedLogger.Warning("Unable to delete {chatMessageId} (ChatApiAgent {rvn} unchanged) -> {error}", chatMessageId, agentRvn, error)
                         agentRvn
-                reply.Reply(result |> ignoreResult)
+                reply.Reply(chatMessageIdPlusResult |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
             | Housekeeping ->
                 sourcedLogger.Debug("Housekeeping!")
@@ -202,13 +192,13 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                 expired |> List.iter (chatMessageDict.Remove >> ignore)
                 let agentRvn = if expired.Length > 0 then incrementRvn agentRvn else agentRvn
                 if expired.Length > 0 then hub.SendClientIf hasChatMessages (RemoteChatInput(ChatMessagesExpired(expired, chatMessageDict.Count, key, agentRvn)))
-                if expired.Length > 0 then sourcedLogger.Debug("Removed {length} expired messages", expired.Length)
-                else sourcedLogger.Debug("No messages have expired")
+                if expired.Length > 0 then sourcedLogger.Debug("Removed {length} expired ChatMessage/s", expired.Length)
+                else sourcedLogger.Debug("No ChatMessages have expired")
                 return! loop (chatMessageDict, lastOrdinal, agentRvn) }
         sourcedLogger.Information("Starting [{key}]...", key)
         let chatMessageDict = ChatMessageDict()
         loop (chatMessageDict, 0, initialRvn))
-    do agent.Error.Add (fun exn -> sourcedLogger.Error("Unexpected error [{key}] -> {errorMessage}", key, exn.Message))
+    do agent.Error.Add (fun exn -> sourcedLogger.Error("Unexpected error -> {message}", exn.Message))
     let rec housekeeping () = async {
         do! Async.Sleep(int (minutesToMilliseconds HOUSEKEEPING_INTERVAL))
         agent.Post(Housekeeping)

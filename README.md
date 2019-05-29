@@ -1,4 +1,4 @@
-# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (μ)
+# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (ν)
 
 An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
 [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
@@ -52,8 +52,8 @@ There are no unit tests yet ;(
 
 However, the repository and web API services have been designed to work with ASP.NET Core dependency injection, which should also facilitate unit testing.
 
-See _[test-user-repo-and-api.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-user-repo-and-api.fs)_ for an example of "testing" IUserRepo
-(e.g. InMemoryUserRepoAgent) and UserApi (e.g. UserApiAgent) from a console project.
+See _[test-users-repo-and-users-api-agent.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-users-repo-and-users-api-agent.fs)_ for an example of "testing" IUsersRepo
+(e.g. fake implementation) and UsersApi (e.g. UsersApiAgent) from a console project.
 
 ### To do
 

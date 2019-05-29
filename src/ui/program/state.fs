@@ -17,7 +17,7 @@ open Aornota.Gibet.Ui.Pages
 open Aornota.Gibet.Ui.Program.Common
 open Aornota.Gibet.Ui.Shared
 open Aornota.Gibet.Ui.User.Shared
-open Aornota.Gibet.Ui.UserApi
+open Aornota.Gibet.Ui.UsersApi
 
 open System
 
@@ -197,7 +197,7 @@ let private authState messages appState connectionState lastPage authUser staySi
 #endif
     let getUsersCmd, usersData =
         if canGetUsers authUser.User.UserType then
-            let cmd = Cmd.OfAsync.either userApi.getUsers (connectionState.ConnectionId, authUser.Jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersApiInput >> AuthInput)
+            let cmd = Cmd.OfAsync.either usersApi.getUsers (connectionState.ConnectionId, authUser.Jwt) GetUsersResult GetUsersExn |> Cmd.map (GetUsersApiInput >> AuthInput)
             cmd, Pending
         else Cmd.none, Failed NOT_ALLOWED
     let cmds = Cmd.batch [
@@ -338,7 +338,7 @@ let private handleRemoteUiInput remoteUiInput state =
         let connectionState = { ConnectionId = connectionId ; ServerStarted = DateTimeOffset.UtcNow.AddSeconds(float -sinceServerStarted) }
         match registeringConnectionState.LastUser with
         | Some(userName, jwt) ->
-            let cmd = Cmd.OfAsync.either userApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInApiInput
+            let cmd = Cmd.OfAsync.either usersApi.autoSignIn (connectionState.ConnectionId, jwt) AutoSignInResult AutoSignInExn |> Cmd.map AutoSignInApiInput
             AutomaticallySigningIn (automaticallySigningInState registeringConnectionState.Messages registeringConnectionState.AppState connectionState (userName, jwt)
                 registeringConnectionState.LastPage), cmd
         | None ->
@@ -508,7 +508,7 @@ let private handleSignInModalInput signInModalInput (unauthState:UnauthState) st
         | SignIn, _ ->
             let userName, password = UserName(signInModalState.UserName.Trim()), Password(signInModalState.Password.Trim())
             let cmd =
-                Cmd.OfAsync.either userApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map (SignInApiInput >> UnauthInput)
+                Cmd.OfAsync.either usersApi.signIn (unauthState.ConnectionState.ConnectionId, userName, password) SignInResult SignInExn |> Cmd.map (SignInApiInput >> UnauthInput)
             let signInModalState = { signInModalState with AutoSignInError = None ; ForcedSignOutReason = None ; SignInApiStatus = Some ApiPending }
             Unauth { unauthState with SignInModalState = Some signInModalState }, cmd
         | CloseSignInModal, _ -> Unauth { unauthState with SignInModalState = None }, Cmd.none
@@ -552,7 +552,7 @@ let private handleChangePasswordModalInput changePasswordModalInput (authState:A
         | ChangePassword, _ ->
             let password = Password(changePasswordModalState.NewPassword.Trim())
             let cmd =
-                Cmd.OfAsync.either userApi.changePassword (authState.AuthUser.Jwt, password, authState.AuthUser.User.Rvn) ChangePasswordResult ChangePasswordExn
+                Cmd.OfAsync.either usersApi.changePassword (authState.AuthUser.Jwt, password, authState.AuthUser.User.Rvn) ChangePasswordResult ChangePasswordExn
                 |> Cmd.map (ChangePasswordApiInput >> AuthInput)
             let changePasswordModalState = { changePasswordModalState with ChangePasswordApiStatus = Some ApiPending }
             Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, cmd
@@ -585,7 +585,7 @@ let private handleChangeImageUrlModalInput changeImageUrlModalInput (authState:A
         | ChangeImageUrl, _ ->
             let imageUrl = if String.IsNullOrWhiteSpace(changeImageUrlModalState.ImageUrl) then None else Some(ImageUrl changeImageUrlModalState.ImageUrl)
             let cmd =
-                Cmd.OfAsync.either userApi.changeImageUrl (authState.AuthUser.Jwt, imageUrl, authState.AuthUser.User.Rvn) ChangeImageUrlResult ChangeImageUrlExn
+                Cmd.OfAsync.either usersApi.changeImageUrl (authState.AuthUser.Jwt, imageUrl, authState.AuthUser.User.Rvn) ChangeImageUrlResult ChangeImageUrlExn
                 |> Cmd.map (ChangeImageUrlApiInput >> AuthInput)
             let changeImageUrlModalState = { changeImageUrlModalState with ChangeImageUrlApiStatus = Some ApiPending }
             Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, cmd
@@ -745,7 +745,7 @@ let transition input state =
         | AuthInput(ChangeImageUrlModalInput changeImageUrlModalInput), Auth authState, _ -> state |> handleChangeImageUrlModalInput changeImageUrlModalInput authState
         | AuthInput(ChangeImageUrlApiInput changeImageUrlApiInput), Auth authState, _ -> state |> handleChangeImageUrlApiInput changeImageUrlApiInput authState
         | AuthInput SignOut, Auth authState, _ ->
-            let cmd = Cmd.OfAsync.either userApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutApiInput >> AuthInput)
+            let cmd = Cmd.OfAsync.either usersApi.signOut (authState.ConnectionState.ConnectionId, authState.AuthUser.Jwt) SignOutResult SignOutExn |> Cmd.map (SignOutApiInput >> AuthInput)
             Auth { authState with SigningOut = true }, cmd
         | AuthInput(SignOutApiInput signOutApiInput), Auth authState, _ -> state |> handleSignOutApiInput signOutApiInput authState
         | AuthInput(GetUsersApiInput getUsersApiInput), Auth authState, _ -> state |> handleGetUsersApiInput getUsersApiInput authState

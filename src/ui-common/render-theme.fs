@@ -44,16 +44,19 @@ let buttonT theme size colour interaction tooltip children =
 let buttonTSmall theme colour interaction children = buttonT theme (Some IsSmall) colour interaction None children
 let buttonTSmallTooltip theme colour interaction tooltip children = buttonT theme (Some IsSmall) colour interaction (Some tooltip) children
 
-let cardModalT theme head body =
+let cardModalT theme head body = // TODO-NMB: onEscapePressed only seems to work if Modal has textTXyz?...
     let themeClass = themeClass theme
-    Modal.modal [ Modal.IsActive true ] [
+    Modal.modal [
+        Modal.IsActive true
+        Modal.Props [ match head with | Some(_, Some onDismiss) -> yield onEscapePressed onDismiss | _ -> () ]
+    ] [
         Modal.background [] []
         Modal.Card.card [] [
             match head with
             | Some(title, onDismiss) ->
                 yield Modal.Card.head [ CustomClass(themeAlternativeClass theme) ] [
                     yield Modal.Card.title [ CustomClass themeClass ] title
-                    match onDismiss with | Some onDismiss -> yield Delete.delete [ Delete.OnClick onDismiss ] [] | None -> () ]
+                    match onDismiss with | Some onDismiss -> yield Delete.delete [ Delete.OnClick(fun _ -> onDismiss ()) ] [] | None -> () ]
             | None -> ()
             yield Modal.Card.body [ CustomClass themeClass ] body ] ]
 

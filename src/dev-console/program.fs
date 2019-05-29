@@ -2,7 +2,7 @@
 
 open Aornota.Gibet.DevConsole.Console
 open Aornota.Gibet.DevConsole.TestTaggingRegex
-open Aornota.Gibet.DevConsole.TestUserRepoAndApi
+open Aornota.Gibet.DevConsole.TestUsersRepoAndUsersApiAgent
 open Aornota.Gibet.Server.SourcedLogger
 
 open System
@@ -32,14 +32,16 @@ let private sourcedLogger = logger |> sourcedLogger SOURCE
 
 let private mainAsync argv = async {
     // #region "Running SOURCE.mainAsync..."
-    writeNewLine (sprintf "Running %s.mainAsync" SOURCE) ConsoleColor.Yellow
-    write (sprintf " %A" argv) ConsoleColor.DarkYellow
-    write "...\n\n" ConsoleColor.Yellow
+    writeNewLine (sprintf "Running %s.mainAsync" SOURCE) ConsoleColor.Green
+    write (sprintf " %A" argv) ConsoleColor.DarkGreen
+    write "..." ConsoleColor.Green
     // #endregion
 
     try
         // #region Logging examples
-        (* let test = Some 3.14
+        (* TEMP-NMB...
+        writeNewLine "\nLogging examples:\n" ConsoleColor.Magenta
+        let test = Some 3.14
         sourcedLogger.Debug("This is a debug message")
         sourcedLogger.Information("This is an information message: {test}", test)
         sourcedLogger.Warning("This is a warning message")
@@ -47,16 +49,20 @@ let private mainAsync argv = async {
         // #endregion
 
         // #region testTaggingRegex
-        (* testTaggingRegex logger *)
+        (* TEMP-NMB...
+        writeNewLine "\ntestTaggingRegex:\n" ConsoleColor.Magenta
+        testTaggingRegex logger *)
         // #endregion
 
-        // #region testUserRepoAndApi
-        match! testUserRepoAndApi configuration logger with | Ok _ -> () | Error error -> failwith error
+        // #region testUsersRepoAndUsersApiAgent
+        (* TEMP-NMB... *)
+        writeNewLine "\ntestUsersRepoAndUsersApiAgent:\n" ConsoleColor.Magenta
+        match! testUsersRepoAndUsersApiAgent configuration logger with | Ok _ -> () | Error error -> failwith error
         // #endregion
     with | exn -> sourcedLogger.Error("Unexpected error: {errorMessage}\n{stackTrace}", exn.Message, exn.StackTrace)
 
     // #region "Press any key to exit..."
-    writeNewLine "Press any key to exit..." ConsoleColor.Yellow
+    writeNewLine "Press any key to exit..." ConsoleColor.Green
     Console.ReadKey() |> ignore
     writeBlankLine()
     return 0

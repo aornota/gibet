@@ -201,7 +201,7 @@ let private renderSignInModal (theme, signInModalState:SignInModalState) dispatc
                 | true, Some error -> Some(IsWarning, ICON__WARNING, helpTWarning theme [ str error ])
                 | _ -> None
             Some onDismiss, false, signInInteration, onEnter, userNameStatus, passwordStatus
-    let extra = ifDebug [] [ str " (e.g. " ; strong EXAMPLE_ADMIN_USER_NAME ; str " | " ; strongEm EXAMPLE_ADMIN_PASSWORD ; str ")" ]
+    let extra = ifDebug [] [ str " (e.g. " ; strong EXAMPLE_USER_NAME__AE ; str " | " ; strongEm EXAMPLE_PASSWORD__AE ; str ")" ]
     let keepMeSignedIn, onChange = signInModalState.KeepMeSignedIn, (fun _ -> dispatch KeepMeSignedInChanged)
     let body = [
         match signInModalState.AutoSignInError, signInModalState.ForcedSignOutReason, signInModalState.SignInApiStatus with

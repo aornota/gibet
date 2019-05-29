@@ -13,6 +13,8 @@ open Elmish
 
 open Serilog
 
+let [<Literal>] private SOURCE = "Bridge.State"
+
 let private serverStarted = DateTimeOffset.UtcNow
 
 let private sendIfNotSignedIn userId connectionId =
@@ -73,7 +75,7 @@ let initialize clientDispatch () : HubState * Cmd<ServerInput> =
     NotRegistered, Cmd.none
 
 let transition logger clientDispatch input state : HubState * Cmd<ServerInput> =
-    let sourcedLogger, logger = logger |> sourcedLogger "Bridge.State", ()
+    let sourcedLogger, logger = logger |> sourcedLogger SOURCE, ()
     let state =
         match input, state with
         | RemoteServerInput input, _ -> state |> handleRemoteServerInput sourcedLogger clientDispatch input

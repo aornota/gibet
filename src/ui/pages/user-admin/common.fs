@@ -15,7 +15,7 @@ type CreateUsersModalInput =
     | CreateUser
     | CloseCreateUsersModal
 type CreateUserApiInput =
-    | CreateUserResult of Result<UserName, string>
+    | CreateUserResult of Result<UserId * UserName, string>
     | CreateUserExn of exn
 
 type ResetPasswordModalInput =
