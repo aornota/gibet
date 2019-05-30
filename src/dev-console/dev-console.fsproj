@@ -27,9 +27,9 @@
         <Compile Include="..\server\repo\i-users-repo.fs" />
         <Compile Include="..\server\bridge\i-hub.fs" />
         <Compile Include="..\server\bridge\hub-state.fs" />
-        <Compile Include="..\server\api\users-api-agent.fs" />
+        <Compile Include="..\server\agents\users-agent.fs" />
         <Compile Include="test-tagging-regex.fs" />
-        <Compile Include="test-users-repo-and-users-api-agent.fs" />
+        <Compile Include="test-users-repo-and-users-agent.fs" />
         <Compile Include="console.fs" />
         <Compile Include="program.fs" />
     </ItemGroup>

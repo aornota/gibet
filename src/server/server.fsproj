@@ -31,8 +31,8 @@
         <Compile Include="bridge\hub-state.fs" />
         <Compile Include="bridge\hub.fs" />
         <Compile Include="bridge\bridge-state.fs" />
-        <Compile Include="api\users-api-agent.fs" />
-        <Compile Include="api\chat-api-agent.fs" />
+        <Compile Include="agents\users-agent.fs" />
+        <Compile Include="agents\chat-agent.fs" />
         <Compile Include="initial-users.fs" />
         <Compile Include="startup.fs" />
         <Compile Include="host.fs" />

@@ -55,8 +55,8 @@ There are no unit tests yet ;(
 
 However, the repository and web API services have been designed to work with ASP.NET Core dependency injection, which should also facilitate unit testing.
 
-See _[test-users-repo-and-users-api-agent.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-users-repo-and-users-api-agent.fs)_ for an example of "testing" IUsersRepo
-(e.g. fake implementation) and UsersApi (e.g. UsersApiAgent) from a console project.
+See _[test-users-repo-and-users-agent.fs](https://github.com/aornota/gibet/blob/master/src/dev-console/test-users-repo-and-users-agent.fs)_ for an example of "testing" IUsersRepo
+(e.g. fake implementation) and UsersApi (e.g. UsersAgent) from a console project.
 
 ### To do
 

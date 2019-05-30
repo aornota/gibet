@@ -2,8 +2,8 @@ module Aornota.Gibet.Server.Startup
 
 open Aornota.Gibet.Common.Api
 open Aornota.Gibet.Common.Bridge
-open Aornota.Gibet.Server.Api.ChatApiAgent
-open Aornota.Gibet.Server.Api.UsersApiAgent
+open Aornota.Gibet.Server.Agents.ChatAgent
+open Aornota.Gibet.Server.Agents.UsersAgent
 open Aornota.Gibet.Server.Authenticator
 open Aornota.Gibet.Server.Bridge.State
 open Aornota.Gibet.Server.Bridge.Hub
@@ -72,9 +72,9 @@ type Startup(configuration:IConfiguration) =
     let sourcedLogger = Log.Logger |> sourcedLogger SOURCE
     do sourcedLogger.Information("Starting...")
     let authenticator = Authenticator(configuration, Log.Logger)
-    let usersRepo, usersApiAgent =
+    let usersRepo, usersAgent =
         match createInitialUsers hub authenticator Log.Logger |> Async.RunSynchronously with
-        | Ok(usersRepo, usersApiAgent) -> usersRepo, usersApiAgent
+        | Ok(usersRepo, usersAgent) -> usersRepo, usersAgent
         | Error error -> failwithf "Unable to create initial Users -> %s" error
     member __.Configure(applicationBuilder:IApplicationBuilder) =
         let webAppWithLogging = choose [ bridgeServer Log.Logger ; usersApi ; chatApi ] |> SerilogAdapter.Enable
@@ -88,6 +88,6 @@ type Startup(configuration:IConfiguration) =
         services.AddSingleton(hub) |> ignore
         services.AddSingleton(usersRepo) |> ignore
         services.AddSingleton(authenticator) |> ignore
-        services.AddSingleton(usersApiAgent) |> ignore
-        services.AddSingleton<ChatApiAgent, ChatApiAgent>() |> ignore
+        services.AddSingleton(usersAgent) |> ignore
+        services.AddSingleton<ChatAgent, ChatAgent>() |> ignore
         services.AddGiraffe() |> ignore

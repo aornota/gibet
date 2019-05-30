@@ -1,4 +1,4 @@
-module Aornota.Gibet.Server.Api.ChatApiAgent
+module Aornota.Gibet.Server.Agents.ChatAgent
 
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Api.ChatApi
@@ -31,7 +31,7 @@ type private Input =
 
 type private ChatMessageDict = Dictionary<ChatMessageId, ChatMessage * int * DateTimeOffset>
 
-let [<Literal>] private SOURCE = "Api.ChatApiAgent"
+let [<Literal>] private SOURCE = "Agents.ChatAgent"
 
 let [<Literal>] private HOUSEKEEPING_INTERVAL = 1.<minute>
 
@@ -70,7 +70,7 @@ let private chatMessages belowOrdinal batchSize (chatMessageDict:ChatMessageDict
     | length, Some batchSize when length > batchSize -> chatMessages |> List.take batchSize
     | _ -> chatMessages
 
-type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticator:Authenticator, logger) =
+type ChatAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticator:Authenticator, logger) =
     let sourcedLogger, logger = logger |> sourcedLogger SOURCE, logger
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop(chatMessageDict:ChatMessageDict, lastOrdinal, agentRvn) = async {
@@ -87,7 +87,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                     hub.SendServerIf (sameConnection connectionId) HasChatMessages
                     return chatMessages, chatMessageDict.Count, key, agentRvn }
                 match chatMessagesPlusResult with
-                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} ChatMessage/s out of {count} (ChatApiAgent {agentRvn})", chatMessages.Length, count, agentRvn)
+                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} ChatMessage/s out of {count} (ChatAgent {agentRvn})", chatMessages.Length, count, agentRvn)
                 | Error error -> sourcedLogger.Warning("Unable to get ChatMessages -> {error}", error)
                 reply.Reply chatMessagesPlusResult
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -99,7 +99,7 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                     let chatMessages = chatMessageDict |> chatMessages (Some minOrdinal) batchSize
                     return chatMessages, chatMessageDict.Count, key, agentRvn }
                 match chatMessagesPlusResult with
-                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} more ChatMessage/s out of {count} (ChatApiAgent {agentRvn})", chatMessages.Length, count, agentRvn)
+                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} more ChatMessage/s out of {count} (ChatAgent {agentRvn})", chatMessages.Length, count, agentRvn)
                 | Error error -> sourcedLogger.Warning("Unable to get more ChatMessages -> {error}", error)
                 reply.Reply chatMessagesPlusResult
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -124,10 +124,10 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                 let lastOrdinal, agentRvn =
                     match chatMessageIdPlusResult with
                     | Ok(chatMessageId, (lastOrdinal, agentRvn)) ->
-                        sourcedLogger.Debug("Sent {chatMessageId} with ordinal {lastOrdinal} (ChatApiAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
+                        sourcedLogger.Debug("Sent {chatMessageId} with ordinal {lastOrdinal} (ChatAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
                         lastOrdinal, agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to send ChatMessage (ChatApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
+                        sourcedLogger.Warning("Unable to send ChatMessage (ChatAgent {rvn} unchanged) -> {error}", agentRvn, error)
                         lastOrdinal, agentRvn
                 reply.Reply(chatMessageIdPlusResult |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -148,10 +148,10 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                 let agentRvn =
                     match chatMessageIdPlusResult with
                     | Ok(chatMessageId, agentRvn) ->
-                        sourcedLogger.Debug("Edited {chatMessageId} (ChatApiAgent now {rvn})", chatMessageId, agentRvn)
+                        sourcedLogger.Debug("Edited {chatMessageId} (ChatAgent now {rvn})", chatMessageId, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to edit {chatMessageId} (ChatApiAgent {rvn} unchanged) -> {error}", chatMessageId, agentRvn, error)
+                        sourcedLogger.Warning("Unable to edit {chatMessageId} (ChatAgent {rvn} unchanged) -> {error}", chatMessageId, agentRvn, error)
                         agentRvn
                 reply.Reply(chatMessageIdPlusResult |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -175,10 +175,10 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
                 let agentRvn =
                     match chatMessageIdPlusResult with
                     | Ok(chatMessageId, agentRvn) ->
-                        sourcedLogger.Debug("Deleted {chatMessageId} (ChatApiAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
+                        sourcedLogger.Debug("Deleted {chatMessageId} (ChatAgent now {rvn})", chatMessageId, lastOrdinal, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to delete {chatMessageId} (ChatApiAgent {rvn} unchanged) -> {error}", chatMessageId, agentRvn, error)
+                        sourcedLogger.Warning("Unable to delete {chatMessageId} (ChatAgent {rvn} unchanged) -> {error}", chatMessageId, agentRvn, error)
                         agentRvn
                 reply.Reply(chatMessageIdPlusResult |> ignoreResult)
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -213,10 +213,10 @@ type ChatApiAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenti
     member __.DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn) = agent.PostAndAsyncReply(fun reply -> DeleteChatMessage(jwt, chatMessageId, userId, expired, rvn, reply))
 
 let chatApiReader = reader {
-    let! chatApi = resolve<ChatApiAgent>()
+    let! chatAgent = resolve<ChatAgent>()
     return {
-        getChatMessages = chatApi.GetChatMessages
-        moreChatMessages = chatApi.MoreChatMessages
-        sendChatMessage = chatApi.SendChatMessage
-        editChatMessage = chatApi.EditChatMessage
-        deleteChatMessage = chatApi.DeleteChatMessage } }
+        getChatMessages = chatAgent.GetChatMessages
+        moreChatMessages = chatAgent.MoreChatMessages
+        sendChatMessage = chatAgent.SendChatMessage
+        editChatMessage = chatAgent.EditChatMessage
+        deleteChatMessage = chatAgent.DeleteChatMessage } }

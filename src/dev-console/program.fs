@@ -2,7 +2,7 @@
 
 open Aornota.Gibet.DevConsole.Console
 open Aornota.Gibet.DevConsole.TestTaggingRegex
-open Aornota.Gibet.DevConsole.TestUsersRepoAndUsersApiAgent
+open Aornota.Gibet.DevConsole.TestUsersRepoAndUsersAgent
 open Aornota.Gibet.Server.SourcedLogger
 
 open System
@@ -54,10 +54,10 @@ let private mainAsync argv = async {
         testTaggingRegex logger *)
         // #endregion
 
-        // #region testUsersRepoAndUsersApiAgent
+        // #region testUsersRepoAndUsersAgent
         (* TEMP-NMB... *)
-        writeNewLine "\ntestUsersRepoAndUsersApiAgent:\n" ConsoleColor.Magenta
-        match! testUsersRepoAndUsersApiAgent configuration logger with | Ok _ -> () | Error error -> failwith error
+        writeNewLine "\ntestUsersRepoAndUsersAgent:\n" ConsoleColor.Magenta
+        match! testUsersRepoAndUsersAgent configuration logger with | Ok _ -> () | Error error -> failwith error
         // #endregion
     with | exn -> sourcedLogger.Error("Unexpected error: {errorMessage}\n{stackTrace}", exn.Message, exn.StackTrace)
 

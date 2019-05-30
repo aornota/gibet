@@ -3,7 +3,7 @@ module Aornota.Gibet.Server.InitialUsers
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Revision
-open Aornota.Gibet.Server.Api.UsersApiAgent
+open Aornota.Gibet.Server.Agents.UsersAgent
 open Aornota.Gibet.Server.Repo.IUsersRepo
 open Aornota.Gibet.Server.SourcedLogger
 
@@ -44,33 +44,33 @@ let createInitialUsers hub authenticator logger = asyncResult {
             member __.GetUsers() = async { return Ok([ yvesDto ; annDto ]) }
             member __.AddUser _ = async { return Ok() }
             member __.UpdateUser _ = async { return Ok() } }
-    (* Note: Create UsersApiAgent *after* initial Users have been added to [fake] Users repo - else will not be able to sign in as these initial Users (because UsersApiAgent populates its
+    (* Note: Create UsersAgent *after* initial Users have been added to [fake] Users repo - else will not be able to sign in as these initial Users (because UsersAgent populates its
        "cache" from Users repo when created). *)
-    let usersApiAgent = UsersApiAgent(fakeUsersRepo, hub, authenticator, logger)
+    let usersAgent = UsersAgent(fakeUsersRepo, hub, authenticator, logger)
     let connectionId = ConnectionId.Create()
     let defaultPassword = Password "gibet"
-    sourcedLogger.Information("Signing in as {ann} via UsersApiAgent...", ann)
-    let! authUser, _ = usersApiAgent.SignIn(connectionId, ann, Password EXAMPLE_PASSWORD__AE)
+    sourcedLogger.Information("Signing in as {ann} via UsersAgent...", ann)
+    let! authUser, _ = usersAgent.SignIn(connectionId, ann, Password EXAMPLE_PASSWORD__AE)
     let jwt = authUser.Jwt
     let henrietta, mikeH, mikeO = UserName "henrietta viennetta", UserName "mike hatstead", UserName "mike oxard"
-    sourcedLogger.Information("Creating additional User/s via UsersApiAgent...")
-    let! _ = usersApiAgent.CreateUser(jwt, henrietta, defaultPassword, Pleb)
-    let! _ = usersApiAgent.CreateUser(jwt, mikeH, defaultPassword, Pleb)
-    let! _ = usersApiAgent.CreateUser(jwt, mikeO, defaultPassword, Pleb)
-    let! _ = usersApiAgent.SignOut(connectionId, jwt)
+    sourcedLogger.Information("Creating additional User/s via UsersAgent...")
+    let! _ = usersAgent.CreateUser(jwt, henrietta, defaultPassword, Pleb)
+    let! _ = usersAgent.CreateUser(jwt, mikeH, defaultPassword, Pleb)
+    let! _ = usersAgent.CreateUser(jwt, mikeO, defaultPassword, Pleb)
+    let! _ = usersAgent.SignOut(connectionId, jwt)
     sourcedLogger.Information("Signing in as other User/s (to change Password and/or ImageUrl)...")
-    let! authUser, _ = usersApiAgent.SignIn(connectionId, henrietta, defaultPassword)
+    let! authUser, _ = usersAgent.SignIn(connectionId, henrietta, defaultPassword)
     let jwt = authUser.Jwt
-    let! _ = usersApiAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://i.pinimg.com/originals/d3/e0/ce/d3e0ceb34eeadb2563cf7783bead4e85.jpg") (* Ursula Le Guin *), initialRvn)
-    let! _ = usersApiAgent.SignOut(connectionId, jwt)
-    let! authUser, _ = usersApiAgent.SignIn(connectionId, mikeH, defaultPassword)
+    let! _ = usersAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://i.pinimg.com/originals/d3/e0/ce/d3e0ceb34eeadb2563cf7783bead4e85.jpg") (* Ursula Le Guin *), initialRvn)
+    let! _ = usersAgent.SignOut(connectionId, jwt)
+    let! authUser, _ = usersAgent.SignIn(connectionId, mikeH, defaultPassword)
     let jwt = authUser.Jwt
-    let! _ = usersApiAgent.ChangePassword(jwt, Password "mikeH", initialRvn)
-    let! _ = usersApiAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://cdn-ed.versobooks.com/images/000000/455/John-Berger-37fedb298baa7ac93877ab8b7169366c.jpg") (* John Berger *), incrementRvn initialRvn)
-    let! _ = usersApiAgent.SignOut(connectionId, jwt)
-    let! authUser, _ = usersApiAgent.SignIn(connectionId, mikeO, defaultPassword)
+    let! _ = usersAgent.ChangePassword(jwt, Password "mikeH", initialRvn)
+    let! _ = usersAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://cdn-ed.versobooks.com/images/000000/455/John-Berger-37fedb298baa7ac93877ab8b7169366c.jpg") (* John Berger *), incrementRvn initialRvn)
+    let! _ = usersAgent.SignOut(connectionId, jwt)
+    let! authUser, _ = usersAgent.SignIn(connectionId, mikeO, defaultPassword)
     let jwt = authUser.Jwt
-    let! _ = usersApiAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://mises-media.s3.amazonaws.com/styles/social_media_1200_x_1200/s3/static-page/img/zamyatin.jpg?itok=J9ilfOm8") (* Yevgeny Zamyatin *), initialRvn)
-    let! _ = usersApiAgent.SignOut(connectionId, jwt)
+    let! _ = usersAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://mises-media.s3.amazonaws.com/styles/social_media_1200_x_1200/s3/static-page/img/zamyatin.jpg?itok=J9ilfOm8") (* Yevgeny Zamyatin *), initialRvn)
+    let! _ = usersAgent.SignOut(connectionId, jwt)
     sourcedLogger.Information("...initial User/s created")
-    return fakeUsersRepo, usersApiAgent }
+    return fakeUsersRepo, usersAgent }

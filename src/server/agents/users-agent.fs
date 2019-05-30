@@ -1,4 +1,4 @@
-module Aornota.Gibet.Server.Api.UsersApiAgent
+module Aornota.Gibet.Server.Agents.UsersAgent
 
 open Aornota.Gibet.Common
 open Aornota.Gibet.Common.Api.UsersApi
@@ -43,7 +43,7 @@ type private Input =
 
 type private UserDtoDict = Dictionary<UserId, UserDto>
 
-let [<Literal>] private SOURCE = "Api.UsersApiAgent"
+let [<Literal>] private SOURCE = "Agents.UsersAgent"
 
 let private rng = RandomNumberGenerator.Create()
 let private sha512 = SHA512.Create()
@@ -78,7 +78,7 @@ let private updateUserDto userDto (userDtoDict:UserDtoDict) =
         userDtoDict.[userId] <- userDto
         return () }
 
-type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticator:Authenticator, logger) =
+type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticator:Authenticator, logger) =
     let sourcedLogger, logger = logger |> sourcedLogger SOURCE, ()
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop (userDtoDict:UserDtoDict, agentRvn) = async {
@@ -170,10 +170,10 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
                 let agentRvn =
                     match userNamePlusResult with
                     | Ok(userName, agentRvn) ->
-                        sourcedLogger.Debug("Password changed for {userName} (UserApiAgent now {rvn})", userName, agentRvn)
+                        sourcedLogger.Debug("Password changed for {userName} (UsersAgent now {rvn})", userName, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to change Password (UserApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
+                        sourcedLogger.Warning("Unable to change Password (UsersAgent {rvn} unchanged) -> {error}", agentRvn, error)
                         agentRvn
                 reply.Reply(userNamePlusResult |> Result.map fst)
                 return! loop (userDtoDict, agentRvn)
@@ -213,10 +213,10 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
                 let agentRvn =
                     match userNamePlusResult with
                     | Ok((userName, imageChangeType), agentRvn) ->
-                        sourcedLogger.Debug("ImageUrl {changeType} for {userName} (UserApiAgent now {rvn})", changeType imageChangeType, userName, agentRvn)
+                        sourcedLogger.Debug("ImageUrl {changeType} for {userName} (UsersAgent now {rvn})", changeType imageChangeType, userName, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to change ImageUrl (UserApiAgent {rvn} unchanged) -> {error}", agentRvn, error)
+                        sourcedLogger.Warning("Unable to change ImageUrl (UsersAgent {rvn} unchanged) -> {error}", agentRvn, error)
                         agentRvn
                 reply.Reply(userNamePlusResult |> Result.map fst)
                 return! loop (userDtoDict, agentRvn)
@@ -229,7 +229,7 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
                     hub.SendServerIf (sameConnection connectionId) HasUsers
                     return users, agentRvn }
                 match usersPlus with
-                | Ok (users, agentRvn) -> sourcedLogger.Debug("Got {length} User/s (UserApiAgent {agentRvn})", users.Length, agentRvn)
+                | Ok (users, agentRvn) -> sourcedLogger.Debug("Got {length} User/s (UsersAgent {agentRvn})", users.Length, agentRvn)
                 | Error error -> sourcedLogger.Warning("Unable to get Users -> {error}", error)
                 reply.Reply usersPlus
                 return! loop (userDtoDict, agentRvn)
@@ -272,10 +272,10 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
                 let agentRvn =
                     match userIdPlusResult with
                     | Ok((userId, userName), agentRvn) ->
-                        sourcedLogger.Debug("Created User {userName} ({userId}) (UserApiAgent now {rvn})", userName, userId, agentRvn)
+                        sourcedLogger.Debug("Created User {userName} ({userId}) (UsersAgent now {rvn})", userName, userId, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to create User {userName} (UserApiAgent {rvn} unchanged) -> {error}", userName, agentRvn, error)
+                        sourcedLogger.Warning("Unable to create User {userName} (UsersAgent {rvn} unchanged) -> {error}", userName, agentRvn, error)
                         agentRvn
                 reply.Reply(userIdPlusResult |> Result.map fst)
                 return! loop (userDtoDict, agentRvn)
@@ -318,10 +318,10 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
                 let agentRvn =
                     match userNamePlusResult with
                     | Ok(userName, agentRvn) ->
-                        sourcedLogger.Debug("Password reset for {userName} (UserApiAgent now {rvn})", userName, agentRvn)
+                        sourcedLogger.Debug("Password reset for {userName} (UsersAgent now {rvn})", userName, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to reset Password for {userId} (UserApiAgent {rvn} unchanged) -> {error}", userId, agentRvn, error)
+                        sourcedLogger.Warning("Unable to reset Password for {userId} (UsersAgent {rvn} unchanged) -> {error}", userId, agentRvn, error)
                         agentRvn
                 reply.Reply(userNamePlusResult |> Result.map fst)
                 return! loop(userDtoDict, agentRvn)
@@ -360,10 +360,10 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
                 let agentRvn =
                     match userNamePlusResult with
                     | Ok(userName, agentRvn) ->
-                        sourcedLogger.Debug("UserType changed for {userName} (UserApiAgent now {rvn})", userName, agentRvn)
+                        sourcedLogger.Debug("UserType changed for {userName} (UsersAgent now {rvn})", userName, agentRvn)
                         agentRvn
                     | Error error ->
-                        sourcedLogger.Warning("Unable to change UserType for {userId} (UserApiAgent {rvn} unchanged) -> {error}", userId, agentRvn, error)
+                        sourcedLogger.Warning("Unable to change UserType for {userId} (UsersAgent {rvn} unchanged) -> {error}", userId, agentRvn, error)
                         agentRvn
                 reply.Reply(userNamePlusResult |> Result.map fst)
                 return! loop (userDtoDict, agentRvn) }
@@ -390,14 +390,14 @@ type UsersApiAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, R
     member __.ChangeUserType(jwt, userId, userType, rvn) = agent.PostAndAsyncReply(fun reply -> ChangeUserType( jwt, userId, userType, rvn, reply))
 
 let usersApiReader = reader {
-    let! usersApi = resolve<UsersApiAgent>()
+    let! usersAgent = resolve<UsersAgent>()
     return {
-        signIn = usersApi.SignIn
-        autoSignIn = usersApi.AutoSignIn
-        signOut = usersApi.SignOut
-        changePassword = usersApi.ChangePassword
-        changeImageUrl = usersApi.ChangeImageUrl
-        getUsers = usersApi.GetUsers
-        createUser = usersApi.CreateUser
-        resetPassword = usersApi.ResetPassword
-        changeUserType = usersApi.ChangeUserType } }
+        signIn = usersAgent.SignIn
+        autoSignIn = usersAgent.AutoSignIn
+        signOut = usersAgent.SignOut
+        changePassword = usersAgent.ChangePassword
+        changeImageUrl = usersAgent.ChangeImageUrl
+        getUsers = usersAgent.GetUsers
+        createUser = usersAgent.CreateUser
+        resetPassword = usersAgent.ResetPassword
+        changeUserType = usersAgent.ChangeUserType } }
