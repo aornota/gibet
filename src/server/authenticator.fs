@@ -42,7 +42,7 @@ let private jwtKey =
     let file = FileInfo(JWT_KEY_FILE)
     if not file.Exists then
         if not file.Directory.Exists then file.Directory.Create()
-        let bytes : byte [] = Array.zeroCreate 32
+        let bytes : Core.byte [] = Array.zeroCreate 32
         RandomNumberGenerator.Create().GetBytes(bytes)
         File.WriteAllBytes(file.FullName, bytes)
     File.ReadAllBytes(file.FullName)
