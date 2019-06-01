@@ -6,7 +6,7 @@ open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Jwt
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Server.Authenticator
 open Aornota.Gibet.Server.Bridge.HubState
@@ -162,7 +162,7 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDtoDict |> updateUserDto userDto with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserUpdated(user, PasswordChanged, agentRvn))
+                                    hub.SendClientIf hasUsers (RemoteUsersInput(UserUpdated(user, PasswordChanged, agentRvn)))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -190,7 +190,7 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     | Ok currentUserDto ->
                         let currentUser = currentUserDto.User
                         let currentImageUrl, imageUrl = currentUser.ImageUrl, canoicalizeImageUrl imageUrl
-                        let imageChangeType =
+                        let changeType =
                             match currentImageUrl, imageUrl with
                             | None, Some _ -> Some ImageChosen
                             | Some currentImageUrl, Some imageUrl when currentImageUrl <> imageUrl -> Some ImageChanged
@@ -205,15 +205,15 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 match userDtoDict |> updateUserDto userDto with
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserUpdated(user, UserUpdateType.ImageChanged imageChangeType, agentRvn))
-                                    Ok((user.UserName, imageChangeType), agentRvn)
+                                    hub.SendClientIf hasUsers (RemoteUsersInput(UserUpdated(user, UserUpdateType.ImageChanged changeType, agentRvn)))
+                                    Ok((user.UserName, changeType), agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
                     | Error error -> return Error error }
                 let agentRvn =
                     match userNamePlusResult with
-                    | Ok((userName, imageChangeType), agentRvn) ->
-                        sourcedLogger.Debug("ImageUrl {changeType} for {userName} (UsersAgent now {rvn})", changeType imageChangeType, userName, agentRvn)
+                    | Ok((userName, changeType), agentRvn) ->
+                        sourcedLogger.Debug("ImageUrl {changeType} for {userName} (UsersAgent now {rvn})", imageChangeType changeType, userName, agentRvn)
                         agentRvn
                     | Error error ->
                         sourcedLogger.Warning("Unable to change ImageUrl (UsersAgent {rvn} unchanged) -> {error}", agentRvn, error)
@@ -264,7 +264,7 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 | Ok _ ->
                                     let user = userDto.User
                                     let agentRvn = incrementRvn agentRvn
-                                    hub.SendClientIf hasUsers (UserAdded(user, agentRvn))
+                                    hub.SendClientIf hasUsers (RemoteUsersInput(UserAdded(user, agentRvn)))
                                     Ok((user.UserId, user.UserName), agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -310,7 +310,7 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
                                     hub.SendServerIf (sameUser userId) (ForceChangePassword byUserName)
-                                    hub.SendClientIf hasUsers (UserUpdated(user, UserUpdateType.PasswordReset, agentRvn))
+                                    hub.SendClientIf hasUsers (RemoteUsersInput(UserUpdated(user, UserUpdateType.PasswordReset, agentRvn)))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error
@@ -352,7 +352,7 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                                 | Ok _ ->
                                     let agentRvn = incrementRvn agentRvn
                                     hub.SendServerIf (sameUser userId) (ForceSignOut(UserTypeChanged byUserName))
-                                    hub.SendClientIf (differentUserHasUsers userId) (UserUpdated(user, UserUpdateType.UserTypeChanged, agentRvn))
+                                    hub.SendClientIf (differentUserHasUsers userId) (RemoteUsersInput(UserUpdated(user, UserUpdateType.UserTypeChanged, agentRvn)))
                                     Ok(user.UserName, agentRvn)
                                 | Error error -> Error error
                             | Error error -> Error error

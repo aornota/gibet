@@ -1,11 +1,11 @@
 module Aornota.Gibet.Ui.Program.State
 
+open Aornota.Gibet.Common.Api.UsersApi
 open Aornota.Gibet.Common.Bridge
-open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
 open Aornota.Gibet.Ui.Common.Message
@@ -253,8 +253,8 @@ let private shouldNeverHappen error state : State * Cmd<Input> =
 
 let private userExists userId (users:UserData list) = match users |> tryFindUser userId with | Some _ -> true | None -> false
 
-let private tryFindUser userId (usersData:RemoteData<UserData list, string>) = match usersData with | Received(users, _) -> users |> tryFindUser userId | _ -> None
-let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, string>) =
+let private tryFindUser userId (usersData:RemoteData<UserData list, Rvn, string>) = match usersData with | Received(users, _) -> users |> tryFindUser userId | _ -> None
+let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<UserData list, Rvn, string>) =
     match usersData with
     | Received(users, currentUsersRvn) ->
         match validateNextRvn currentUsersRvn usersRvn with
@@ -276,7 +276,7 @@ let private addOrUpdateUser user usersRvn shouldExist (usersData:RemoteData<User
     | _ -> Error "addOrUpdateUser: not Received"
 let private addUser user usersRvn usersData = usersData |> addOrUpdateUser user usersRvn false
 let private updateUser user usersRvn usersData = usersData |> addOrUpdateUser user usersRvn true
-let private updateActivity userId (usersData:RemoteData<UserData list, string>) =
+let private updateActivity userId (usersData:RemoteData<UserData list, Rvn, string>) =
     match usersData with
     | Received(users, rvn) ->
         if users |> userExists userId then
@@ -288,7 +288,7 @@ let private updateActivity userId (usersData:RemoteData<UserData list, string>) 
             Ok(Received(users, rvn))
         else Error(sprintf "updateActivity: %A not found" userId)
     | _ -> Error "updateActivity: not Received"
-let private updateSignedIn userId signedIn (usersData:RemoteData<UserData list, string>) =
+let private updateSignedIn userId signedIn (usersData:RemoteData<UserData list, Rvn, string>) =
     match usersData with
     | Received(users, rvn) ->
         if users |> userExists userId then
@@ -346,11 +346,11 @@ let private handleRemoteUiInput remoteUiInput state =
                 unauthState registeringConnectionState.Messages registeringConnectionState.AppState connectionState registeringConnectionState.LastPage None None AUTO_SHOW_SIGN_IN_MODAL
             let state, writePreferencesCmd = Unauth unauthState |> writePreferencesOrDefault
             state, Cmd.batch [ cmd ; writePreferencesCmd ]
-    | UserActivity userId, Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    | RemoteUsersInput(UserActivity userId), Auth authState -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         match authState.UsersData |> updateActivity userId with
         | Ok usersData -> Auth { authState with UsersData = usersData }, Cmd.none
         | Error error -> state |> shouldNeverHappen error
-    | UserSignedIn userId, Auth authState ->
+    | RemoteUsersInput(UserSignedIn userId), Auth authState ->
         match authState.UsersData |> updateSignedIn userId true with
         | Ok usersData ->
             let state = Auth { authState with UsersData = usersData }
@@ -362,7 +362,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 | None -> Cmd.none
             state, toastCmd
         | Error error -> state |> shouldNeverHappen error
-    | UserSignedOut userId, Auth authState ->
+    | RemoteUsersInput(UserSignedOut userId), Auth authState ->
         match authState.UsersData |> updateSignedIn userId false with
         | Ok usersData ->
             let state = Auth { authState with UsersData = usersData }
@@ -374,7 +374,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 | None -> Cmd.none
             state, toastCmd
         | Error error -> state |> shouldNeverHappen error
-    | ForceUserSignOut forcedSignOutReason, Auth authState ->
+    | RemoteUsersInput(ForceUserSignOut forcedSignOutReason), Auth authState ->
         let toastCmd, because =
             match forcedSignOutBecause forcedSignOutReason with
             | because, Some(UserName byUserName) -> warningToastCmd, sprintf "%s by <strong>%s</strong>" because byUserName
@@ -393,7 +393,7 @@ let private handleRemoteUiInput remoteUiInput state =
             sprintf "You have been signed out because %s" because |> toastCmd
             writePreferencesCmd ]
         state, cmds
-    | ForceUserChangePassword byUserName, Auth authState ->
+    | RemoteUsersInput(ForceUserChangePassword byUserName), Auth authState ->
         let mustChangePasswordReason = PasswordReset byUserName
         let because =
             match mustChangePasswordBecause mustChangePasswordReason with
@@ -406,7 +406,7 @@ let private handleRemoteUiInput remoteUiInput state =
                 { changePasswordModalState with MustChangePasswordReason = Some mustChangePasswordReason }
             | None -> changePasswordModalState (Some mustChangePasswordReason)
         Auth { authState with ChangePasswordModalState = Some changePasswordModalState }, toastCmd
-    | UserUpdated(user, userUpdateType, usersRvn), Auth authState ->
+    | RemoteUsersInput(UserUpdated(user, userUpdateType, usersRvn)), Auth authState ->
         let authUser = authState.AuthUser
         let authUser = if user.UserId = authUser.User.UserId then { authUser with User = user } else authUser
         match authState.UsersData |> updateUser user usersRvn with
@@ -414,7 +414,7 @@ let private handleRemoteUiInput remoteUiInput state =
             let state = Auth { authState with AuthUser = authUser ; UsersData = usersData }
             state, ifDebug (sprintf "%A updated (%A) -> UsersData now %A" user.UserId userUpdateType usersRvn |> infoToastCmd) Cmd.none
         | Error error -> state |> shouldNeverHappen error
-    | UserAdded(user, usersRvn), Auth authState ->
+    | RemoteUsersInput(UserAdded(user, usersRvn)), Auth authState ->
         match authState.UsersData |> addUser user usersRvn with
         | Ok usersData ->
             let state = Auth { authState with UsersData = usersData }
@@ -597,8 +597,8 @@ let private handleChangeImageUrlApiInput changeImageUrlApiInput (authState:AuthS
         match changeImageUrlModalState.ChangeImageUrlApiStatus with
         | Some ApiPending ->
             match changeImageUrlApiInput with
-            | ChangeImageUrlResult(Ok(UserName userName, imageChangeType)) ->
-                Auth { authState with ChangeImageUrlModalState = None }, sprintf "Image %s for <strong>%s</strong>" (changeType imageChangeType) userName |> successToastCmd
+            | ChangeImageUrlResult(Ok(UserName userName, changeType)) ->
+                Auth { authState with ChangeImageUrlModalState = None }, sprintf "Image %s for <strong>%s</strong>" (imageChangeType changeType) userName |> successToastCmd
             | ChangeImageUrlResult(Error error) ->
                 let changeImageUrlModalState = { changeImageUrlModalState with ChangeImageUrlApiStatus = Some(ApiFailed error) }
                 Auth { authState with ChangeImageUrlModalState = Some changeImageUrlModalState }, Cmd.none // no need for toast (since error will be displayed on ChangeImageUrlModal)

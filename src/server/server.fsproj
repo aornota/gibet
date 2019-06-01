@@ -12,10 +12,9 @@
         <Compile Include="..\common\json.fs" />
         <Compile Include="..\common\jwt.fs" />
         <Compile Include="..\common\markdown.fs" />
-        <Compile Include="..\common\revision.fs" />
+        <Compile Include="..\common\rvn.fs" />
         <Compile Include="..\common\unexpected-error.fs" />
         <Compile Include="..\common\units-of-measure.fs" />
-        <Compile Include="..\common\domain\affinity.fs" />
         <Compile Include="..\common\domain\user.fs" />
         <Compile Include="..\common\domain\chat.fs" />
         <Compile Include="..\common\bridge\bridge.fs" />

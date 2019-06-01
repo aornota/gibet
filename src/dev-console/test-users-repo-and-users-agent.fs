@@ -2,7 +2,7 @@ module Aornota.Gibet.DevConsole.TestUsersRepoAndUsersAgent
 
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Server.Agents.UsersAgent
 open Aornota.Gibet.Server.Authenticator
 open Aornota.Gibet.Server.Bridge.HubState

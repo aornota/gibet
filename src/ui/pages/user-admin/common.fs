@@ -1,7 +1,7 @@
 module Aornota.Gibet.Ui.Pages.UserAdmin.Common
 
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Shared
 

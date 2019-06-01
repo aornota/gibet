@@ -1,6 +1,6 @@
 {
     "name": "gibet",
-    "version": "ν",
+    "version": "ξ",
     "description": "An opinionated (i.e. decidedly eccentric) \"scaffold\"/example for F# web-app development using Fable, Elmish, Fulma / Bulma, Fable.Remoting, Elmish.Bridge, Giraffe and ASP.NET Core. https://gibet.azurewebsites.net/",
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",
@@ -28,13 +28,13 @@
         "react": "^16.8.6",
         "react-dom": "^16.8.6",
         "remotedev": "^0.2.9",
-        "sass": "^1.20.1",
+        "sass": "^1.20.3",
         "sass-loader": "^7.1.0",
         "style-loader": "^0.23.1",
         "toastr": "^2.1.4",
         "webpack": "^4.32.2",
         "webpack-cli": "^3.3.2",
-        "webpack-dev-server": "^3.4.1",
+        "webpack-dev-server": "^3.5.0",
         "whatwg-fetch": "^3.0.0"
     }
 }

@@ -1,6 +1,7 @@
 module Aornota.Gibet.Ui.Pages.UserAdmin.State
 
 open Aornota.Gibet.Common.Domain.User
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Ui.Common.RemoteData
 open Aornota.Gibet.Ui.Common.Toast
@@ -171,7 +172,7 @@ let initialize (_:AuthUser) : State * Cmd<Input> =
         ChangeUserTypeModalState = None }
     state, Cmd.none
 
-let transition authUser (usersData:RemoteData<UserData list, string>) input state =
+let transition authUser (usersData:RemoteData<UserData list, Rvn, string>) input state =
     match input, usersData with
     // Note: AddMessage will have been handled by Program.State.transition.
     | ShowCreateUsersModal, Received _ ->

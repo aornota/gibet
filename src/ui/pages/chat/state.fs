@@ -1,12 +1,13 @@
 module Aornota.Gibet.Ui.Pages.Chat.State
 
+open Aornota.Gibet.Common.Api.ChatApi
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Json
 open Aornota.Gibet.Common.Markdown
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.LocalStorage
@@ -73,7 +74,7 @@ let private chatMessageData chatMessage sinceSent status : ChatMessageData = cha
 
 let private chatMessageExists chatMessageId (chatMessages:ChatMessageData list) = match chatMessages |> tryFindChatMessage chatMessageId with | Some _ -> true | None -> false
 
-let private addChatMessage (chatMessageData:ChatMessageData) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+let private addChatMessage (chatMessageData:ChatMessageData) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, Rvn, string>) =
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
         match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
@@ -83,7 +84,7 @@ let private addChatMessage (chatMessageData:ChatMessageData) chatMessagesRvn (ch
             if chatMessages |> chatMessageExists chatMessage.ChatMessageId then Error(sprintf "addChatMessage: %A already exists" chatMessage.ChatMessageId)
             else Ok(chatMessageData :: chatMessages)
     | _ -> Error "addChatMessage: not Received"
-let private addChatMessages (chatMessages:ChatMessageData list) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+let private addChatMessages (chatMessages:ChatMessageData list) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, Rvn, string>) =
     let rec add current (chatMessages:ChatMessageData list) =
         match chatMessages with
         | data :: tail ->
@@ -100,7 +101,7 @@ let private addChatMessages (chatMessages:ChatMessageData list) chatMessagesRvn 
             | Ok chatMessages -> Ok chatMessages
             | Error error -> Error error
     | _ -> Error "addChatMessages: not Received"
-let private editChatMessage (chatMessage:ChatMessage) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) =
+let private editChatMessage (chatMessage:ChatMessage) chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, Rvn, string>) =
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
         match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
@@ -117,7 +118,7 @@ let private editChatMessage (chatMessage:ChatMessage) chatMessagesRvn (chatMessa
                 Ok chatMessages
             | None -> Error(sprintf "editChatMessage: %A already exists" chatMessageId)
     | _ -> Error "editChatMessage: not Received"
-let private deleteChatMessage chatMessageId chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageId
+let private deleteChatMessage chatMessageId chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, Rvn, string>) = // note: silently ignore unknown chatMessageId
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
         match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
@@ -130,7 +131,7 @@ let private deleteChatMessage chatMessageId chatMessagesRvn (chatMessagesData:Re
                     else Some(chatMessage, timestamp, status))
             Ok chatMessages
     | _ -> Error "deleteChatMessage: not Received"
-let private expireChatMessages chatMessageIds chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageIds
+let private expireChatMessages chatMessageIds chatMessagesRvn (chatMessagesData:RemoteData<ChatMessageData list * int, Rvn, string>) = // note: silently ignore unknown chatMessageIds
     match chatMessagesData with
     | Received((chatMessages, _), currentChatMessagesRvn) ->
         match validateNextRvn currentChatMessagesRvn chatMessagesRvn with
@@ -144,7 +145,7 @@ let private expireChatMessages chatMessageIds chatMessagesRvn (chatMessagesData:
             Ok chatMessages
     | _ -> Error "expireChatMessages: not Received"
 
-let private removeChatMessages chatMessageIds (chatMessagesData:RemoteData<ChatMessageData list * int, string>) = // note: silently ignore unknown chatMessageIds
+let private removeChatMessages chatMessageIds (chatMessagesData:RemoteData<ChatMessageData list * int, Rvn, string>) = // note: silently ignore unknown chatMessageIds
     match chatMessagesData with
     | Received((chatMessages, count), chatMessagesRvn) ->
         let chatMessages =

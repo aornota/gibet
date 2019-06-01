@@ -1,5 +1,6 @@
 module Aornota.Gibet.Ui.Pages.Chat.Render
 
+open Aornota.Gibet.Common.Api.ChatApi
 open Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug

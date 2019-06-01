@@ -1,10 +1,9 @@
 module Aornota.Gibet.Ui.Program.Common
 
 open Aornota.Gibet.Common.Bridge
-open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.Jwt
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
@@ -184,7 +183,7 @@ type AuthState = {
     ChangePasswordModalState : ChangePasswordModalState option
     ChangeImageUrlModalState : ChangeImageUrlModalState option
     SigningOut : bool
-    UsersData : RemoteData<UserData list, string> }
+    UsersData : RemoteData<UserData list, Rvn, string> }
 
 type State =
     | InitializingConnection of Message list * reconnectingState : State option

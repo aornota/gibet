@@ -3,7 +3,7 @@ module Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Markdown
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnitsOfMeasure
 
 open System

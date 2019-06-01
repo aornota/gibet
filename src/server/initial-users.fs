@@ -2,7 +2,7 @@ module Aornota.Gibet.Server.InitialUsers
 
 open Aornota.Gibet.Common.Bridge
 open Aornota.Gibet.Common.Domain.User
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Server.Agents.UsersAgent
 open Aornota.Gibet.Server.Repo.IUsersRepo
 open Aornota.Gibet.Server.SourcedLogger
@@ -73,4 +73,4 @@ let createInitialUsers hub authenticator logger = asyncResult {
     let! _ = usersAgent.ChangeImageUrl(jwt, Some(ImageUrl "https://mises-media.s3.amazonaws.com/styles/social_media_1200_x_1200/s3/static-page/img/zamyatin.jpg?itok=J9ilfOm8") (* Yevgeny Zamyatin *), initialRvn)
     let! _ = usersAgent.SignOut(connectionId, jwt)
     sourcedLogger.Information("...initial User/s created")
-    return fakeUsersRepo, usersAgent }
+    return usersAgent }

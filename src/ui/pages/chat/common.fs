@@ -5,7 +5,7 @@ open Aornota.Gibet.Common.Domain.Chat
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Markdown
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Ui.Common.Message
 open Aornota.Gibet.Ui.Common.RemoteData
@@ -100,7 +100,7 @@ type ReadyState = {
     MoreChatMessagesApiStatus : ApiStatus<string> option
     EditChatMessageModalState : EditChatMessageModalState option
     DeleteChatMessageModalState : DeleteChatMessageModalState option
-    ChatMessagesData : RemoteData<ChatMessageData list * int, string> }
+    ChatMessagesData : RemoteData<ChatMessageData list * int, Rvn, string> }
 
 type State =
     | ReadingLatestChatSeen of PageState

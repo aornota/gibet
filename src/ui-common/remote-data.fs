@@ -1,5 +1,5 @@
 module Aornota.Gibet.Ui.Common.RemoteData
 
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 
-type RemoteData<'a, 'b> = | Pending | Received of 'a * Rvn | Failed of 'b
+type RemoteData<'a, 'b, 'c> = | Pending | Received of 'a * 'b | Failed of 'c

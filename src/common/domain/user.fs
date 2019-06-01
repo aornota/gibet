@@ -1,7 +1,7 @@
 module Aornota.Gibet.Common.Domain.User
 
 open Aornota.Gibet.Common.Jwt
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 
 open System
 
@@ -58,26 +58,6 @@ let validateConfirmPassword forCreateUser (password:Password) confirmPassword =
         Some(sprintf "Confirmation password must match %spassword" extra)
     else None
 
-let canSignIn userType = match userType with | BenevolentDictatorForLife | Administrator | Pleb -> true | PersonaNonGrata -> false
-let canChangePassword forUserId (userId:UserId, userType) = if forUserId <> userId then false else canSignIn userType
-let canChangeImageUrl forUserId (userId:UserId, userType) = canChangePassword forUserId (userId, userType)
-let canGetUsers userType = canSignIn userType
-let canAdministerUsers userType = match userType with | BenevolentDictatorForLife | Administrator -> true | _ -> false
-let canCreateUser forUserType userType =
-    if not (canAdministerUsers userType) then false
-    else match userType, forUserType with | BenevolentDictatorForLife, _ -> true | Administrator, Administrator | Administrator, Pleb -> true | _ -> false
-let canResetPassword (forUserId, forUserType) (userId:UserId, userType) = if forUserId = userId then false else canCreateUser forUserType userType
-let canChangeUserType (forUserId, forUserType) (userId:UserId, userType) = if forUserId = userId then false else canCreateUser forUserType userType
-let canChangeUserTypeTo (forUserId, forUserType) newUserType (userId:UserId, userType) =
-    if not (canChangeUserType (forUserId, forUserType) (userId, userType)) then false
-    else if forUserType = newUserType then false
-    else canCreateUser newUserType userType
-
-let canGetChatMessages userType = canSignIn userType
-let canSendChatMessage userType = canSignIn userType
-let canEditChatMessage fromUserId (userId:UserId, userType) = if fromUserId <> userId then false else canSignIn userType
-let canDeleteChatMessage fromUserId (userId:UserId, userType) = match userType with | BenevolentDictatorForLife -> true | _ -> if fromUserId <> userId then false else canSignIn userType
-
 let mustChangePasswordBecause mustChangePasswordReason =
     match mustChangePasswordReason with
     | FirstSignIn -> "this is the first time you have signed in", None
@@ -87,8 +67,8 @@ let forcedSignOutBecause forcedSignOutReason =
     | SelfSameAffinityDifferentConnection -> "you have signed out on another tab", None
     | UserTypeChanged userName -> "your permissions have been changed", Some userName
 
-let changeType imageChangeType =
-    match imageChangeType with
+let imageChangeType changeType =
+    match changeType with
     | Some ImageChosen -> "chosen"
     | Some ImageChanged -> "changed"
     | Some ImageRemoved -> "removed"

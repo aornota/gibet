@@ -41,9 +41,9 @@ let private handleRemoteServerInput logger clientDispatch input state =
         let sinceServerStarted = (DateTimeOffset.UtcNow - serverStarted).TotalSeconds * 1.<second>
         clientDispatch (Registered(connectionState.ConnectionId, sinceServerStarted))
         Unauth connectionState
-    | Activity, Auth(connectionState, userId, hasUsers) -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
+    | Activity, Auth(connectionState, userId, subscriptions) -> // note: will only be used when ACTIVITY is defined (see webpack.config.js)
         serverHub.SendClientIf (differentUserHasUsers userId) (UserActivity userId)
-        Auth(connectionState, userId, hasUsers)
+        Auth(connectionState, userId, subscriptions)
     | SignedIn userId, Unauth connectionState ->
         serverHub.SendClientIf (differentUserHasUsers userId) (UserSignedIn userId)
         Auth(connectionState, userId, { HasUsers = false ; HasChatMessages = false })
@@ -52,11 +52,11 @@ let private handleRemoteServerInput logger clientDispatch input state =
         sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
     | ForceSignOut forcedSignOutReason, Auth(connectionState, userId, _) ->
-        clientDispatch (ForceUserSignOut forcedSignOutReason)
+        clientDispatch (RemoteUsersInput(ForceUserSignOut forcedSignOutReason))
         sendIfNotSignedIn userId connectionState.ConnectionId
         Unauth connectionState
     | ForceChangePassword byUserName, Auth(connectionState, userId, hasUsers) ->
-        clientDispatch (ForceUserChangePassword byUserName)
+        clientDispatch (RemoteUsersInput(ForceUserChangePassword byUserName))
         Auth(connectionState, userId, hasUsers)
     | HasUsers, Auth(connectionState, userId, subscriptions) when not subscriptions.HasUsers -> Auth(connectionState, userId, { subscriptions with HasUsers = true })
     | HasChatMessages, Auth(connectionState, userId, subscriptions) when not subscriptions.HasChatMessages -> Auth(connectionState, userId, { subscriptions with HasChatMessages = true })

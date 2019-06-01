@@ -1,7 +1,6 @@
 module Aornota.Gibet.Server.Bridge.HubState
 
 open Aornota.Gibet.Common.Bridge
-open Aornota.Gibet.Common.Domain.Affinity
 open Aornota.Gibet.Common.Domain.User
 
 type ServerInput =

@@ -72,9 +72,9 @@ type Startup(configuration:IConfiguration) =
     let sourcedLogger = Log.Logger |> sourcedLogger SOURCE
     do sourcedLogger.Information("Starting...")
     let authenticator = Authenticator(configuration, Log.Logger)
-    let usersRepo, usersAgent =
+    let usersAgent =
         match createInitialUsers hub authenticator Log.Logger |> Async.RunSynchronously with
-        | Ok(usersRepo, usersAgent) -> usersRepo, usersAgent
+        | Ok usersAgent -> usersAgent
         | Error error -> failwithf "Unable to create initial Users -> %s" error
     member __.Configure(applicationBuilder:IApplicationBuilder) =
         let webAppWithLogging = choose [ bridgeServer Log.Logger ; usersApi ; chatApi ] |> SerilogAdapter.Enable
@@ -84,10 +84,10 @@ type Startup(configuration:IConfiguration) =
             .UseWebSockets()
             .UseGiraffe(webAppWithLogging)
     member __.ConfigureServices(services:IServiceCollection) =
-        services.AddSingleton(Log.Logger) |> ignore
-        services.AddSingleton(hub) |> ignore
-        services.AddSingleton(usersRepo) |> ignore
-        services.AddSingleton(authenticator) |> ignore
-        services.AddSingleton(usersAgent) |> ignore
+        services.AddSingleton(Log.Logger) |> ignore // note: needed to "resolve" ChatAgent
+        services.AddSingleton(hub) |> ignore // note: needed to "resolve" ChatAgent
+        // TODO-NMB: Should not be necessary (since all dependents created on startup)?...services.AddSingleton(usersRepo) |> ignore
+        services.AddSingleton(authenticator) |> ignore // note: needed to "resolve" ChatAgent
+        services.AddSingleton(usersAgent) |> ignore // note: needed to "resolve" usersApi
         services.AddSingleton<ChatAgent, ChatAgent>() |> ignore
         services.AddGiraffe() |> ignore

@@ -1,7 +1,7 @@
-# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (ν)
+# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (ξ)
 
-An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/), [Elmish](https://elmish.github.io/),
-[Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
+An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for full-stack [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/),
+[Elmish](https://elmish.github.io/), [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
 [Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
 
 The [example web-app](https://gibet.azurewebsites.net/) is running on Azure - albeit on a free service plan (F1), which limits the number of concurrent websocket connections to a
@@ -36,7 +36,7 @@ _[build.fsx](https://github.com/aornota/gibet/blob/master/build.fsx)_)
 - Installed SAFE templates for .NET Core: _dotnet new -i "SAFE.Template::*"_
 - Created from template: _dotnet new SAFE --server giraffe --layout fulma-basic --communication remoting --pattern default --deploy azure --js-deps yarn_
 
-#### Running / building / deploying
+#### Running / building / publishing / deploying
 
 - Run/watch for development (debug): _fake build --target run_ (or _fake build -t run_)
 - Build for production (release): _fake build --target build_ (or _fake build -t build_)

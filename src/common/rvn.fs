@@ -1,4 +1,4 @@
-module Aornota.Gibet.Common.Revision
+module Aornota.Gibet.Common.Rvn
 
 type Rvn = | Rvn of int
 

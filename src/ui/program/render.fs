@@ -1,5 +1,6 @@
 module Aornota.Gibet.Ui.Program.Render
 
+open Aornota.Gibet.Common.Api.UsersApi
 open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.UnexpectedError

@@ -8,7 +8,7 @@ open Aornota.Gibet.Common.Domain.User
 open Aornota.Gibet.Common.IfDebug
 open Aornota.Gibet.Common.Jwt
 open Aornota.Gibet.Common.Markdown
-open Aornota.Gibet.Common.Revision
+open Aornota.Gibet.Common.Rvn
 open Aornota.Gibet.Common.UnexpectedError
 open Aornota.Gibet.Common.UnitsOfMeasure
 open Aornota.Gibet.Server.Authenticator
