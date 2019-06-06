@@ -9,7 +9,7 @@ type [<Measure>] hour
 type [<Measure>] day
 type [<Measure>] week
 
-let [<Literal>] MILLISECONDS_PER_SECOND = 1000.<millisecond/second>
+let [<Literal>] MILLISECONDS_PER_SECOND = 1_000.<millisecond/second>
 let [<Literal>] SECONDS_PER_MINUTE = 60.<second/minute>
 let [<Literal>] MINUTES_PER_HOUR = 60.<minute/hour>
 let [<Literal>] HOURS_PER_DAY = 24.<hour/day>

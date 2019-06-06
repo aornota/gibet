@@ -28,7 +28,7 @@ type TimeoutWebClient() =
     inherit WebClient()
     override this.GetWebRequest(uri) =
         let request = base.GetWebRequest(uri)
-        request.Timeout <- 30 * 60 * 1000
+        request.Timeout <- 30 * 60 * 1_000
         request
 
 let mutable private deploymentOutputs : ArmOutput option = None

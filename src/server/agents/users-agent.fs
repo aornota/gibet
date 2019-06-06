@@ -82,9 +82,9 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
     let sourcedLogger, logger = logger |> sourcedLogger SOURCE, ()
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop (userDtoDict:UserDtoDict, agentRvn) = async {
-            let! input = inbox.Receive ()
+            let! input = inbox.Receive()
             (* TEMP-NMB...
-            do! ifDebugSleepAsync 250 1000 *)
+            do! ifDebugSleepAsync 250 1_000 *)
             match input with
             | SignIn(connectionId, userName, password, reply) ->
                 let authUserPlusResult = result {
@@ -221,17 +221,17 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                 reply.Reply(userNamePlusResult |> Result.map fst)
                 return! loop (userDtoDict, agentRvn)
             | GetUsers(connectionId, jwt, reply) ->
-                let usersPlus = result {
+                let usersPlusResult = result {
                     let! _ = if debugFakeError() then Error "Fake GetUsers error" else Ok()
                     let! _, userType = authenticator.FromJwt(jwt)
                     let! _ = if canGetUsers userType then Ok() else Error(ifDebug (sprintf "canGetUsers returned false for %A" userType) NOT_ALLOWED)
                     let users = userDtoDict.Values |> List.ofSeq |> List.map (fun userDto -> userDto.User, hub.GetModels() |> signedIn userDto.User.UserId)
                     hub.SendServerIf (sameConnection connectionId) HasUsers
                     return users, agentRvn }
-                match usersPlus with
-                | Ok (users, agentRvn) -> sourcedLogger.Debug("Got {length} User/s (UsersAgent {agentRvn})", users.Length, agentRvn)
+                match usersPlusResult with
+                | Ok(users, agentRvn) -> sourcedLogger.Debug("Got {length} User/s (UsersAgent {agentRvn})", users.Length, agentRvn)
                 | Error error -> sourcedLogger.Warning("Unable to get Users -> {error}", error)
-                reply.Reply usersPlus
+                reply.Reply usersPlusResult
                 return! loop (userDtoDict, agentRvn)
             | CreateUser(jwt, UserName userName, Password password, userType, reply) ->
                 let userDtoResult = result {

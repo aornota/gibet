@@ -41,7 +41,7 @@ let private shouldNeverHappenCmd error = shouldNeverHappenCmd error (AddMessage 
 let private readLatestChatSeenCmd =
     let readLatestChatSeen () = async {
         (* TEMP-NMB...
-        do! ifDebugSleepAsync 250 1000 *)
+        do! ifDebugSleepAsync 250 1_000 *)
         return readJson(Key KEY__LATEST_CHAT_SEEN) |> Option.map (fun (Json json) -> Decode.Auto.fromString<Guid * int option> json) }
     Cmd.OfAsync.either readLatestChatSeen () ReadLatestChatSeenResult ReadLatestChatSeenExn |> Cmd.map LatestChatSeenInput
 let private writeLatestChatSeenCmd latestChatSeen =

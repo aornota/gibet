@@ -74,9 +74,9 @@ type ChatAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticat
     let sourcedLogger, logger = logger |> sourcedLogger SOURCE, logger
     let agent = MailboxProcessor<_>.Start(fun inbox ->
         let rec loop(chatMessageDict:ChatMessageDict, lastOrdinal, agentRvn) = async {
-            let! input = inbox.Receive ()
+            let! input = inbox.Receive()
             (* TEMP-NMB...
-            do! ifDebugSleepAsync 250 1000 *)
+            do! ifDebugSleepAsync 250 1_000 *)
             match input with
             | GetChatMessages(connectionId, jwt, batchSize, reply) ->
                 let chatMessagesPlusResult = result {
@@ -87,7 +87,7 @@ type ChatAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticat
                     hub.SendServerIf (sameConnection connectionId) HasChatMessages
                     return chatMessages, chatMessageDict.Count, key, agentRvn }
                 match chatMessagesPlusResult with
-                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} ChatMessage/s out of {count} (ChatAgent {agentRvn})", chatMessages.Length, count, agentRvn)
+                | Ok(chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} ChatMessage/s out of {count} (ChatAgent {agentRvn})", chatMessages.Length, count, agentRvn)
                 | Error error -> sourcedLogger.Warning("Unable to get ChatMessages -> {error}", error)
                 reply.Reply chatMessagesPlusResult
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)
@@ -99,7 +99,7 @@ type ChatAgent(hub:IHub<HubState, RemoteServerInput, RemoteUiInput>, authenticat
                     let chatMessages = chatMessageDict |> chatMessages (Some minOrdinal) batchSize
                     return chatMessages, chatMessageDict.Count, key, agentRvn }
                 match chatMessagesPlusResult with
-                | Ok (chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} more ChatMessage/s out of {count} (ChatAgent {agentRvn})", chatMessages.Length, count, agentRvn)
+                | Ok(chatMessages, count, _, _) -> sourcedLogger.Debug("Got {length} more ChatMessage/s out of {count} (ChatAgent {agentRvn})", chatMessages.Length, count, agentRvn)
                 | Error error -> sourcedLogger.Warning("Unable to get more ChatMessages -> {error}", error)
                 reply.Reply chatMessagesPlusResult
                 return! loop (chatMessageDict, lastOrdinal, agentRvn)

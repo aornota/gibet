@@ -50,7 +50,7 @@ let private setTitle pageTitle = Browser.document.title <- sprintf "%s | %s" GIB
 let private readPreferencesCmd =
     let readPreferences () = async {
         (* TEMP-NMB...
-        do! ifDebugSleepAsync 250 1000 *)
+        do! ifDebugSleepAsync 250 1_000 *)
         return readJson(Key KEY__APP_PREFERENCES) |> Option.map (fun (Json json) -> Decode.Auto.fromString<Preferences> json) }
     Cmd.OfAsync.either readPreferences () ReadPreferencesResult ReadPreferencesExn |> Cmd.map PreferencesInput
 let private writePreferencesCmd preferences =
