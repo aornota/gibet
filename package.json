@@ -5,28 +5,26 @@
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",
     "license": "MIT",
-    "// devDependencies:bulma": "0.7.4 is outdated - but 0.7.5 seems to cause problems with navbar drop-down/s in MS Edge (for some reason)",
-    "// devDependencies:core-js": "2.6.5 is outdated - but best not to upgrade (for some reason)",
-    "devDependencies": {
-        "@babel/core": "^7.5.5",
-        "@babel/plugin-transform-runtime": "^7.5.5",
-        "@babel/polyfill": "^7.4.4",
-        "@babel/preset-env": "^7.5.5",
-        "@babel/runtime": "^7.5.5",
-        "babel-loader": "^8.0.6",
+    "// dependencies:bulma": "0.7.4 is outdated - but 0.7.5 seems to cause problems with navbar drop-down/s in MS Edge (for some reason)",
+    "dependencies": {
         "bulma": "0.7.4",
         "bulma-checkradio": "2.1.0",
         "bulma-pageloader": "2.1.0",
         "bulma-tooltip": "2.0.2",
+        "react": "^16.8.6",
+        "react-dom": "^16.8.6"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.5.5",
+        "@babel/preset-env": "^7.5.5",
+        "babel-loader": "^8.0.6",
         "copy-webpack-plugin": "^5.0.3",
-        "core-js": "2.6.5",
+        "core-js": "3.0.0",
         "css-loader": "^3.1.0",
         "fable-compiler": "^2.3.12",
         "fable-loader": "^2.1.7",
         "html-webpack-plugin": "^3.2.0",
         "mini-css-extract-plugin": "^0.8.0",
-        "react": "^16.8.6",
-        "react-dom": "^16.8.6",
         "remotedev": "^0.2.9",
         "sass": "^1.22.7",
         "sass-loader": "^7.1.0",
@@ -34,7 +32,6 @@
         "toastr": "^2.1.4",
         "webpack": "^4.36.1",
         "webpack-cli": "^3.3.6",
-        "webpack-dev-server": "^3.7.2",
-        "whatwg-fetch": "^3.0.0"
+        "webpack-dev-server": "^3.7.2"
     }
 }
