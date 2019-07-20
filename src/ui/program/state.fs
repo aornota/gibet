@@ -21,11 +21,10 @@ open Aornota.Gibet.Ui.UsersApi
 
 open System
 
+open Browser
+
 open Elmish
 open Elmish.Bridge
-
-open Fable.Core.JS
-open Fable.Import
 
 open Thoth.Json
 
@@ -44,8 +43,8 @@ let [<Literal>] private ACTIVITY_THROTTLE = 15.<second> // note: "ignored" if le
 
 let private activityThrottle = max ACTIVITY_THROTTLE 5.<second>
 
-let private setBodyClass theme = Browser.document.body.className <- themeClass theme
-let private setTitle pageTitle = Browser.document.title <- sprintf "%s | %s" GIBET pageTitle
+let private setBodyClass theme = document.body.className <- themeClass theme
+let private setTitle pageTitle = document.title <- sprintf "%s | %s" GIBET pageTitle
 
 let private readPreferencesCmd =
     let readPreferences () = async {

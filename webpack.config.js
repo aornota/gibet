@@ -80,6 +80,7 @@ module.exports = {
         ])
         : commonPlugins.concat([
             new webpack.HotModuleReplacementPlugin()
+            , new webpack.NamedModulesPlugin()
         ])
     , resolve: {
         symlinks: false
