@@ -26,7 +26,6 @@ let private configuration =
 
 let private host =
     WebHost.CreateDefaultBuilder()
-        .UseKestrel()
         .UseWebRoot(publicPath)
         .UseContentRoot(publicPath)
         .UseUrls(sprintf "http://0.0.0.0:%i/" DEFAULT_SERVER_PORT)
