@@ -54,8 +54,8 @@ group ui
     nuget Fable.FontAwesome.Free
     nuget Fable.Promise
     nuget Fable.React
-    nuget Fable.Remoting.Client 5.8.0 // pinned to 5.8.0 because 5.9.0+ require Fable.SimpleJson 3.6.0+
-	nuget Fable.SimpleJson 3.5.0 // pinned to 3.5.0 as 3.6.0+ seem to cause errors with Elmish.Bridge.Client (see https://github.com/Nhowka/Elmish.Bridge/issues/21)
+    nuget Fable.Remoting.Client
+	nuget Fable.SimpleJson
     nuget Fulma
     nuget Fulma.Extensions.Wikiki.Checkradio
 	nuget Fulma.Extensions.Wikiki.PageLoader
