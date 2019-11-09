@@ -1261,10 +1261,10 @@ builtin-status-codes@^3.0.0:
   resolved "https://registry.yarnpkg.com/builtin-status-codes/-/builtin-status-codes-3.0.0.tgz#85982878e21b98e1c66425e03d0174788f569ee8"
   integrity sha1-hZgoeOIbmOHGZCXgPQF0eI9Wnug=
 
-bulma-checkradio@2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/bulma-checkradio/-/bulma-checkradio-2.1.0.tgz#494ab05b0245a41a0083bbd08436fafbde4b3814"
-  integrity sha512-u/EBioHqmeMaUyVc+P9ellOldIVER4SSzkCYo7+KOBAIZuRm6zRWKste8DAFfsk8sq2xrX16gKXr7vCy7NC0zw==
+bulma-checkradio@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/bulma-checkradio/-/bulma-checkradio-2.1.1.tgz#5ff67d9fa540c8ce538980812b203f9be4eae8d2"
+  integrity sha512-bs01SMD0++qcA5UyRN2jL8a+/rG4eLUpGPiS1iIUVbi1dyDsqzWWV/7aGMHBrG8a7ZvQo1zk8MwLBA2P5QA6TA==
 
 bulma-pageloader@2.1.0:
   version "2.1.0"
@@ -1639,7 +1639,7 @@ core-js-compat@^3.1.1:
     browserslist "^4.7.2"
     semver "^6.3.0"
 
-core-js@3.4.0:
+core-js@^3.4.0:
   version "3.4.0"
   resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.4.0.tgz#29ea478601789c72f2978e9bb98f43546f89d3aa"
   integrity sha512-lQxb4HScV71YugF/X28LtePZj9AB7WqOpcB+YztYxusvhrgZiQXPmCYfPC5LHsw/+ScEtDbXU3xbqH3CjBRmYA==
@@ -4602,7 +4602,7 @@ sass-loader@^8.0.0:
     schema-utils "^2.1.0"
     semver "^6.3.0"
 
-sass@^1.23.2:
+sass@^1.23.3:
   version "1.23.3"
   resolved "https://registry.yarnpkg.com/sass/-/sass-1.23.3.tgz#f07503b9e8d2bcf06ef69e8beea5d085589b1620"
   integrity sha512-1DKRZxJMOh4Bme16AbWTyYeJAjTlrvw2+fWshHHaepeJfGq2soFZTnt0YhWit+bohtDu4LdyPoEj6VFD4APHog==

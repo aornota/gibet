@@ -43,24 +43,24 @@ group ui
     framework: netstandard2.0
     storage: none
 
-    nuget Fable.Core 3.0
+    nuget Fable.Core
     nuget Elmish.Bridge.Client
 	nuget Elmish.Toastr
-    nuget Fable.Elmish 3.0.4
-	nuget Fable.Elmish.Browser 3.0.1
-    nuget Fable.Elmish.Debugger 3.0.2
+    nuget Fable.Elmish
+	nuget Fable.Elmish.Browser
+    nuget Fable.Elmish.Debugger
     nuget Fable.Elmish.HMR
     nuget Fable.Elmish.React
     nuget Fable.FontAwesome.Free
     nuget Fable.Promise
-    nuget Fable.React 5.3.5
-    nuget Fable.Remoting.Client 4.5.6
-	nuget Fable.SimpleJson 3.1.0
-    nuget Fulma 2.4.0
+    nuget Fable.React
+    nuget Fable.Remoting.Client 5.8.0 // pinned to 5.8.0 because 5.9.0+ require Fable.SimpleJson 3.6.0+
+	nuget Fable.SimpleJson 3.5.0 // pinned to 3.5.0 as 3.6.0+ seem to cause errors with Elmish.Bridge.Client (see https://github.com/Nhowka/Elmish.Bridge/issues/21)
+    nuget Fulma
     nuget Fulma.Extensions.Wikiki.Checkradio
 	nuget Fulma.Extensions.Wikiki.PageLoader
-	nuget Fulma.Extensions.Wikiki.Tooltip 2.0.1 // 2.0.1 is outdated (as is bulma-tooltip 2.0.2) - but 3.0.0 not yet tested
-	nuget Thoth.Json 3.3
+	nuget Fulma.Extensions.Wikiki.Tooltip 2.0.1 // pinned to 2.0.1 (and bulma-tooltip pinned to 2.0.2) as 3.0.0 seems not to work
+	nuget Thoth.Json
 
 group dev-console
 
