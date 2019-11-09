@@ -1,4 +1,4 @@
-# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (ξ)
+# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (π)
 
 An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for full-stack [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/),
 [Elmish](https://elmish.github.io/), [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
@@ -11,11 +11,11 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 #### Development prerequisites
 
-- [Microsoft .NET Core 2.2 SDK](https://dotnet.microsoft.com/download/dotnet-core/2.2/): I'm currently using 2.2.300
-- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.13.7
-- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.207.3
-- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.16.0
-- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 10.15.3
+- [Microsoft .NET Core 3.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.0/): I'm currently using 3.0.100
+- [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.18.3
+- [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.231.2
+- [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.19.1
+- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 12.13.0
 
 ##### Also recommended
 

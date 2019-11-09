@@ -1,4 +1,4 @@
-version 5.215.0
+version 5.226.0
 
 group build
 
@@ -18,13 +18,13 @@ group build
 group server
 
     source https://api.nuget.org/v3/index.json
-    framework: netcoreapp2.2
+    framework: netcoreapp3.0
     storage: none
 
     nuget FSharp.Core
     nuget Microsoft.AspNetCore
     nuget Microsoft.AspNetCore.StaticFiles
-    nuget Elmish.Bridge.Giraffe prerelease
+    nuget Elmish.Bridge.Giraffe
     nuget Fable.Remoting.Giraffe
     nuget FsToolkit.ErrorHandling
     nuget Giraffe
@@ -35,7 +35,7 @@ group server
 	nuget Serilog.Settings.Configuration
 	nuget Serilog.Sinks.Console
 	nuget Serilog.Sinks.File
-    nuget Thoth.Json.Net prerelease
+    nuget Thoth.Json.Net
 
 group ui
 
@@ -43,29 +43,29 @@ group ui
     framework: netstandard2.0
     storage: none
 
-    nuget Fable.Core prerelease
-    nuget Elmish.Bridge.Client prerelease
+    nuget Fable.Core 3.0
+    nuget Elmish.Bridge.Client
 	nuget Elmish.Toastr
-    nuget Fable.Elmish prerelease
-	nuget Fable.Elmish.Browser prerelease
-    nuget Fable.Elmish.Debugger prerelease
-    nuget Fable.Elmish.HMR prerelease
-    nuget Fable.Elmish.React prerelease
-    nuget Fable.FontAwesome.Free prerelease
-    nuget Fable.Promise prerelease
-    nuget Fable.React prerelease
-    nuget Fable.Remoting.Client ~> 4
-	nuget Fable.SimpleJson prerelease
-    nuget Fulma prerelease
+    nuget Fable.Elmish 3.0.4
+	nuget Fable.Elmish.Browser 3.0.1
+    nuget Fable.Elmish.Debugger 3.0.2
+    nuget Fable.Elmish.HMR
+    nuget Fable.Elmish.React
+    nuget Fable.FontAwesome.Free
+    nuget Fable.Promise
+    nuget Fable.React 5.3.5
+    nuget Fable.Remoting.Client 4.5.6
+	nuget Fable.SimpleJson 3.1.0
+    nuget Fulma 2.1.1
     nuget Fulma.Extensions.Wikiki.Checkradio
-	nuget Fulma.Extensions.Wikiki.PageLoader prerelease
-	nuget Fulma.Extensions.Wikiki.Tooltip prerelease
-	nuget Thoth.Json prerelease
+	nuget Fulma.Extensions.Wikiki.PageLoader
+	nuget Fulma.Extensions.Wikiki.Tooltip 2.0.1 // 2.0.1 is outdated (as is bulma-tooltip 2.0.2) - but 3.0.0 not yet tested
+	nuget Thoth.Json 3.3
 
 group dev-console
 
     source https://api.nuget.org/v3/index.json
-    framework: netcoreapp2.2
+    framework: netcoreapp3.0
     storage: none
 
 	nuget FSharp.Core
@@ -77,4 +77,4 @@ group dev-console
 	nuget Serilog
 	nuget Serilog.Settings.Configuration
 	nuget Serilog.Sinks.Console
-    nuget Thoth.Json.Net prerelease
+    nuget Thoth.Json.Net
