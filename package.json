@@ -5,7 +5,7 @@
     "repository": "git@github.com:aornota/gibet.git",
     "author": "dj narration",
     "license": "MIT",
-    "// dependencies:bulma": "0.7.4 is outdated - but 0.7.5 seems to cause problems with navbar drop-down/s in MS Edge (for some reason) and 0.8.0 not yet tested",
+    "// dependencies:bulma": "0.7.4 is outdated - but 0.7.5 and 0.8.0 seem to cause problems with navbar drop-down/s in MS Edge (for some reason)",
     "// dependencies:bulma-tooltip": "2.0.2 is outdated (as is Fulma.Extensions.Wikiki.Tooltip 2.0.1) - but 3.0.2 not yet tested",
     "dependencies": {
         "bulma": "0.7.4",
@@ -23,7 +23,7 @@
         "copy-webpack-plugin": "^5.0.5",
         "core-js": "3.4.0",
         "css-loader": "^3.2.0",
-        "fable-compiler": "^2.3.15",
+        "fable-compiler": "^2.4.10",
         "fable-loader": "^2.1.8",
         "html-webpack-plugin": "^3.2.0",
         "mini-css-extract-plugin": "^0.8.0",

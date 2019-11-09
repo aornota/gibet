@@ -2205,7 +2205,7 @@ NUGET
       Fable.Parsimmon (>= 4.0)
       FSharp.Core (>= 4.6.2)
     FSharp.Core (4.7)
-    Fulma (2.1.1)
+    Fulma (2.4)
       Fable.Core (>= 3.0)
       Fable.React (>= 5.1)
     Fulma.Extensions.Wikiki.Checkradio (2.0.1)

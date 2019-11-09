@@ -56,7 +56,7 @@ group ui
     nuget Fable.React 5.3.5
     nuget Fable.Remoting.Client 4.5.6
 	nuget Fable.SimpleJson 3.1.0
-    nuget Fulma 2.1.1
+    nuget Fulma 2.4.0
     nuget Fulma.Extensions.Wikiki.Checkradio
 	nuget Fulma.Extensions.Wikiki.PageLoader
 	nuget Fulma.Extensions.Wikiki.Tooltip 2.0.1 // 2.0.1 is outdated (as is bulma-tooltip 2.0.2) - but 3.0.0 not yet tested
