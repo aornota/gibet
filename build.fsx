@@ -99,7 +99,7 @@ Target.create "build-server" (fun _ ->
     createMissingAppSettings false serverDir
     runDotNet "build -c Release" serverDir)
 Target.create "build-ui" (fun _ -> buildUi ())
-Target.create "build" (fun _ -> ())
+Target.create "build" ignore
 
 Target.create "publish-server" (fun _ ->
     createMissingAppSettings false serverDir
@@ -107,7 +107,7 @@ Target.create "publish-server" (fun _ ->
 Target.create "publish-ui" (fun _ ->
     buildUi ()
     Shell.copyDir (Path.combine publishDir "public") uiPublishDir FileFilter.allFiles)
-Target.create "publish" (fun _ -> ())
+Target.create "publish" ignore
 
 Target.create "arm-template" (fun _ ->
     let armTemplate = "arm-template.json"
