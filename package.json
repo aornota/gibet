@@ -18,11 +18,11 @@
         "toastr": "^2.1.4"
     },
     "devDependencies": {
-        "@babel/core": "^7.7.2",
-        "@babel/preset-env": "^7.7.1",
+        "@babel/core": "^7.7.4",
+        "@babel/preset-env": "^7.7.4",
         "babel-loader": "^8.0.6",
         "copy-webpack-plugin": "^5.0.5",
-        "core-js": "^3.4.2",
+        "core-js": "^3.4.5",
         "css-loader": "^3.2.0",
         "fable-compiler": "^2.4.11",
         "fable-loader": "^2.1.8",
@@ -31,7 +31,7 @@
         "remotedev": "^0.2.9",
         "sass": "^1.23.7",
         "sass-loader": "^8.0.0",
-        "style-loader": "^1.0.0",
+        "style-loader": "^1.0.1",
         "webpack": "^4.41.2",
         "webpack-cli": "^3.3.10",
         "webpack-dev-server": "^3.9.0"
