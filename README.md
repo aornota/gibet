@@ -11,7 +11,7 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 
 #### Development prerequisites
 
-- [Microsoft .NET Core 3.1 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.1/): I'm currently using 3.1.100
+- [Microsoft .NET Core 3.0 SDK](https://dotnet.microsoft.com/download/dotnet-core/3.0/): I'm currently using 3.0.100
 - [FAKE 5](https://fake.build/): _dotnet tool install --global fake-cli_; I'm currently using 5.18.3
 - [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install --global paket_; I'm currently using 5.241.2
 - [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.21.1

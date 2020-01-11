@@ -1,4 +1,4 @@
-version 5.226.0
+version 5.241.2
 
 group build
 
@@ -65,7 +65,7 @@ group ui
 group dev-console
 
     source https://api.nuget.org/v3/index.json
-    framework: netcoreapp3.0
+    framework: netcoreapp3.1
     storage: none
 
 	nuget FSharp.Core
