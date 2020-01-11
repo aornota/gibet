@@ -56,7 +56,7 @@ let private hash (Password password) (Salt salt) =
     let bytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(sprintf "%s|%s" password salt))
     Hash(Convert.ToBase64String(bytes))
 
-let private canoicalizeImageUrl imageUrl =
+let private canonicalizeImageUrl imageUrl =
     match imageUrl with
     | Some(ImageUrl imageUrl) -> if String.IsNullOrWhiteSpace(imageUrl) then None else Some(ImageUrl imageUrl)
     | None -> None
@@ -189,7 +189,7 @@ type UsersAgent(usersRepo:IUsersRepo, hub:IHub<HubState, RemoteServerInput, Remo
                     match currentUserDtoResult with
                     | Ok currentUserDto ->
                         let currentUser = currentUserDto.User
-                        let currentImageUrl, imageUrl = currentUser.ImageUrl, canoicalizeImageUrl imageUrl
+                        let currentImageUrl, imageUrl = currentUser.ImageUrl, canonicalizeImageUrl imageUrl
                         let changeType =
                             match currentImageUrl, imageUrl with
                             | None, Some _ -> Some ImageChosen
