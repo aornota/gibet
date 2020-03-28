@@ -144,8 +144,8 @@ let linkDownloadFile (url, fileName) children = link (DownloadFile(url, fileName
 let navbarBrand children = Navbar.Brand.div [] children
 let navbarBurger onClick isActive =
     Navbar.burger [
-        if isActive then yield Fulma.Common.CustomClass "is-active"
-        yield Fulma.Common.Props [ OnClick onClick ]
+        if isActive then yield Navbar.Burger.CustomClass "is-active"
+        yield Navbar.Burger.Props [ OnClick onClick ]
     ] [ for _ in 1..3 do yield span [] [] ]
 let navbarItem children = Navbar.Item.div [] children
 let navbarStart children = Navbar.Start.div [] children
