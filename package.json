@@ -23,7 +23,7 @@
         "babel-loader": "^8.1.0",
         "copy-webpack-plugin": "^5.1.1",
         "core-js": "^3.6.5",
-        "css-loader": "^3.5.1",
+        "css-loader": "^3.5.2",
         "fable-compiler": "^2.4.23",
         "fable-loader": "^2.1.9",
         "html-webpack-plugin": "^4.2.0",

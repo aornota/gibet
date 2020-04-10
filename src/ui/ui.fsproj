@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <TreatWarningsAsErrors>false</TreatWarningsAsErrors> <!-- TEMP-NMB: Until Fable.SimpleJson (3.5.0) and Thoth.Json (3.4.1) updated to prevent "This construct is deprecated" warnings... -->
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors> <!-- TEMP-NMB: Until warnings no longer occur (e.g. in Fable.SimpleJson / &c.)... -->
     </PropertyGroup>
     <ItemGroup> <!-- Compile -->
         <Compile Include="..\common\error-handling.fs" />
