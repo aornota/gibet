@@ -18,7 +18,7 @@ group build
 group server
 
     source https://api.nuget.org/v3/index.json
-    framework: netcoreapp3.0
+    framework: netcoreapp3.1
     storage: none
 
     nuget FSharp.Core
