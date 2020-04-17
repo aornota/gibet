@@ -15,7 +15,7 @@ And yes, I know that a _gibet_ (gibbet) is not the same as a scaffold - but I lo
 - [FAKE 5](https://fake.build/): _dotnet tool install fake-cli --global_; I'm currently using 5.19.1
 - [Paket](https://fsprojects.github.io/Paket/): _dotnet tool install paket --global_; I'm currently using 5.243.0
 - [Yarn](https://yarnpkg.com/lang/en/docs/install/): I'm currently using 1.22.4
-- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 12.16.1
+- [Node.js (LTS)](https://nodejs.org/en/download/): I'm currently using 12.16.2
 
 ##### Also recommended
 
