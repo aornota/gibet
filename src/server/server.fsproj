@@ -3,6 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>netcoreapp3.1</TargetFramework>
+        <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <EnableDefaultContentItems>false</EnableDefaultContentItems> <!-- Note: Prevents error when explicit content items (e.g. appsettings.json, which appeared *not* to be copied to output directory by default). -->
     </PropertyGroup>

@@ -89,5 +89,5 @@ type Startup(configuration:IConfiguration) =
         // TODO-NMB: Should not be necessary (since all dependents created on startup)?...services.AddSingleton(usersRepo) |> ignore
         services.AddSingleton(authenticator) |> ignore // note: needed to "resolve" ChatAgent
         services.AddSingleton(usersAgent) |> ignore // note: needed to "resolve" usersApi
-        services.AddSingleton<ChatAgent, ChatAgent>() |> ignore
+        services.AddSingleton<ChatAgent>() |> ignore
         services.AddGiraffe() |> ignore

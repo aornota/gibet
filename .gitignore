@@ -8,7 +8,7 @@ bin/
 obj/
 logs/
 secret/
-appsettings.development.json
-appsettings.production.json
+appsettings.development*.json
+appsettings.production*.json
 deploy.zip
 yarn-error.log

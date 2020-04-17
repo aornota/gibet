@@ -15,6 +15,8 @@
         , "src/**/obj/": true
         , "src/**/logs/": true
 		, "src/**/secret/": true
+		, "src/server/appsettings.development.*.json": true
+		, "src/server/appsettings.production.*.json": true
 		, "src/ui/publish/": true
 		, ".editorconfig": true
         , "arm-template.json": true

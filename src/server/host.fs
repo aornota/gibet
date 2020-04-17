@@ -20,20 +20,22 @@ let private publicPath =
 let private configuration =
     ConfigurationBuilder()
         .AddJsonFile("appsettings.json", false)
+#if DEBUG
         .AddJsonFile("appsettings.development.json", true)
+#else
         .AddJsonFile("appsettings.production.json", true)
+#endif
         .Build()
 
-let private host =
-    WebHost.CreateDefaultBuilder()
-        .UseWebRoot(publicPath)
-        .UseContentRoot(publicPath)
-        .UseUrls(sprintf "http://0.0.0.0:%i/" DEFAULT_SERVER_PORT)
-        .UseConfiguration(configuration)
-        .ConfigureLogging(fun loggingBuilder ->
-            loggingBuilder.ClearProviders() |> ignore
-            loggingBuilder.AddSerilog() |> ignore)
-        .UseStartup<Startup>()
-        .Build()
-
-host.Run()
+WebHost
+    .CreateDefaultBuilder()
+    .UseWebRoot(publicPath)
+    .UseContentRoot(publicPath)
+    .UseUrls(sprintf "http://0.0.0.0:%i/" DEFAULT_SERVER_PORT)
+    .UseConfiguration(configuration)
+    .ConfigureLogging(fun loggingBuilder ->
+        loggingBuilder.ClearProviders() |> ignore
+        loggingBuilder.AddSerilog() |> ignore)
+    .UseStartup<Startup>()
+    .Build()
+    .Run()
