@@ -32,7 +32,6 @@ open Serilog
 
 let [<Literal>] private SOURCE = "Server.Startup"
 
-// #region bridge
 let private bridgeServer logger =
     Bridge.mkServer BRIDGE_ENDPOINT initialize (transition logger)
     |> Bridge.register RemoteServerInput
@@ -42,7 +41,6 @@ let private bridgeServer logger =
     |> Bridge.withConsoleTrace
 #endif
     |> Bridge.run Giraffe.server
-// #endregion
 
 let private usersApi =
     Remoting.createApi()
