@@ -68,11 +68,11 @@ let private openBrowser url =
     |> Proc.run
     |> ignore
 
-let private createMissingAppSettings forDevelopment dir =
-    let settings, requiredSettings = "appsettings.json", Path.combine dir (sprintf "appsettings.%s.json" (if forDevelopment then "development" else "production"))
+let private createMissingAppSettingsForDevelopment dir =
+    let requiredSettings, productionSettings = Path.combine dir "appsettings.development.json", "appsettings.production.json"
     if not (File.exists requiredSettings) then
-        Shell.copyFile requiredSettings (Path.combine dir settings)
-        Trace.traceImportant (sprintf "WARNING -> %s did not exist and has been copied from %s; it will most likely need to be modified" requiredSettings settings)
+        Shell.copyFile requiredSettings (Path.combine dir productionSettings)
+        Trace.traceImportant (sprintf "WARNING -> %s did not exist and has been copied from %s; it will most likely need to be modified" requiredSettings productionSettings)
 
 let private buildUi () = runTool yarnTool "webpack-cli -p" __SOURCE_DIRECTORY__
 
@@ -87,7 +87,7 @@ Target.create "restore-ui" (fun _ ->
 
 Target.create "run" (fun _ ->
     let server = async {
-        createMissingAppSettings true serverDir
+        createMissingAppSettingsForDevelopment serverDir
         runDotNet "watch run" serverDir }
     let client = async { runTool yarnTool "webpack-dev-server" __SOURCE_DIRECTORY__ }
     let browser = async {
@@ -95,15 +95,11 @@ Target.create "run" (fun _ ->
         openBrowser "http://localhost:8080" }
     Async.Parallel [ server ; client ; browser ] |> Async.RunSynchronously |> ignore)
 
-Target.create "build-server" (fun _ ->
-    createMissingAppSettings false serverDir
-    runDotNet "build -c Release" serverDir)
+Target.create "build-server" (fun _ -> runDotNet "build -c Release" serverDir)
 Target.create "build-ui" (fun _ -> buildUi ())
 Target.create "build" ignore
 
-Target.create "publish-server" (fun _ ->
-    createMissingAppSettings false serverDir
-    runDotNet (sprintf "publish -c Release -o \"%s\"" publishDir) serverDir)
+Target.create "publish-server" (fun _ -> runDotNet (sprintf "publish -c Release -o \"%s\"" publishDir) serverDir)
 Target.create "publish-ui" (fun _ ->
     buildUi ()
     Shell.copyDir (Path.combine publishDir "public") uiPublishDir FileFilter.allFiles)
@@ -148,7 +144,7 @@ Target.create "deploy-azure" (fun _ ->
     client.UploadData(destinationUri, IO.File.ReadAllBytes(zipFile)) |> ignore)
 
 Target.create "run-dev-console" (fun _ ->
-    createMissingAppSettings true devConsoleDir
+    createMissingAppSettingsForDevelopment devConsoleDir
     runDotNet "run" devConsoleDir)
 
 Target.create "help" (fun _ ->
