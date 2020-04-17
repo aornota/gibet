@@ -54,11 +54,9 @@ let private pageData dispatch state =
             UserAdminDropdown(authState.CurrentPage = AuthPage UserAdmin)
         ]
 
-// #region renderHeader
 let private renderHeader (headerData, _:int<tick>) dispatch =
     let theme, burgerIsActive = headerData.AppState.Theme, headerData.AppState.NavbarBurgerIsActive
     let spinner = iconSmaller ICON__SPINNER_PULSE
-    // #region serverStatus
     let serverStatus =
         match headerData.HeaderState with
         | Registering -> Some(navbarItem [ paraTSmallest theme IsGreyDarker [ str "Registering connection... " ; spinner ] ])
@@ -70,7 +68,6 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 sprintf "on %s" (connectionState.ServerStarted.LocalDateTime |> dateAndTimeText)
 #endif
             Some(navbarItem [ paraTSmallest theme IsGreyDarker [ str (sprintf "Server started %s" timestampText) ] ])
-    // #endregion
     let statusItems =
         let separator = paraTSmallest theme IsGreyDarker [ str "|" ]
         let signIn = paraSmallest [ linkInternal (fun _ -> dispatch (UnauthInput ShowSignInModal) ) [ str "Sign in" ] ]
@@ -141,7 +138,6 @@ let private renderHeader (headerData, _:int<tick>) dispatch =
                 navbarItem [ paraTSmallest theme IsGreyDarker [ str (DateTimeOffset.UtcNow.LocalDateTime.ToString("HH:mm:ss")) ] ]
 #endif
                 navbarItem [ buttonTSmallTooltip theme IsDark toggleThemeInteraction toggleThemeTooltip [ iconSmall ICON__THEME ] ] ] ] ]
-// #endregion
 
 let private renderFooter theme =
     let credits = [
@@ -167,7 +163,7 @@ let private renderFooter theme =
         str ". Developed in "
         linkNewWindow "https://code.visualstudio.com/" [ str "Visual Studio Code"]
         str " using "
-        linkNewWindow "http://ionide.io/docs/" [ str "Ionide-fsharp"]
+        linkNewWindow "http://ionide.io/" [ str "Ionide-fsharp"]
         str ". Best viewed with "
         linkNewWindow "https://www.google.com/chrome/" [ str "Chrome"]
         str ". Not especially mobile-friendly." ]
