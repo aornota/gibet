@@ -1,4 +1,4 @@
-# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (π)
+# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (ρ)
 
 An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for full-stack [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/),
 [Elmish](https://elmish.github.io/), [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
