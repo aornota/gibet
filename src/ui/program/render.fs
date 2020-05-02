@@ -149,7 +149,7 @@ let private renderFooter theme =
         str ", "
         linkNewWindow "https://elmish.github.io/" [ str "Elmish"]
         str ", "
-        linkNewWindow "https://github.com/Fulma/Fulma/" [ str "Fulma"]
+        linkNewWindow "https://fulma.github.io/Fulma/" [ str "Fulma"]
         str " / "
         linkNewWindow "https://bulma.io/" [ str "Bulma"]
         str ", "

@@ -1,10 +1,9 @@
 module Aornota.Gibet.Ui.Pages.About.MarkdownLiterals
 
-// #region READ_ME
 let [<Literal>] READ_ME = """# ![gibet](https://raw.githubusercontent.com/aornota/gibet/master/src/ui/public/gibet-24x24.png) | gibet (ρ)
 
 An **opinionated** (i.e. decidedly eccentric) "scaffold"/example for full-stack [F#](http://fsharp.org/) web-app development using [Fable](http://fable.io/),
-[Elmish](https://elmish.github.io/), [Fulma](https://github.com/Fulma/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
+[Elmish](https://elmish.github.io/), [Fulma](https://fulma.github.io/Fulma/) / [Bulma](https://bulma.io/), [Fable.Remoting](https://github.com/Zaid-Ajaj/Fable.Remoting/),
 [Elmish.Bridge](https://github.com/Nhowka/Elmish.Bridge/), [Giraffe](https://github.com/giraffe-fsharp/Giraffe/) and [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
 
 The [example web-app](https://gibet.azurewebsites.net/) is running on Azure - albeit on a free service plan (F1), which limits the number of concurrent websocket connections to a
@@ -63,4 +62,3 @@ See _[test-users-repo-and-users-agent.fs](https://github.com/aornota/gibet/blob/
 - [ ] extend functionality, e.g. Sqlite users repository? | &c.
 - [ ] unit tests? AspNetCore.TestHost?
 - [ ] additional documentation, e.g. [(currently non-existent) gh-pages branch](https://aornota.github.io/gibet/)?"""
-// #endregion
