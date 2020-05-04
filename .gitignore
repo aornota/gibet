@@ -5,8 +5,8 @@ node_modules/
 paket-files/
 publish/
 bin/
-obj/
 logs/
+obj/
 secret/
 appsettings.development*.json
 deploy.zip
