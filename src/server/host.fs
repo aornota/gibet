@@ -21,9 +21,9 @@ let private configuration =
     ConfigurationBuilder()
         .AddJsonFile("appsettings.json", false)
 #if DEBUG
-        .AddJsonFile("appsettings.development.json", true)
+        .AddJsonFile("appsettings.development.json", false)
 #else
-        .AddJsonFile("appsettings.production.json", true)
+        .AddJsonFile("appsettings.production.json", false)
 #endif
         .Build()
 
