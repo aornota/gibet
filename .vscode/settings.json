@@ -1,5 +1,5 @@
 {
-	"editor.fontSize": 13
+	"editor.fontSize": 12
 	, "files.exclude": {
 		".fable/": true
 		, ".fake/": true
@@ -12,8 +12,8 @@
 		, "paket-files/": true
         , "publish/": true
 		, "src/**/bin/": true
-        , "src/**/obj/": true
         , "src/**/logs/": true
+        , "src/**/obj/": true
 		, "src/**/secret/": true
 		, "src/server/appsettings.development.*.json": true
 		, "src/server/appsettings.production.*.json": true
@@ -27,5 +27,6 @@
 		, "yarn.lock": true
 	}
 	, "FSharp.fsacRuntime": "netcore"
+	, "FSharp.suggestGitignore": false
 	, "FSharp.suggestSdkScripts": false
 }
