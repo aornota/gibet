@@ -1,4 +1,4 @@
-version 5.241.2
+version 5.249.0
 
 group build
 
@@ -6,7 +6,7 @@ group build
     framework: netstandard2.0
     storage: none
 
-    nuget FSharp.Core
+    nuget FSharp.Core 4.7.0.0
     nuget Fake.Core.Environment
     nuget Fake.Core.Target
     nuget Fake.Core.Trace
