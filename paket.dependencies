@@ -1,4 +1,4 @@
-version 5.251.0
+version 5.257.0
 
 group build
 
@@ -40,7 +40,7 @@ group server
 group ui
 
     source https://api.nuget.org/v3/index.json
-    framework: netstandard2.0
+    framework: net5.0
     storage: none
 
     nuget Fable.Core
